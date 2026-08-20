@@ -173,5 +173,46 @@
   body {
     background-color: var(--color-background);
     color: var(--color-foreground);
+    font-family: var(--font-sans);
+    -webkit-font-smoothing: antialiased;
+  }
+
+  h1,
+  h2,
+  h3 {
+    font-family: var(--font-display);
+    letter-spacing: -0.015em;
   }
 }
+
+@utility bg-gradient-medical {
+  background-image: var(--gradient-medical);
+}
+
+@utility bg-gradient-surface {
+  background-image: var(--gradient-surface);
+}
+
+@utility shadow-card {
+  box-shadow: var(--shadow-card);
+}
+
+@utility shadow-float {
+  box-shadow: var(--shadow-float);
+}
+
+@media print {
+  body {
+    background: white;
+  }
+  .no-print {
+    display: none !important;
+  }
+  .print-sheet {
+    box-shadow: none !important;
+    border: none !important;
+    margin: 0 !important;
+    max-width: none !important;
+  }
+}
+

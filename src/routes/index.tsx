@@ -1,4 +1,5 @@
 import { createFileRoute } from "@tanstack/react-router";
+import { Siren } from "lucide-react";
 
 import { ChatWindow } from "@/components/clinic/ChatWindow";
 import {
@@ -10,6 +11,7 @@ import { IntakeForm } from "@/components/clinic/IntakeForm";
 import { MpesaProcessing } from "@/components/clinic/MpesaProcessing";
 import { StatusBadge, StudentLayout } from "@/components/clinic/StudentLayout";
 import { useClinic } from "@/lib/clinic-store";
+import { EMERGENCY_NOTICE, triage } from "@/lib/triage";
 
 export const Route = createFileRoute("/")({
   head: () => ({
@@ -101,6 +103,7 @@ function StudentApp() {
   }
 
   const waiting = session.status === "waiting";
+  const assessment = triage(session.symptom_codes);
 
   return (
     <StudentLayout subtitle={waiting ? "Waiting for the doctor…" : "In consultation"} compact>
@@ -110,6 +113,24 @@ function StudentApp() {
           Receipt {session.mpesa_receipt ?? "—"}
         </span>
       </div>
+      {session.emergency_flag && (
+        <div className="mt-3 flex items-start gap-2 rounded-xl border border-destructive bg-destructive/10 p-3 text-xs font-medium text-destructive">
+          <Siren className="mt-0.5 size-4 shrink-0" />
+          <span>
+            <strong className="block">Emergency flag</strong>
+            {EMERGENCY_NOTICE}
+          </span>
+        </div>
+      )}
+
+      {!session.emergency_flag && session.lab_test_requested && (
+        <p className="mt-3 rounded-xl border border-warning bg-warning/12 p-3 text-xs text-warning-foreground">
+          Based on your symptoms you have been flagged for a lab test
+          {assessment.labPanels.length ? `: ${assessment.labPanels.join("; ")}` : ""}. The doctor
+          will confirm during the chat.
+        </p>
+      )}
+
       <ChatWindow
         className="mt-3"
         messages={messagesFor(session.id)}

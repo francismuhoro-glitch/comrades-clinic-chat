@@ -1,4 +1,4 @@
-import { FlaskConical, FileText, Pill } from "lucide-react";
+import { FlaskConical, FileText, Pill, Siren } from "lucide-react";
 import { useState } from "react";
 
 import { Button } from "@/components/ui/button";
@@ -9,6 +9,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { useClinic } from "@/lib/clinic-store";
 import { cn } from "@/lib/utils";
 import type { ConsultSession } from "@/lib/clinic-types";
+import { symptomLabel, triage } from "@/lib/triage";
 
 export function ClinicalPanel({ session }: { session: ConsultSession }) {
   const {
@@ -21,9 +22,59 @@ export function ClinicalPanel({ session }: { session: ConsultSession }) {
   const [rx, setRx] = useState({ medication: "", dosage: "", duration: "" });
   const [referral, setReferral] = useState({ destination: "", reason: "" });
   const ended = session.status === "completed";
+  const assessment = triage(session.symptom_codes);
 
   return (
     <div className="space-y-4">
+      <section className="rounded-xl border bg-card p-4 shadow-card">
+        <div className="flex items-center justify-between gap-2">
+          <p className="text-sm font-semibold">Auto-triage</p>
+          <span
+            className={cn(
+              "rounded-full px-2.5 py-0.5 text-[11px] font-semibold uppercase tracking-wide",
+              assessment.level === "emergency"
+                ? "bg-destructive/12 text-destructive"
+                : assessment.level === "urgent"
+                  ? "bg-warning/20 text-warning-foreground"
+                  : "bg-success/15 text-success",
+            )}
+          >
+            {assessment.level}
+          </span>
+        </div>
+
+        <div className="mt-2.5 flex flex-wrap gap-1.5">
+          {session.symptom_codes.length === 0 ? (
+            <span className="text-xs text-muted-foreground">No symptoms selected.</span>
+          ) : (
+            session.symptom_codes.map((c) => (
+              <span
+                key={c}
+                className="rounded-full bg-secondary px-2 py-0.5 text-[11px] font-medium text-secondary-foreground"
+              >
+                {symptomLabel(c)}
+              </span>
+            ))
+          )}
+        </div>
+
+        {assessment.emergency && (
+          <p className="mt-3 flex items-start gap-2 rounded-lg border border-destructive bg-destructive/10 p-2.5 text-xs font-medium text-destructive">
+            <Siren className="mt-0.5 size-3.5 shrink-0" />
+            Red flags: {assessment.emergencySymptoms.join(", ")}. Advise immediate physical
+            hospital care and consider a referral.
+          </p>
+        )}
+
+        {assessment.labRecommended && (
+          <p className="mt-3 flex items-start gap-2 rounded-lg border border-warning bg-warning/12 p-2.5 text-xs text-warning-foreground">
+            <FlaskConical className="mt-0.5 size-3.5 shrink-0" />
+            Lab test recommended
+            {assessment.labPanels.length ? `: ${assessment.labPanels.join("; ")}` : " (multiple urgent symptoms)"}.
+            {session.lab_test_requested ? " Already flagged for sample collection." : ""}
+          </p>
+        )}
+      </section>
       <section className="rounded-xl border bg-card p-4 shadow-card">
         <Label htmlFor="notes" className="text-sm font-semibold">
           Diagnosis notes

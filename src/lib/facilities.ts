@@ -1,401 +1,112 @@
 export interface Facility {
-  id?: string;
+  id?: string | undefined;
   name: string;
-  campus: string;
-  facility_type: "clinic" | "hospital" | "pharmacy" | "lab";
+  campus?: string | undefined;
+  district?: string | undefined;
+  facility_type: string;
   latitude: number;
   longitude: number;
-  phone?: string;
+  phone?: string | undefined;
   is_emergency: boolean;
+  agency?: string | undefined;
+  level?: string | undefined;
+  ownership?: string | undefined;
+  distanceKm?: number | undefined;
+}
+
+export interface RawKMHFLFacility {
+  id?: string;
+  "Facility Name"?: string;
+  name?: string;
+  "Facility Type"?: string;
+  facility_type?: string;
+  District?: string;
+  Province?: string;
+  LOCATION?: string;
+  campus?: string;
+  Latitude?: number;
+  latitude?: number;
+  Longitude?: number;
+  longitude?: number;
+  Agency?: string;
+  is_emergency?: boolean;
   level?: string;
-  ownership?: "public" | "private" | "faith" | "ngo";
-  distanceKm?: number;
+  ownership?: string;
 }
 
 export const FALLBACK_FACILITIES: Facility[] = [
   {
     name: "Kenyatta National Hospital (KNH)",
-    campus: "University of Nairobi (UoN)",
-    facility_type: "hospital",
+    district: "Nairobi",
+    facility_type: "National Referral Hospital",
     latitude: -1.3015,
     longitude: 36.8066,
     phone: "+254 20 272 6300",
     is_emergency: true,
+    agency: "Ministry of Health",
     level: "Level 6",
     ownership: "public",
   },
   {
-    name: "The Nairobi Hospital",
-    campus: "University of Nairobi (UoN)",
-    facility_type: "hospital",
-    latitude: -1.2989,
-    longitude: 36.8043,
-    phone: "+254 20 284 5000",
+    name: "Moi Teaching and Referral Hospital (MTRH)",
+    district: "Uasin Gishu",
+    facility_type: "National Referral Hospital",
+    latitude: 0.5143,
+    longitude: 35.2797,
+    phone: "+254 53 203 3471",
     is_emergency: true,
-    level: "Level 5",
-    ownership: "private",
-  },
-  {
-    name: "Aga Khan University Hospital",
-    campus: "Aga Khan University",
-    facility_type: "hospital",
-    latitude: -1.2618,
-    longitude: 36.8239,
-    phone: "+254 20 366 2000",
-    is_emergency: true,
-    level: "Level 5",
-    ownership: "private",
-  },
-  {
-    name: "Nairobi West Hospital",
-    campus: "Strathmore University",
-    facility_type: "hospital",
-    latitude: -1.3142,
-    longitude: 36.8244,
-    phone: "+254 730 600 000",
-    is_emergency: true,
-    level: "Level 4",
-    ownership: "private",
-  },
-  {
-    name: "Mbagathi County Hospital",
-    campus: "Strathmore University",
-    facility_type: "hospital",
-    latitude: -1.3089,
-    longitude: 36.7997,
-    phone: "+254 20 272 4712",
-    is_emergency: true,
-    level: "Level 4",
+    agency: "Ministry of Health",
+    level: "Level 6",
     ownership: "public",
   },
   {
-    name: "Avenue Hospital Nairobi",
-    campus: "Nairobi Technical Training Institute (NTTI)",
-    facility_type: "hospital",
-    latitude: -1.2619,
-    longitude: 36.8291,
-    phone: "+254 711 060 000",
+    name: "Coast General Teaching & Referral Hospital",
+    district: "Mombasa",
+    facility_type: "County Referral Hospital",
+    latitude: -4.0478,
+    longitude: 39.6802,
+    phone: "+254 41 231 4204",
     is_emergency: true,
-    level: "Level 4",
-    ownership: "private",
-  },
-  {
-    name: "KU Teaching & Referral Hospital (KUTRRH)",
-    campus: "Kenyatta University (KU)",
-    facility_type: "hospital",
-    latitude: -1.1718,
-    longitude: 36.9142,
-    phone: "+254 800 721 038",
-    is_emergency: true,
+    agency: "Ministry of Health",
     level: "Level 5",
     ownership: "public",
   },
   {
-    name: "Ruiru Sub-County Hospital",
-    campus: "Kenyatta University (KU)",
-    facility_type: "hospital",
-    latitude: -1.1447,
-    longitude: 36.9602,
-    phone: "+254 722 000 000",
+    name: "Jaramogi Oginga Odinga Teaching & Referral Hospital",
+    district: "Kisumu",
+    facility_type: "County Referral Hospital",
+    latitude: -0.0917,
+    longitude: 34.7679,
+    phone: "+254 57 202 0801",
     is_emergency: true,
-    level: "Level 4",
-    ownership: "public",
-  },
-  {
-    name: "Thika Level 5 Hospital",
-    campus: "Mount Kenya University (MKU)",
-    facility_type: "hospital",
-    latitude: -1.0396,
-    longitude: 37.0734,
-    phone: "+254 67 315 63",
-    is_emergency: true,
-    level: "Level 5",
-    ownership: "public",
-  },
-  {
-    name: "JKUAT Hospital",
-    campus: "Jomo Kenyatta University of Agriculture and Technology (JKUAT)",
-    facility_type: "hospital",
-    latitude: -1.0912,
-    longitude: 37.0144,
-    phone: "+254 67 587 0001",
-    is_emergency: true,
-    level: "Level 4",
-    ownership: "public",
-  },
-  {
-    name: "Nyeri County Referral Hospital",
-    campus: "Dedan Kimathi University of Technology (DeKUT)",
-    facility_type: "hospital",
-    latitude: -0.4244,
-    longitude: 36.9482,
-    phone: "+254 61 203 0450",
-    is_emergency: true,
+    agency: "Ministry of Health",
     level: "Level 5",
     ownership: "public",
   },
   {
     name: "Nakuru Level 5 Teaching & Referral Hospital",
-    campus: "Egerton University",
-    facility_type: "hospital",
+    district: "Nakuru",
+    facility_type: "County Referral Hospital",
     latitude: -0.2858,
     longitude: 36.0664,
     phone: "+254 51 221 5580",
     is_emergency: true,
+    agency: "Ministry of Health",
     level: "Level 5",
     ownership: "public",
-  },
-  {
-    name: "Nakuru War Memorial Hospital",
-    campus: "Egerton University",
-    facility_type: "hospital",
-    latitude: -0.2821,
-    longitude: 36.0711,
-    phone: "+254 51 221 2155",
-    is_emergency: true,
-    level: "Level 4",
-    ownership: "private",
-  },
-  {
-    name: "Moi Teaching and Referral Hospital (MTRH)",
-    campus: "Moi University",
-    facility_type: "hospital",
-    latitude: 0.5143,
-    longitude: 35.2797,
-    phone: "+254 53 203 3471",
-    is_emergency: true,
-    level: "Level 6",
-    ownership: "public",
-  },
-  {
-    name: "Mediheal Hospital Eldoret",
-    campus: "University of Eldoret (UoE)",
-    facility_type: "hospital",
-    latitude: 0.5189,
-    longitude: 35.2911,
-    phone: "+254 722 213 213",
-    is_emergency: true,
-    level: "Level 4",
-    ownership: "private",
-  },
-  {
-    name: "Coast General Teaching & Referral Hospital",
-    campus: "Technical University of Mombasa (TUM)",
-    facility_type: "hospital",
-    latitude: -4.0478,
-    longitude: 39.6802,
-    phone: "+254 41 231 4204",
-    is_emergency: true,
-    level: "Level 5",
-    ownership: "public",
-  },
-  {
-    name: "Mombasa Hospital",
-    campus: "Technical University of Mombasa (TUM)",
-    facility_type: "hospital",
-    latitude: -4.0612,
-    longitude: 39.6756,
-    phone: "+254 41 231 2191",
-    is_emergency: true,
-    level: "Level 4",
-    ownership: "private",
-  },
-  {
-    name: "MEWA Hospital",
-    campus: "The Kenya Coast National Polytechnic",
-    facility_type: "hospital",
-    latitude: -4.0505,
-    longitude: 39.6692,
-    phone: "+254 41 222 1438",
-    is_emergency: false,
-    level: "Level 4",
-    ownership: "faith",
-  },
-  {
-    name: "Jaramogi Oginga Odinga Teaching & Referral (JOOTRH)",
-    campus: "Maseno University",
-    facility_type: "hospital",
-    latitude: -0.0917,
-    longitude: 34.7679,
-    phone: "+254 57 202 0801",
-    is_emergency: true,
-    level: "Level 5",
-    ownership: "public",
-  },
-  {
-    name: "Aga Khan Hospital Kisumu",
-    campus: "Kisumu National Polytechnic",
-    facility_type: "hospital",
-    latitude: -0.1034,
-    longitude: 34.7571,
-    phone: "+254 57 202 4116",
-    is_emergency: true,
-    level: "Level 4",
-    ownership: "private",
-  },
-  {
-    name: "Kakamega County General Teaching & Referral Hospital",
-    campus: "Masinde Muliro University of Science and Technology (MMUST)",
-    facility_type: "hospital",
-    latitude: 0.2811,
-    longitude: 34.7571,
-    phone: "+254 56 300 00",
-    is_emergency: true,
-    level: "Level 5",
-    ownership: "public",
-  },
-  {
-    name: "Kisii Teaching and Referral Hospital (KTRH)",
-    campus: "Kisii University",
-    facility_type: "hospital",
-    latitude: -0.6784,
-    longitude: 34.7712,
-    phone: "+254 58 300 05",
-    is_emergency: true,
-    level: "Level 5",
-    ownership: "public",
-  },
-  {
-    name: "Meru Teaching & Referral Hospital",
-    campus: "Meru University of Science and Technology (MUST)",
-    facility_type: "hospital",
-    latitude: 0.0515,
-    longitude: 37.6534,
-    phone: "+254 64 323 70",
-    is_emergency: true,
-    level: "Level 5",
-    ownership: "public",
-  },
-  {
-    name: "Machakos Level 5 Hospital",
-    campus: "Machakos University",
-    facility_type: "hospital",
-    latitude: -1.5218,
-    longitude: 37.2652,
-    phone: "+254 44 200 45",
-    is_emergency: true,
-    level: "Level 5",
-    ownership: "public",
-  },
-  {
-    name: "Garissa Regional Hospital",
-    campus: "Garissa University",
-    facility_type: "hospital",
-    latitude: -0.4532,
-    longitude: 39.6461,
-    phone: "+254 46 210 2005",
-    is_emergency: true,
-    level: "Level 5",
-    ownership: "public",
-  },
-  {
-    name: "Embu Level 5 Teaching & Referral Hospital",
-    campus: "University of Embu",
-    facility_type: "hospital",
-    latitude: -0.5348,
-    longitude: 37.4589,
-    phone: "+254 68 306 56",
-    is_emergency: true,
-    level: "Level 5",
-    ownership: "public",
-  },
-  {
-    name: "Bungoma County Referral Hospital",
-    campus: "Kibabii University",
-    facility_type: "hospital",
-    latitude: 0.5696,
-    longitude: 34.5584,
-    phone: "+254 55 303 26",
-    is_emergency: true,
-    level: "Level 5",
-    ownership: "public",
-  },
-  {
-    name: "Busia County Referral Hospital",
-    campus: "Alupe University",
-    facility_type: "hospital",
-    latitude: 0.4608,
-    longitude: 34.1115,
-    phone: "+254 722 000 000",
-    is_emergency: true,
-    level: "Level 4",
-    ownership: "public",
-  },
-  {
-    name: "Homa Bay County Teaching & Referral Hospital",
-    campus: "Tom Mboya University",
-    facility_type: "hospital",
-    latitude: -0.5273,
-    longitude: 34.4561,
-    phone: "+254 59 220 85",
-    is_emergency: true,
-    level: "Level 5",
-    ownership: "public",
-  },
-  {
-    name: "Narok County Referral Hospital",
-    campus: "Maasai Mara University",
-    facility_type: "hospital",
-    latitude: -1.0782,
-    longitude: 35.8741,
-    phone: "+254 50 220 54",
-    is_emergency: true,
-    level: "Level 4",
-    ownership: "public",
-  },
-  {
-    name: "Kericho County Referral Hospital",
-    campus: "University of Kabianga",
-    facility_type: "hospital",
-    latitude: -0.3689,
-    longitude: 35.2863,
-    phone: "+254 52 201 02",
-    is_emergency: true,
-    level: "Level 4",
-    ownership: "public",
-  },
-  {
-    name: "Murang'a County Referral Hospital",
-    campus: "Murang'a University of Technology (MUT)",
-    facility_type: "hospital",
-    latitude: -0.7208,
-    longitude: 37.1528,
-    phone: "+254 60 203 0244",
-    is_emergency: true,
-    level: "Level 4",
-    ownership: "public",
-  },
-  {
-    name: "Kilifi County Hospital",
-    campus: "Pwani University",
-    facility_type: "hospital",
-    latitude: -3.6312,
-    longitude: 39.8534,
-    phone: "+254 41 752 2017",
-    is_emergency: true,
-    level: "Level 4",
-    ownership: "public",
-  },
-  {
-    name: "St. Mary's Mission Hospital Mumias",
-    campus: "Sigalagala National Polytechnic",
-    facility_type: "hospital",
-    latitude: 0.3341,
-    longitude: 34.4891,
-    phone: "+254 722 200 400",
-    is_emergency: true,
-    level: "Level 4",
-    ownership: "faith",
   },
 ];
 
+/**
+ * Calculates distance between two coordinates in Kilometers (Haversine formula)
+ */
 export function calculateDistanceKm(
   lat1: number,
   lon1: number,
   lat2: number,
   lon2: number,
 ): number {
-  const R = 6371;
+  const R = 6371; // Earth radius in km
   const dLat = ((lat2 - lat1) * Math.PI) / 180;
   const dLon = ((lon2 - lon1) * Math.PI) / 180;
   const a =
@@ -408,6 +119,9 @@ export function calculateDistanceKm(
   return Number((R * c).toFixed(1));
 }
 
+/**
+ * Generates Google Maps Turn-by-Turn Navigation URL
+ */
 export function getGoogleMapsDirectionsUrl(
   destinationLat: number,
   destinationLng: number,

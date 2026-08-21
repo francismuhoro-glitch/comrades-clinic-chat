@@ -24,6 +24,7 @@ import { triage } from "./triage";
 import {
   CONSULT_FEE_KES,
   type ChatMessage,
+  type ClinicSettings,
   type ConsultSession,
   type Prescription,
   type Referral,
@@ -36,14 +37,23 @@ const uid = () =>
 const now = () => new Date().toISOString();
 const minutesAgo = (m: number) => new Date(Date.now() - m * 60_000).toISOString();
 
+const DEFAULT_SETTINGS: ClinicSettings = {
+  pochi_phone: "0712345678",
+  pochi_name: "COMRADES CLINIC",
+  helpline_phone: "+254 712 345 678",
+  consultation_fee_kes: CONSULT_FEE_KES,
+};
+
 interface State {
   doctorOnline: boolean;
+  settings: ClinicSettings;
   sessions: ConsultSession[];
   messages: ChatMessage[];
 }
 
 type Action =
   | { type: "set_online"; value: boolean }
+  | { type: "set_settings"; settings: ClinicSettings }
   | { type: "create_session"; session: ConsultSession }
   | { type: "mark_paid"; id: string; receipt: string }
   | { type: "activate"; id: string }
@@ -121,6 +131,7 @@ function seed(): State {
 
   return {
     doctorOnline: true,
+    settings: DEFAULT_SETTINGS,
     sessions: [s1, s2, s3],
     messages: [
       {
@@ -145,6 +156,8 @@ function reducer(state: State, action: Action): State {
   switch (action.type) {
     case "set_online":
       return { ...state, doctorOnline: action.value };
+    case "set_settings":
+      return { ...state, settings: action.settings };
     case "create_session":
       if (state.sessions.some((s) => s.id === action.session.id)) return state;
       return { ...state, sessions: [action.session, ...state.sessions] };
@@ -188,7 +201,10 @@ export interface IntakeInput {
 interface ClinicApi {
   doctorOnline: boolean;
   setDoctorOnline: (value: boolean) => void;
+  settings: ClinicSettings;
+  updateSettings: (patch: Partial<ClinicSettings>) => Promise<void>;
   sessions: ConsultSession[];
+  pendingPayments: ConsultSession[];
   sessionsByStatus: (status: ConsultSession["status"]) => ConsultSession[];
   getSession: (id: string | null) => ConsultSession | null;
   messagesFor: (id: string | null) => ChatMessage[];
@@ -196,6 +212,9 @@ interface ClinicApi {
   studentSessionId: string | null;
   setStudentSessionId: (id: string | null) => void;
   createSession: (input: IntakeInput) => string;
+  submitPaymentClaim: (id: string, mpesaCode: string, paymentPhone: string) => Promise<void>;
+  confirmPayment: (id: string) => Promise<void>;
+  rejectPayment: (id: string) => Promise<void>;
   simulatePayment: (id: string) => void;
   activateSession: (id: string) => void;
   sendMessage: (id: string, sender: "student" | "doctor", body: string) => void;
@@ -243,9 +262,28 @@ export function ClinicProvider({ children }: { children: ReactNode }) {
 
   // Realtime Supabase subscription for live chat and live queue sync
   useEffect(() => {
-    // 1. Fetch initial consultations from Supabase database
+    // 1. Fetch initial settings & consultations from Supabase database
     (async () => {
       try {
+        // Fetch clinic settings
+        const { data: settingsData } = await supabase
+          .from("clinic_settings")
+          .select("*")
+          .eq("id", "default")
+          .maybeSingle();
+
+        if (settingsData) {
+          dispatch({
+            type: "set_settings",
+            settings: {
+              pochi_phone: settingsData.pochi_phone || DEFAULT_SETTINGS.pochi_phone,
+              pochi_name: settingsData.pochi_name || DEFAULT_SETTINGS.pochi_name,
+              helpline_phone: settingsData.helpline_phone || DEFAULT_SETTINGS.helpline_phone,
+              consultation_fee_kes: settingsData.consultation_fee_kes || DEFAULT_SETTINGS.consultation_fee_kes,
+            },
+          });
+        }
+
         const { data } = await supabase
           .from("consultations")
           .select("*")
@@ -273,9 +311,12 @@ export function ClinicProvider({ children }: { children: ReactNode }) {
               emergency_flag: row.triage_level === "emergency",
               suggested_labs: [],
               status: mappedStatus,
-              paid: row.status !== "payment_pending" && row.status !== "intake",
+              paid: row.paid || row.payment_status === "confirmed" || (row.status !== "payment_pending" && row.status !== "intake"),
               fee_kes: CONSULT_FEE_KES,
-              mpesa_receipt: null,
+              mpesa_receipt: row.mpesa_code || null,
+              mpesa_code: row.mpesa_code,
+              payment_phone: row.payment_phone,
+              payment_status: row.payment_status || (row.status === "payment_pending" ? "pending" : "confirmed"),
               lab_test_requested: false,
               diagnosis_notes: row.diagnosis || "",
               prescription: null,
@@ -414,8 +455,80 @@ export function ClinicProvider({ children }: { children: ReactNode }) {
     return {
       doctorOnline: state.doctorOnline,
       setDoctorOnline: (value) => dispatch({ type: "set_online", value }),
+      settings: state.settings,
+      updateSettings: async (patch) => {
+        const updated = { ...state.settings, ...patch };
+        dispatch({ type: "set_settings", settings: updated });
+        try {
+          await supabase.from("clinic_settings").upsert({
+            id: "default",
+            ...updated,
+            updated_at: now(),
+          });
+        } catch (err) {
+          console.error("Failed to update clinic settings:", err);
+        }
+      },
       sessions: state.sessions,
+      pendingPayments: state.sessions.filter(
+        (s) => s.payment_status === "pending" || s.status === "awaiting_payment"
+      ),
       sessionsByStatus: (status) => state.sessions.filter((s) => s.status === status),
+      submitPaymentClaim: async (id, mpesaCode, paymentPhone) => {
+        dispatch({
+          type: "patch_session",
+          id,
+          patch: {
+            mpesa_code: mpesaCode,
+            payment_phone: paymentPhone,
+            payment_status: "pending",
+          },
+        });
+        try {
+          await supabase.from("consultations").update({
+            mpesa_code: mpesaCode,
+            payment_phone: paymentPhone,
+            payment_status: "pending",
+          }).eq("id", id);
+        } catch (err) {
+          console.error("Failed to submit payment claim:", err);
+        }
+      },
+      confirmPayment: async (id) => {
+        const s = state.sessions.find((x) => x.id === id);
+        const receipt = s?.mpesa_code || "POCHI-" + uid().toUpperCase().slice(0, 8);
+        dispatch({ type: "mark_paid", id, receipt });
+        dispatch({
+          type: "patch_session",
+          id,
+          patch: { payment_status: "confirmed", status: "waiting", paid: true },
+        });
+        system(id, `Payment confirmed by clinician. Consultation queued.`);
+        try {
+          await supabase.from("consultations").update({
+            status: "waiting",
+            payment_status: "confirmed",
+          }).eq("id", id);
+        } catch (err) {
+          console.error("Failed to confirm payment in Supabase:", err);
+        }
+      },
+      rejectPayment: async (id) => {
+        dispatch({
+          type: "patch_session",
+          id,
+          patch: { payment_status: "rejected", status: "awaiting_payment", paid: false },
+        });
+        system(id, `Payment reference could not be verified. Please check and resubmit.`);
+        try {
+          await supabase.from("consultations").update({
+            payment_status: "rejected",
+            status: "payment_pending",
+          }).eq("id", id);
+        } catch (err) {
+          console.error("Failed to reject payment:", err);
+        }
+      },
       getSession: (id) => state.sessions.find((s) => s.id === id) ?? null,
       messagesFor: (id) => (id ? state.messages.filter((m) => m.session_id === id) : []),
       studentSessionId,

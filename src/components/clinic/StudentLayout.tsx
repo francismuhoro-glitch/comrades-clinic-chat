@@ -1,58 +1,108 @@
+import { Link } from "@tanstack/react-router";
+import { Stethoscope } from "lucide-react";
 import type { ReactNode } from "react";
 
-import logo from "@/assets/clinic-logo.png";
 import { useClinic } from "@/lib/clinic-store";
-import { cn } from "@/lib/utils";
+import type { SessionStatus } from "@/lib/clinic-types";
 
-export function StatusBadge({ className }: { className?: string }) {
-  const { doctorOnline } = useClinic();
+export function StatusBadge({ status, paid }: { status: SessionStatus; paid: boolean }) {
+  if (!paid || status === "awaiting_payment") {
+    return (
+      <span className="rounded-full bg-warning/15 px-2.5 py-0.5 text-xs font-medium text-warning-foreground">
+        Payment required
+      </span>
+    );
+  }
+  const map: Record<SessionStatus, { label: string; className: string }> = {
+    awaiting_payment: {
+      label: "Payment required",
+      className: "bg-warning/15 text-warning-foreground",
+    },
+    waiting: { label: "In queue", className: "bg-primary/10 text-primary" },
+    active: { label: "In consultation", className: "bg-success/15 text-success" },
+    completed: { label: "Completed", className: "bg-muted text-muted-foreground" },
+  };
+  const current = map[status] || map.waiting;
   return (
-    <span
-      className={cn(
-        "inline-flex items-center gap-2 rounded-full px-3 py-1.5 text-xs font-semibold",
-        doctorOnline ? "bg-success/15 text-success" : "bg-destructive/12 text-destructive",
-        className,
-      )}
-    >
-      <span
-        className={cn(
-          "size-2 rounded-full",
-          doctorOnline ? "animate-pulse bg-success" : "bg-destructive",
-        )}
-      />
-      {doctorOnline ? "Doctor is Online" : "Doctor is Offline"}
+    <span className={`rounded-full px-2.5 py-0.5 text-xs font-medium ${current.className}`}>
+      {current.label}
     </span>
   );
 }
 
 export function StudentLayout({
-  children,
-  subtitle = "Affordable Care for Comrades",
+  subtitle,
   compact = false,
+  children,
 }: {
   children: ReactNode;
   subtitle?: string;
   compact?: boolean;
 }) {
-  return (
-    <div className="flex min-h-screen flex-col bg-background">
-      <header className="no-print bg-gradient-medical px-4 pb-5 pt-5 text-primary-foreground">
-        <div className="mx-auto flex max-w-md items-center gap-3">
-          <img
-            src={logo}
-            alt="Lovable Student Clinic logo"
-            className="size-11 shrink-0 rounded-xl bg-primary-foreground/10 p-1"
-          />
-          <div className="min-w-0">
-            <h1 className={cn("font-semibold leading-tight", compact ? "text-base" : "text-lg")}>
-              Lovable Student Clinic
-            </h1>
-            <p className="truncate text-xs opacity-90">{subtitle}</p>
-          </div>
-        </div>
-      </header>
+  const { doctorOnline } = useClinic();
 
-      <main className="mx-auto w-full max-w-md flex-1 px-4 pb-10">{children}</main>
+  return (
+    <div className="min-h-screen bg-background text-foreground flex flex-col justify-between">
+      <div>
+        {/* Header */}
+        <header className="sticky top-0 z-20 border-b bg-card/95 backdrop-blur px-4 py-3 shadow-sm">
+          <div className="mx-auto flex max-w-lg items-center justify-between gap-3">
+            <Link to="/" className="flex items-center gap-2.5 transition-opacity hover:opacity-90">
+              <span className="flex size-9 items-center justify-center rounded-xl bg-primary text-primary-foreground shadow-sm">
+                <Stethoscope className="size-5" />
+              </span>
+              <div>
+                <h1 className="text-sm font-bold leading-none">Comrades Clinic</h1>
+                <p className="text-[11px] text-muted-foreground mt-0.5">
+                  Student Telemedicine Kenya
+                </p>
+              </div>
+            </Link>
+
+            <div className="flex items-center gap-1.5 rounded-full border bg-muted/60 px-2.5 py-1 text-[11px]">
+              <span
+                className={`size-2 rounded-full ${doctorOnline ? "bg-success animate-pulse" : "bg-muted-foreground"}`}
+              />
+              <span className="font-medium">{doctorOnline ? "Doctor Online" : "Offline"}</span>
+            </div>
+          </div>
+        </header>
+
+        {/* Content Container */}
+        <main className={`mx-auto max-w-lg px-4 py-5 space-y-4 ${compact ? "pt-8" : ""}`}>
+          {subtitle && <p className="text-xs text-muted-foreground">{subtitle}</p>}
+          {children}
+        </main>
+      </div>
+
+      {/* Footer with Legal Links (Bypass strict router path validation via standard anchor tags) */}
+      <footer className="border-t bg-card/60 px-4 py-4 text-center text-[11px] text-muted-foreground">
+        <div className="mx-auto max-w-lg space-y-2">
+          <div className="flex items-center justify-center gap-4">
+            <a
+              href="/terms"
+              className="hover:text-primary transition-colors underline-offset-4 hover:underline"
+            >
+              Terms &amp; Disclaimer
+            </a>
+            <span>·</span>
+            <a
+              href="/privacy"
+              className="hover:text-primary transition-colors underline-offset-4 hover:underline"
+            >
+              Privacy Policy (ODPC)
+            </a>
+            <span>·</span>
+            <Link
+              to="/doctor"
+              className="hover:text-primary transition-colors underline-offset-4 hover:underline"
+            >
+              Clinician Portal
+            </Link>
+          </div>
+          <p>© 2026 Comrades Clinic Kenya · Verified Non-Emergency Student Care</p>
+        </div>
+      </footer>
     </div>
   );
 }

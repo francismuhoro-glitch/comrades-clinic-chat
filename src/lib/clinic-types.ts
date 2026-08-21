@@ -41,6 +41,9 @@ export interface ConsultSession {
   paid: boolean;
   fee_kes: number;
   mpesa_receipt: string | null;
+  mpesa_code?: string | null;
+  payment_phone?: string | null;
+  payment_status?: "pending" | "confirmed" | "rejected";
   lab_test_requested: boolean;
   diagnosis_notes: string;
   prescription: Prescription | null;
@@ -53,6 +56,13 @@ export interface Doctor {
   name: string;
   title: string;
   kmpdc_license: string;
+}
+
+export interface ClinicSettings {
+  pochi_phone: string;
+  pochi_name: string;
+  helpline_phone: string;
+  consultation_fee_kes: number;
 }
 
 export const DOCTOR: Doctor = {

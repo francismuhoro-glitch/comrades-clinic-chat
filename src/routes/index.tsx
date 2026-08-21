@@ -1,5 +1,4 @@
 import { createFileRoute } from "@tanstack/react-router";
-import { Siren } from "lucide-react";
 
 import { ChatWindow } from "@/components/clinic/ChatWindow";
 import {
@@ -20,46 +19,47 @@ export const Route = createFileRoute("/")({
       {
         name: "description",
         content:
-          "Pay KSh 150 via M-Pesa and chat with a licensed Kenyan doctor in minutes. Get digital prescriptions, referrals and lab requests on your phone.",
+          "Affordable telemedicine for Kenyan university students. Pay KSh 150 via M-Pesa, talk to a real doctor, get digital prescriptions, lab orders, or referral letters.",
       },
-      { property: "og:title", content: "Lovable Student Clinic — Doctor chat for KSh 150" },
+      {
+        property: "og:title",
+        content: "Lovable Student Clinic — KSh 150 Doctor Chat for Comrades",
+      },
       {
         property: "og:description",
         content:
-          "Affordable telemedicine for Kenyan university students. M-Pesa consultation, live chat with a doctor, digital prescription.",
+          "Kenyan comrades clinic: fast intake, transparent triage, M-Pesa payment, and live doctor chat.",
       },
     ],
   }),
-  component: StudentApp,
+  component: PatientRouteComponent,
 });
 
-function StudentApp() {
+function PatientRouteComponent() {
   const {
+    doctorOnline,
     studentSessionId,
+    setStudentSessionId,
     getSession,
     messagesFor,
     createSession,
     simulatePayment,
     sendMessage,
-    setStudentSessionId,
   } = useClinic();
 
   const session = getSession(studentSessionId);
 
   if (!session) {
     return (
-      <StudentLayout>
-        <div className="mt-4 flex justify-center">
-          <StatusBadge />
-        </div>
+      <StudentLayout subtitle="Affordable care for comrades across Kenyan campuses">
         <IntakeForm onSubmit={(input) => createSession(input)} />
       </StudentLayout>
     );
   }
 
-  if (session.status === "awaiting_payment") {
+  if (session.status === "awaiting_payment" && !session.paid) {
     return (
-      <StudentLayout subtitle="Confirm your M-Pesa payment" compact>
+      <StudentLayout subtitle="Pochi la Biashara Consultation Payment" compact>
         <MpesaProcessing
           phone={session.phone}
           onSimulateSuccess={() => simulatePayment(session.id)}
@@ -69,79 +69,55 @@ function StudentApp() {
     );
   }
 
-  if (session.status === "completed") {
-    return (
-      <StudentLayout subtitle="Consultation complete" compact>
-        <div className="mt-4 space-y-4">
-          {session.prescription ? (
-            <>
-              <PrescriptionTemplate session={session} />
-              <DocumentActions label="prescription" />
-            </>
-          ) : null}
-          {session.referral ? (
-            <>
-              <ReferralTemplate session={session} />
-              <DocumentActions label="referral letter" />
-            </>
-          ) : null}
-          {session.lab_test_requested ? (
-            <p className="rounded-xl border border-dashed bg-card px-4 py-3 text-sm text-muted-foreground">
-              You have been flagged for a lab test. Visit your campus clinic lab with your student
-              ID.
-            </p>
-          ) : null}
-          <button
-            onClick={() => setStudentSessionId(null)}
-            className="no-print w-full rounded-xl border px-4 py-3 text-sm font-semibold"
-          >
-            Start a new consultation
-          </button>
-        </div>
-      </StudentLayout>
-    );
-  }
-
-  const waiting = session.status === "waiting";
+  const msgs = messagesFor(session.id);
   const assessment = triage(session.symptom_codes);
 
   return (
-    <StudentLayout subtitle={waiting ? "Waiting for the doctor…" : "In consultation"} compact>
-      <div className="mt-3 flex items-center justify-between gap-2">
-        <StatusBadge />
-        <span className="text-xs text-muted-foreground">
-          Receipt {session.mpesa_receipt ?? "—"}
-        </span>
-      </div>
-      {session.emergency_flag && (
-        <div className="mt-3 flex items-start gap-2 rounded-xl border border-destructive bg-destructive/10 p-3 text-xs font-medium text-destructive">
-          <Siren className="mt-0.5 size-4 shrink-0" />
-          <span>
-            <strong className="block">Emergency flag</strong>
-            {EMERGENCY_NOTICE}
-          </span>
+    <StudentLayout subtitle={`${session.campus} · ${session.phone}`}>
+      <div className="space-y-4">
+        <div className="flex items-center justify-between gap-2">
+          <h2 className="text-lg font-bold sm:text-xl">Consultation · {session.full_name}</h2>
+          <StatusBadge status={session.status} paid={session.paid} />
         </div>
-      )}
 
-      {!session.emergency_flag && session.lab_test_requested && (
-        <p className="mt-3 rounded-xl border border-warning bg-warning/12 p-3 text-xs text-warning-foreground">
-          Based on your symptoms you have been flagged for a lab test
-          {assessment.labPanels.length ? `: ${assessment.labPanels.join("; ")}` : ""}. The doctor
-          will confirm during the chat.
-        </p>
-      )}
+        {assessment.emergency && (
+          <div className="rounded-xl border border-destructive bg-destructive/10 p-3.5 text-xs text-destructive">
+            <strong className="block font-semibold">Emergency Guidance</strong>
+            {EMERGENCY_NOTICE}
+          </div>
+        )}
 
-      <ChatWindow
-        className="mt-3"
-        messages={messagesFor(session.id)}
-        viewer="student"
-        onSend={(body) => sendMessage(session.id, "student", body)}
-        emptyHint={
-          waiting
-            ? "You are in the queue. The doctor will join shortly."
-            : "Describe how you are feeling."
-        }
-      />
+        {session.status === "waiting" && (
+          <div className="rounded-xl border bg-card p-4 text-center shadow-card">
+            <div className="mx-auto flex size-10 items-center justify-center rounded-full bg-primary/10 text-primary">
+              <span className="size-2 rounded-full bg-primary animate-ping" />
+            </div>
+            <h3 className="mt-2 font-semibold text-sm">You are in the queue</h3>
+            <p className="mt-1 text-xs text-muted-foreground leading-relaxed">
+              {doctorOnline
+                ? "The doctor will accept your consultation shortly. Please keep this screen open."
+                : "The doctor is currently offline. You will be attended as soon as clinic hours resume."}
+            </p>
+          </div>
+        )}
+
+        <div className="h-[480px] overflow-hidden rounded-2xl border bg-card shadow-card">
+          <ChatWindow
+            messages={msgs}
+            viewer="student"
+            onSend={(body) => sendMessage(session.id, "student", body)}
+            disabled={session.status === "completed"}
+          />
+        </div>
+
+        {session.status === "completed" && (
+          <div className="space-y-4 pt-2">
+            {session.prescription && <PrescriptionTemplate session={session} />}
+            {session.referral && <ReferralTemplate session={session} />}
+            <DocumentActions label={session.prescription ? "prescription" : "referral"} />
+          </div>
+        )}
+      </div>
     </StudentLayout>
   );
 }

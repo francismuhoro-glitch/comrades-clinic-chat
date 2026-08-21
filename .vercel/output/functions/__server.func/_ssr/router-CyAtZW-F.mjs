@@ -2,16 +2,16 @@ import { r as __toESM } from "../_runtime.mjs";
 import { t as cn } from "./utils-C_uf36nf.mjs";
 import { u as require_react } from "../_libs/@floating-ui/react-dom+[...].mjs";
 import { p as require_jsx_runtime } from "../_libs/@radix-ui/react-checkbox+[...].mjs";
-import { t as ClinicProvider } from "./clinic-store-Ccw00kGc.mjs";
+import { t as ClinicProvider } from "./clinic-store-BnZwULpZ.mjs";
 import { _ as useRouter, c as HeadContent, d as createRouter, f as Outlet, g as Link, h as createRootRouteWithContext, l as useRouterState, m as createFileRoute, p as lazyRouteComponent, s as Scripts } from "../_libs/@tanstack/react-router+[...].mjs";
-import { t as Route$4 } from "./doctor-BdfMTmGj.mjs";
+import { t as Route$4 } from "./doctor-CpxzBTyT.mjs";
 import { i as Stethoscope, n as UserRound } from "../_libs/lucide-react.mjs";
 import { t as QueryClient } from "../_libs/tanstack__query-core.mjs";
 import { t as QueryClientProvider } from "../_libs/tanstack__react-query.mjs";
-//#region node_modules/.nitro/vite/services/ssr/assets/router-CD42jl2y.js
+//#region node_modules/.nitro/vite/services/ssr/assets/router-CyAtZW-F.js
 var import_react = /* @__PURE__ */ __toESM(require_react());
 var import_jsx_runtime = require_jsx_runtime();
-var styles_default = "/assets/styles-D5rU3pIR.css";
+var styles_default = "/assets/styles-D-lE_chk.css";
 function reportLovableError(error, context = {}) {
 	if (typeof window === "undefined") return;
 	window.__lovableEvents?.captureException?.(error, {
@@ -205,23 +205,12 @@ function RootComponent() {
 		children: /* @__PURE__ */ (0, import_jsx_runtime.jsxs)(ClinicProvider, { children: [/* @__PURE__ */ (0, import_jsx_runtime.jsx)(RoleSwitcher, {}), /* @__PURE__ */ (0, import_jsx_runtime.jsx)(Outlet, {})] })
 	});
 }
-var $$splitComponentImporter$2 = () => import("./routes-yM4jhfy2.mjs");
+var $$splitComponentImporter$2 = () => import("./routes-B4REDuHu.mjs");
 var Route$2 = createFileRoute("/")({
-	head: () => ({ meta: [
-		{ title: "Lovable Student Clinic — KSh 150 Doctor Chat for Comrades" },
-		{
-			name: "description",
-			content: "Affordable telemedicine for Kenyan university students. Pay KSh 150 via M-Pesa, talk to a real doctor, get digital prescriptions, lab orders, or referral letters."
-		},
-		{
-			property: "og:title",
-			content: "Lovable Student Clinic — KSh 150 Doctor Chat for Comrades"
-		},
-		{
-			property: "og:description",
-			content: "Kenyan comrades clinic: fast intake, transparent triage, M-Pesa payment, and live doctor chat."
-		}
-	] }),
+	head: () => ({ meta: [{ title: "Comrades Clinic — KSh 150 Doctor Chat for Students" }, {
+		name: "description",
+		content: "Affordable telemedicine for Kenyan university students. Pay KSh 150 via Pochi la Biashara, talk to a real doctor, get digital prescriptions, doorstep lab orders, or hospital referrals."
+	}] }),
 	component: lazyRouteComponent($$splitComponentImporter$2, "component")
 });
 var $$splitComponentImporter$1 = () => import("./privacy-CcKC5yFL.mjs");

@@ -1,6 +1,6 @@
 import { AlertTriangle, FlaskConical, ShieldCheck, Siren } from "lucide-react";
 import { useState } from "react";
-import { KENYAN_INSTITUTIONS } from "../../lib/kenya-institutions";
+import { KENYAN_INSTITUTIONS } from "@/lib/kenya-institutions";
 import { NearbyFacilities } from "./NearbyFacilities";
 
 import { Button } from "@/components/ui/button";
@@ -16,7 +16,7 @@ import {
 } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
 import { useClinic, type IntakeInput } from "@/lib/clinic-store";
-import { CAMPUSES, CONSULT_FEE_KES } from "@/lib/clinic-types";
+import { CONSULT_FEE_KES } from "@/lib/clinic-types";
 import { EMERGENCY_NOTICE, SYMPTOM_OPTIONS, triage } from "@/lib/triage";
 import { cn } from "@/lib/utils";
 
@@ -77,6 +77,7 @@ export function IntakeForm({ onSubmit }: { onSubmit: (input: IntakeInput) => voi
           onChange={(e) => set("full_name", e.target.value)}
           placeholder="e.g. Brian Otieno"
           autoComplete="name"
+          required
         />
       </div>
 
@@ -90,14 +91,15 @@ export function IntakeForm({ onSubmit }: { onSubmit: (input: IntakeInput) => voi
           onChange={(e) => set("phone", e.target.value)}
           placeholder="07XX XXX XXX"
           autoComplete="tel"
+          required
         />
       </div>
 
       <div className="space-y-1.5">
-        <Label htmlFor="campus">Institution / Campus / College</Label>
+        <Label htmlFor="campus">Institution / Campus / TVET / College</Label>
         <Select value={form.campus} onValueChange={(v) => set("campus", v)}>
           <SelectTrigger id="campus" className="w-full">
-            <SelectValue placeholder="Select your institution or campus" />
+            <SelectValue placeholder="Select your institution..." />
           </SelectTrigger>
           <SelectContent className="max-h-72">
             <div className="px-2 py-1.5 text-xs font-bold text-primary">Public Universities</div>
@@ -122,7 +124,7 @@ export function IntakeForm({ onSubmit }: { onSubmit: (input: IntakeInput) => voi
             ))}
 
             <div className="px-2 py-1.5 text-xs font-bold text-primary">
-              TVETs, Colleges & Institutes
+              TVETs, Colleges &amp; Institutes
             </div>
             {KENYAN_INSTITUTIONS.filter(
               (u) =>
@@ -198,6 +200,7 @@ export function IntakeForm({ onSubmit }: { onSubmit: (input: IntakeInput) => voi
           value={form.symptoms}
           onChange={(e) => set("symptoms", e.target.value)}
           placeholder="Tell the doctor what you are feeling, for how long, and any medication you have taken."
+          required
         />
       </div>
 
@@ -225,7 +228,7 @@ export function IntakeForm({ onSubmit }: { onSubmit: (input: IntakeInput) => voi
 
       <p className="flex items-center justify-center gap-1.5 text-[11px] text-muted-foreground">
         <ShieldCheck className="size-3.5 text-success" />
-        Paid securely with M-Pesa · Private &amp; confidential
+        Paid securely via Pochi la Biashara · Private &amp; confidential
       </p>
 
       {!doctorOnline && (

@@ -1,12 +1,3 @@
-/**
- * Mock service layer + global state for the clinic.
- *
- * Everything the UI needs goes through `useClinic()`. To move to Supabase:
- *  - replace the reducer mutations with Postgres writes (sessions, messages)
- *  - subscribe to `messages` + `sessions` via Supabase Realtime and feed the
- *    events into `dispatch`
- *  - replace `simulatePayment` with an M-Pesa STK push + webhook status poll
- */
 import {
   createContext,
   useCallback,
@@ -26,6 +17,7 @@ import {
   type ChatMessage,
   type ClinicSettings,
   type ConsultSession,
+  type LabOrder,
   type Prescription,
   type Referral,
 } from "./clinic-types";
@@ -35,7 +27,8 @@ const uid = () =>
     ? globalThis.crypto.randomUUID()
     : `${Date.now().toString(16)}-${Math.random().toString(16).slice(2, 10)}-4000-8000-${Math.random().toString(16).slice(2, 14)}`;
 const now = () => new Date().toISOString();
-const minutesAgo = (m: number) => new Date(Date.now() - m * 60_000).toISOString();
+const minutesAgo = (m: number) =>
+  new Date(Date.now() - m * 60_000).toISOString();
 
 const DEFAULT_SETTINGS: ClinicSettings = {
   pochi_phone: "0712345678",
@@ -88,41 +81,43 @@ function seed(): State {
     phone: "0798 111 222",
     campus: "University of Nairobi",
     symptoms: "Recurring migraines during exam week, plus blurred vision.",
-    symptom_codes: ["headache", "fatigue"],
-    triage_level: "urgent",
+    symptom_codes: ["headache"],
+    triage_level: "routine",
     emergency_flag: false,
-    suggested_labs: ["Haemoglobin + blood sugar"],
+    suggested_labs: [],
     status: "active",
     paid: true,
     fee_kes: CONSULT_FEE_KES,
-    mpesa_receipt: "QJT8XX2PQR",
+    mpesa_receipt: "QAA8811KLL",
     lab_test_requested: false,
-    diagnosis_notes: "",
+    diagnosis_notes: "Tension headache secondary to stress. Advised sleep + hydration.",
     prescription: null,
     referral: null,
-    created_at: minutesAgo(14),
+    created_at: minutesAgo(24),
     ended_at: null,
   };
   const s3: ConsultSession = {
     id: "seed-3",
-    full_name: "Kevin Mutiso",
-    phone: "0733 909 909",
-    campus: "JKUAT",
-    symptoms: "Skin rash on forearms after hostel laundry change.",
-    symptom_codes: ["rash"],
-    triage_level: "routine",
+    full_name: "Kelvin Kiprop",
+    phone: "0701 999 888",
+    campus: "Strathmore University",
+    symptoms: "Abdominal cramps and diarrhoea after eating at the mess.",
+    symptom_codes: ["stomach", "diarrhoea"],
+    triage_level: "urgent",
     emergency_flag: false,
-    suggested_labs: [],
+    suggested_labs: ["Stool analysis + H. pylori test"],
     status: "completed",
     paid: true,
     fee_kes: CONSULT_FEE_KES,
-    mpesa_receipt: "QJS1AB7CDE",
+    mpesa_receipt: "QPP0099ZZA",
     lab_test_requested: false,
-    diagnosis_notes: "Contact dermatitis, likely detergent irritant.",
+    diagnosis_notes:
+      "Acute gastroenteritis. Prescribed oral rehydration salts and Zinc.",
     prescription: {
-      medication: "Hydrocortisone 1% cream",
-      dosage: "Apply thin layer twice daily",
-      duration: "5 days",
+      medication: "Oral Rehydration Salts (ORS) + Zinc sulphate 20mg",
+      dosage: "1 sachet in 1L clean water, sip throughout day. Zinc 1 tab OD.",
+      duration: "3 days",
+      notes: "Maintain good hydration. Return if blood in stool.",
     },
     referral: null,
     created_at: minutesAgo(90),
@@ -135,17 +130,31 @@ function seed(): State {
     sessions: [s1, s2, s3],
     messages: [
       {
-        id: uid(),
+        id: "m-1",
         session_id: "seed-2",
-        sender: "student",
-        body: "Daktari, the headache starts behind my right eye every evening.",
-        created_at: minutesAgo(12),
+        sender: "system",
+        body: "Consultation started with Dr. Francis Muhoro.",
+        created_at: minutesAgo(20),
       },
       {
-        id: uid(),
+        id: "m-2",
+        session_id: "seed-2",
+        sender: "student",
+        body: "Hello doc, I've had this terrible headache for 3 days now.",
+        created_at: minutesAgo(18),
+      },
+      {
+        id: "m-3",
         session_id: "seed-2",
         sender: "doctor",
-        body: "Thanks Mercy. How many hours are you on the laptop each day?",
+        body: "Habari Mercy. Are you experiencing any neck stiffness or sensitivity to bright light?",
+        created_at: minutesAgo(15),
+      },
+      {
+        id: "m-4",
+        session_id: "seed-2",
+        sender: "student",
+        body: "Light hurts a bit, but my neck feels okay. It gets worse when studying on my laptop.",
         created_at: minutesAgo(11),
       },
     ],
@@ -174,7 +183,9 @@ function reducer(state: State, action: Action): State {
       return {
         ...state,
         sessions: state.sessions.map((s) =>
-          s.id === action.id && s.status === "waiting" ? { ...s, status: "active" } : s,
+          s.id === action.id && s.status === "waiting"
+            ? { ...s, status: "active" }
+            : s,
         ),
       };
     case "add_message":
@@ -183,7 +194,9 @@ function reducer(state: State, action: Action): State {
     case "patch_session":
       return {
         ...state,
-        sessions: state.sessions.map((s) => (s.id === action.id ? { ...s, ...action.patch } : s)),
+        sessions: state.sessions.map((s) =>
+          s.id === action.id ? { ...s, ...action.patch } : s,
+        ),
       };
     default:
       return state;
@@ -212,9 +225,16 @@ interface ClinicApi {
   studentSessionId: string | null;
   setStudentSessionId: (id: string | null) => void;
   createSession: (input: IntakeInput) => string;
-  submitPaymentClaim: (id: string, mpesaCode: string, paymentPhone: string) => Promise<void>;
+  resumeSessionByPhone: (phone: string) => Promise<boolean>;
+  clearActiveSession: () => void;
+  submitPaymentClaim: (
+    id: string,
+    mpesaCode: string,
+    paymentPhone: string,
+  ) => Promise<void>;
   confirmPayment: (id: string) => Promise<void>;
   rejectPayment: (id: string) => Promise<void>;
+  submitLabOrder: (id: string, order: LabOrder) => Promise<void>;
   simulatePayment: (id: string) => void;
   activateSession: (id: string) => void;
   sendMessage: (id: string, sender: "student" | "doctor", body: string) => void;
@@ -228,12 +248,16 @@ const ClinicContext = createContext<ClinicApi | null>(null);
 
 export function ClinicProvider({ children }: { children: ReactNode }) {
   const [state, dispatch] = useReducer(reducer, undefined, seed);
-  const [studentSessionId, setStudentSessionIdState] = useState<string | null>(() => {
-    if (typeof window !== "undefined") {
-      return localStorage.getItem("comrades_active_session_id") || null;
-    }
-    return null;
-  });
+
+  // Auto-restore session ID from localStorage across browser restarts
+  const [studentSessionId, setStudentSessionIdState] = useState<string | null>(
+    () => {
+      if (typeof window !== "undefined") {
+        return localStorage.getItem("comrades_active_session_id") || null;
+      }
+      return null;
+    },
+  );
 
   const setStudentSessionId = useCallback((id: string | null) => {
     setStudentSessionIdState(id);
@@ -246,42 +270,55 @@ export function ClinicProvider({ children }: { children: ReactNode }) {
     }
   }, []);
 
-  // Send message with AES-256 client-side encryption and Supabase sync
-  const sendMessage = useCallback((id: string, sender: "student" | "doctor", body: string) => {
-    const msgId = uid();
-    const createdAt = now();
-
-    // 1. Instant local optimistic dispatch (plaintext for local UI)
-    dispatch({
-      type: "add_message",
-      message: { id: msgId, session_id: id, sender, body, created_at: createdAt },
-    });
-
-    // 2. Encrypt and persist to Supabase in background
-    (async () => {
-      try {
-        const encryptedContent = await encryptMessage(body, id);
-        const { error } = await supabase.from("messages").insert({
-          id: msgId,
-          consultation_id: id,
-          sender_role: sender === "student" ? "patient" : sender,
-          sender_name: sender === "doctor" ? "Doctor" : "Student",
-          content: encryptedContent,
-          created_at: createdAt,
-        });
-        if (error) console.error("Supabase message insert failed:", error.message);
-      } catch (err) {
-        console.warn("Supabase message sync notice:", err);
-      }
-    })();
+  const clearActiveSession = useCallback(() => {
+    setStudentSessionIdState(null);
+    if (typeof window !== "undefined") {
+      localStorage.removeItem("comrades_active_session_id");
+    }
   }, []);
+
+  // Send message with AES-256 client-side encryption and Supabase sync
+  const sendMessage = useCallback(
+    (id: string, sender: "student" | "doctor", body: string) => {
+      const msgId = uid();
+      const createdAt = now();
+
+      dispatch({
+        type: "add_message",
+        message: {
+          id: msgId,
+          session_id: id,
+          sender,
+          body,
+          created_at: createdAt,
+        },
+      });
+
+      (async () => {
+        try {
+          const encryptedContent = await encryptMessage(body, id);
+          const { error } = await supabase.from("messages").insert({
+            id: msgId,
+            consultation_id: id,
+            sender_role: sender === "student" ? "patient" : sender,
+            sender_name: sender === "doctor" ? "Doctor" : "Student",
+            content: encryptedContent,
+            created_at: createdAt,
+          });
+          if (error)
+            console.error("Supabase message insert failed:", error.message);
+        } catch (err) {
+          console.warn("Supabase message sync notice:", err);
+        }
+      })();
+    },
+    [],
+  );
 
   // Realtime Supabase subscription for live chat and live queue sync
   useEffect(() => {
-    // 1. Fetch initial settings & consultations from Supabase database
     (async () => {
       try {
-        // Fetch clinic settings
         const { data: settingsData } = await supabase
           .from("clinic_settings")
           .select("*")
@@ -292,11 +329,15 @@ export function ClinicProvider({ children }: { children: ReactNode }) {
           dispatch({
             type: "set_settings",
             settings: {
-              pochi_phone: settingsData.pochi_phone || DEFAULT_SETTINGS.pochi_phone,
-              pochi_name: settingsData.pochi_name || DEFAULT_SETTINGS.pochi_name,
-              helpline_phone: settingsData.helpline_phone || DEFAULT_SETTINGS.helpline_phone,
+              pochi_phone:
+                settingsData.pochi_phone || DEFAULT_SETTINGS.pochi_phone,
+              pochi_name:
+                settingsData.pochi_name || DEFAULT_SETTINGS.pochi_name,
+              helpline_phone:
+                settingsData.helpline_phone || DEFAULT_SETTINGS.helpline_phone,
               consultation_fee_kes:
-                settingsData.consultation_fee_kes || DEFAULT_SETTINGS.consultation_fee_kes,
+                settingsData.consultation_fee_kes ||
+                DEFAULT_SETTINGS.consultation_fee_kes,
             },
           });
         }
@@ -337,11 +378,13 @@ export function ClinicProvider({ children }: { children: ReactNode }) {
               mpesa_code: row.mpesa_code,
               payment_phone: row.payment_phone,
               payment_status:
-                row.payment_status || (row.status === "payment_pending" ? "pending" : "confirmed"),
-              lab_test_requested: false,
+                row.payment_status ||
+                (row.status === "payment_pending" ? "pending" : "confirmed"),
+              lab_test_requested: Boolean(row.lab_test_requested),
               diagnosis_notes: row.diagnosis || "",
-              prescription: null,
-              referral: null,
+              prescription: row.prescription || null,
+              referral: row.referral || null,
+              lab_order: row.lab_order || null,
               created_at: row.created_at || now(),
               ended_at: null,
             };
@@ -353,7 +396,6 @@ export function ClinicProvider({ children }: { children: ReactNode }) {
       }
     })();
 
-    // 2. Realtime listener for messages & consultation queue updates
     const channel = supabase
       .channel("clinic-realtime")
       .on(
@@ -369,14 +411,20 @@ export function ClinicProvider({ children }: { children: ReactNode }) {
           };
 
           if (!raw || !raw.consultation_id) return;
-          const decryptedBody = await decryptMessage(raw.content, raw.consultation_id);
+          const decryptedBody = await decryptMessage(
+            raw.content,
+            raw.consultation_id,
+          );
 
           dispatch({
             type: "add_message",
             message: {
               id: raw.id,
               session_id: raw.consultation_id,
-              sender: raw.sender_role === "patient" ? "student" : (raw.sender_role ?? "system"),
+              sender:
+                raw.sender_role === "patient"
+                  ? "student"
+                  : (raw.sender_role ?? "system"),
               body: decryptedBody,
               created_at: raw.created_at || now(),
             },
@@ -433,6 +481,11 @@ export function ClinicProvider({ children }: { children: ReactNode }) {
             id: string;
             status: string;
             diagnosis?: string;
+            prescription?: Prescription;
+            referral?: Referral;
+            lab_order?: LabOrder;
+            payment_status?: "pending" | "confirmed" | "rejected";
+            lab_test_requested?: boolean;
           };
           if (!row || !row.id) return;
 
@@ -447,9 +500,25 @@ export function ClinicProvider({ children }: { children: ReactNode }) {
 
           const patch: Partial<ConsultSession> = {
             status: mappedStatus,
+            paid: row.payment_status === "confirmed" || row.status === "waiting" || row.status === "active" || row.status === "completed",
           };
           if (typeof row.diagnosis === "string") {
             patch.diagnosis_notes = row.diagnosis;
+          }
+          if (row.prescription) {
+            patch.prescription = row.prescription;
+          }
+          if (row.referral) {
+            patch.referral = row.referral;
+          }
+          if (row.lab_order) {
+            patch.lab_order = row.lab_order;
+          }
+          if (row.payment_status) {
+            patch.payment_status = row.payment_status;
+          }
+          if (typeof row.lab_test_requested === "boolean") {
+            patch.lab_test_requested = row.lab_test_requested;
           }
 
           dispatch({
@@ -470,7 +539,13 @@ export function ClinicProvider({ children }: { children: ReactNode }) {
     const system = (id: string, body: string) =>
       dispatch({
         type: "add_message",
-        message: { id: uid(), session_id: id, sender: "system", body, created_at: now() },
+        message: {
+          id: uid(),
+          session_id: id,
+          sender: "system",
+          body,
+          created_at: now(),
+        },
       });
 
     return {
@@ -492,77 +567,50 @@ export function ClinicProvider({ children }: { children: ReactNode }) {
       },
       sessions: state.sessions,
       pendingPayments: state.sessions.filter(
-        (s) => s.payment_status === "pending" || s.status === "awaiting_payment",
+        (s) =>
+          (s.payment_status === "pending" || s.status === "awaiting_payment") &&
+          !s.paid,
       ),
-      sessionsByStatus: (status) => state.sessions.filter((s) => s.status === status),
-      submitPaymentClaim: async (id, mpesaCode, paymentPhone) => {
-        dispatch({
-          type: "patch_session",
-          id,
-          patch: {
-            mpesa_code: mpesaCode,
-            payment_phone: paymentPhone,
-            payment_status: "pending",
-          },
-        });
-        try {
-          await supabase
-            .from("consultations")
-            .update({
-              mpesa_code: mpesaCode,
-              payment_phone: paymentPhone,
-              payment_status: "pending",
-            })
-            .eq("id", id);
-        } catch (err) {
-          console.error("Failed to submit payment claim:", err);
-        }
-      },
-      confirmPayment: async (id) => {
-        const s = state.sessions.find((x) => x.id === id);
-        const receipt = s?.mpesa_code || "POCHI-" + uid().toUpperCase().slice(0, 8);
-        dispatch({ type: "mark_paid", id, receipt });
-        dispatch({
-          type: "patch_session",
-          id,
-          patch: { payment_status: "confirmed", status: "waiting", paid: true },
-        });
-        system(id, `Payment confirmed by clinician. Consultation queued.`);
-        try {
-          await supabase
-            .from("consultations")
-            .update({
-              status: "waiting",
-              payment_status: "confirmed",
-            })
-            .eq("id", id);
-        } catch (err) {
-          console.error("Failed to confirm payment in Supabase:", err);
-        }
-      },
-      rejectPayment: async (id) => {
-        dispatch({
-          type: "patch_session",
-          id,
-          patch: { payment_status: "rejected", status: "awaiting_payment", paid: false },
-        });
-        system(id, `Payment reference could not be verified. Please check and resubmit.`);
-        try {
-          await supabase
-            .from("consultations")
-            .update({
-              payment_status: "rejected",
-              status: "payment_pending",
-            })
-            .eq("id", id);
-        } catch (err) {
-          console.error("Failed to reject payment:", err);
-        }
-      },
+      sessionsByStatus: (status) =>
+        state.sessions.filter((s) => s.status === status),
       getSession: (id) => state.sessions.find((s) => s.id === id) ?? null,
-      messagesFor: (id) => (id ? state.messages.filter((m) => m.session_id === id) : []),
+      messagesFor: (id) =>
+        id ? state.messages.filter((m) => m.session_id === id) : [],
       studentSessionId,
       setStudentSessionId,
+      clearActiveSession,
+      resumeSessionByPhone: async (searchPhone: string) => {
+        const cleaned = searchPhone.trim().replace(/\s/g, "");
+        // Search local state first
+        const local = state.sessions.find(
+          (s) =>
+            s.phone.replace(/\s/g, "") === cleaned &&
+            s.status !== "completed",
+        );
+        if (local) {
+          setStudentSessionId(local.id);
+          return true;
+        }
+        // Search Supabase
+        try {
+          const { data } = await supabase
+            .from("consultations")
+            .select("*")
+            .ilike("patient_phone", `%${cleaned.slice(-9)}%`)
+            .neq("status", "completed")
+            .order("created_at", { ascending: false })
+            .limit(1)
+            .maybeSingle();
+
+          if (data) {
+            setStudentSessionId(data.id);
+            return true;
+          }
+        } catch (err) {
+          console.warn("Resume session query notice:", err);
+        }
+        return false;
+      },
       createSession: (input) => {
         const t = triage(input.symptom_codes);
         const session: ConsultSession = {
@@ -589,7 +637,6 @@ export function ClinicProvider({ children }: { children: ReactNode }) {
         dispatch({ type: "create_session", session });
         setStudentSessionId(session.id);
 
-        // Async write to Supabase consultations
         (async () => {
           try {
             const { error } = await supabase.from("consultations").insert({
@@ -602,7 +649,11 @@ export function ClinicProvider({ children }: { children: ReactNode }) {
               triage_level: t.level,
               status: "payment_pending",
             });
-            if (error) console.error("Supabase consultation insert failed:", error.message);
+            if (error)
+              console.error(
+                "Supabase consultation insert failed:",
+                error.message,
+              );
           } catch (err) {
             console.warn("Supabase session sync notice:", err);
           }
@@ -610,11 +661,86 @@ export function ClinicProvider({ children }: { children: ReactNode }) {
 
         return session.id;
       },
+      submitPaymentClaim: async (id, mpesaCode, paymentPhone) => {
+        dispatch({
+          type: "patch_session",
+          id,
+          patch: {
+            mpesa_code: mpesaCode,
+            payment_phone: paymentPhone,
+            payment_status: "pending",
+          },
+        });
+        try {
+          await supabase
+            .from("consultations")
+            .update({
+              mpesa_code: mpesaCode,
+              payment_phone: paymentPhone,
+              payment_status: "pending",
+            })
+            .eq("id", id);
+        } catch (err) {
+          console.error("Failed to submit payment claim:", err);
+        }
+      },
+      confirmPayment: async (id) => {
+        const s = state.sessions.find((x) => x.id === id);
+        const receipt =
+          s?.mpesa_code || "POCHI-" + uid().toUpperCase().slice(0, 8);
+        dispatch({ type: "mark_paid", id, receipt });
+        dispatch({
+          type: "patch_session",
+          id,
+          patch: { payment_status: "confirmed", status: "waiting", paid: true },
+        });
+        system(id, `Payment confirmed by clinician. Consultation queued.`);
+        try {
+          await supabase
+            .from("consultations")
+            .update({
+              status: "waiting",
+              payment_status: "confirmed",
+            })
+            .eq("id", id);
+        } catch (err) {
+          console.error("Failed to confirm payment in Supabase:", err);
+        }
+      },
+      rejectPayment: async (id) => {
+        dispatch({
+          type: "patch_session",
+          id,
+          patch: {
+            payment_status: "rejected",
+            status: "awaiting_payment",
+            paid: false,
+          },
+        });
+        system(
+          id,
+          `Payment reference could not be verified. Please check and resubmit.`,
+        );
+        try {
+          await supabase
+            .from("consultations")
+            .update({
+              payment_status: "rejected",
+              status: "payment_pending",
+            })
+            .eq("id", id);
+        } catch (err) {
+          console.error("Failed to reject payment:", err);
+        }
+      },
       simulatePayment: (id) => {
         const receipt = "Q" + uid().toUpperCase().slice(0, 9);
         dispatch({ type: "mark_paid", id, receipt });
         const s = state.sessions.find((x) => x.id === id);
-        system(id, `Payment of KSh ${CONSULT_FEE_KES} received. Receipt ${receipt}.`);
+        system(
+          id,
+          `Payment of KSh ${CONSULT_FEE_KES} received. Receipt ${receipt}.`,
+        );
         if (s) {
           const t = triage(s.symptom_codes);
           if (t.emergency) {
@@ -624,7 +750,11 @@ export function ClinicProvider({ children }: { children: ReactNode }) {
             );
           }
           if (t.labRecommended) {
-            dispatch({ type: "patch_session", id, patch: { lab_test_requested: true } });
+            dispatch({
+              type: "patch_session",
+              id,
+              patch: { lab_test_requested: true },
+            });
             system(
               id,
               `Auto-triage recommends a lab test${t.labPanels.length ? `: ${t.labPanels.join("; ")}` : ""}. The doctor will confirm.`,
@@ -647,38 +777,138 @@ export function ClinicProvider({ children }: { children: ReactNode }) {
       activateSession: (id) => dispatch({ type: "activate", id }),
       sendMessage,
       setDiagnosisNotes: (id, notes) =>
-        dispatch({ type: "patch_session", id, patch: { diagnosis_notes: notes } }),
+        dispatch({
+          type: "patch_session",
+          id,
+          patch: { diagnosis_notes: notes },
+        }),
       toggleLabTest: (id) => {
         const s = state.sessions.find((x) => x.id === id);
         const value = !s?.lab_test_requested;
-        dispatch({ type: "patch_session", id, patch: { lab_test_requested: value } });
+        dispatch({
+          type: "patch_session",
+          id,
+          patch: { lab_test_requested: value },
+        });
         system(
           id,
           value
-            ? "Doctor flagged this file for lab sample collection."
+            ? "Doctor requested a lab test for this file. Please choose doorstep collection or visit a lab below."
             : "Lab test request withdrawn.",
         );
+        (async () => {
+          try {
+            await supabase
+              .from("consultations")
+              .update({ lab_test_requested: value })
+              .eq("id", id);
+          } catch (err) {
+            console.error("Failed to toggle lab in Supabase:", err);
+          }
+        })();
+      },
+      submitLabOrder: async (id, order) => {
+        dispatch({
+          type: "patch_session",
+          id,
+          patch: { lab_order: order },
+        });
+        const methodLabel =
+          order.collection_method === "doorstep"
+            ? `Doorstep collection scheduled for ${order.scheduled_date} (${order.scheduled_time}) at ${order.collection_address}`
+            : "Lab referral chosen. Visit the selected facility.";
+        system(
+          id,
+          `Lab order confirmed: ${order.panels.join(", ")}. ${methodLabel}`,
+        );
+        try {
+          await supabase
+            .from("consultations")
+            .update({
+              lab_order: order as unknown as Record<string, unknown>,
+            })
+            .eq("id", id);
+        } catch (err) {
+          console.error("Failed to save lab order:", err);
+        }
       },
       endWithPrescription: (id, prescription) => {
         dispatch({
           type: "patch_session",
           id,
-          patch: { prescription, referral: null, status: "completed", ended_at: now() },
+          patch: {
+            prescription,
+            referral: null,
+            status: "completed",
+            ended_at: now(),
+          },
         });
-        system(id, "Session ended. A digital prescription has been issued.");
+        system(
+          id,
+          "Consultation completed. A digital prescription has been signed and issued.",
+        );
+        (async () => {
+          try {
+            await supabase
+              .from("consultations")
+              .update({
+                prescription: prescription as unknown as Record<
+                  string,
+                  unknown
+                >,
+                referral: null,
+                status: "completed",
+                ended_at: now(),
+              })
+              .eq("id", id);
+          } catch (err) {
+            console.error("Failed to end session with Rx:", err);
+          }
+        })();
       },
       endWithReferral: (id, referral) => {
         dispatch({
           type: "patch_session",
           id,
-          patch: { referral, prescription: null, status: "completed", ended_at: now() },
+          patch: {
+            referral,
+            prescription: null,
+            status: "completed",
+            ended_at: now(),
+          },
         });
-        system(id, "Session ended. A referral letter has been issued.");
+        system(
+          id,
+          "Consultation completed. An official referral letter has been signed and issued.",
+        );
+        (async () => {
+          try {
+            await supabase
+              .from("consultations")
+              .update({
+                referral: referral as unknown as Record<string, unknown>,
+                prescription: null,
+                status: "completed",
+                ended_at: now(),
+              })
+              .eq("id", id);
+          } catch (err) {
+            console.error("Failed to end session with Referral:", err);
+          }
+        })();
       },
     };
-  }, [state, studentSessionId, setStudentSessionId, sendMessage]);
+  }, [
+    state,
+    studentSessionId,
+    setStudentSessionId,
+    clearActiveSession,
+    sendMessage,
+  ]);
 
-  return <ClinicContext.Provider value={api}>{children}</ClinicContext.Provider>;
+  return (
+    <ClinicContext.Provider value={api}>{children}</ClinicContext.Provider>
+  );
 }
 
 // eslint-disable-next-line react-refresh/only-export-components

@@ -1,8 +1,8 @@
-import { t as getServerFnById } from "../__23tanstack-start-server-fn-resolver-DgjA_z9u.mjs";
+import { t as getServerFnById } from "../__23tanstack-start-server-fn-resolver-7m1OGUFb.mjs";
 import { m as createFileRoute, p as lazyRouteComponent } from "../_libs/@tanstack/react-router+[...].mjs";
 import { c as createServerFn, i as TSS_SERVER_FUNCTION } from "./createServerFn-CIHAFgYl.mjs";
 import { n as stringType, t as objectType } from "../_libs/zod.mjs";
-//#region node_modules/.nitro/vite/services/ssr/assets/doctor-BdfMTmGj.js
+//#region node_modules/.nitro/vite/services/ssr/assets/doctor-CpxzBTyT.js
 var createSsrRpc = (functionId) => {
 	const url = "/_serverFn/" + functionId;
 	const serverFnMeta = { id: functionId };
@@ -22,7 +22,7 @@ var loginSchema = objectType({
 var getCurrentDoctor = createServerFn({ method: "GET" }).handler(createSsrRpc("cb8973e3c2513aeb12e755ab36d3b29a7802f298aaf140d5079a6e7fb6b89d34"));
 var loginDoctor = createServerFn({ method: "POST" }).validator(loginSchema).handler(createSsrRpc("c7ad70a135faf71b84660278a0f80541176535fb9a7d22a9090dab5779ebf83a"));
 var logoutDoctor = createServerFn({ method: "POST" }).handler(createSsrRpc("1feefb899edb7c03e4301d09b58ef8780347fb36ea743d0e3f6ad7c5f35952f8"));
-var $$splitComponentImporter = () => import("./doctor-Cte0K1bH.mjs");
+var $$splitComponentImporter = () => import("./doctor-DefwLvfq.mjs");
 var Route = createFileRoute("/doctor")({
 	head: () => ({ meta: [
 		{ title: "Doctor Portal — Lovable Student Clinic" },

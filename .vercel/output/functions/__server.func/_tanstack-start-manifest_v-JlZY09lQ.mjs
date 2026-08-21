@@ -1,4 +1,4 @@
-//#region node_modules/.nitro/vite/services/ssr/assets/_tanstack-start-manifest_v-Bwk5xh_f.js
+//#region node_modules/.nitro/vite/services/ssr/assets/_tanstack-start-manifest_v-JlZY09lQ.js
 var tsrStartManifest = () => ({ routes: {
 	__root__: {
 		filePath: "C:/Users/MAKAU/COMRADES CLINIC/comrades-clinic-chat-main/src/routes/__root.tsx",
@@ -8,19 +8,19 @@ var tsrStartManifest = () => ({ routes: {
 			"/privacy",
 			"/terms"
 		],
-		preloads: ["/assets/index-CXwjgxgN.js", "/assets/utils-D7sVM6MX.js"],
+		preloads: ["/assets/index-x8GTTW6S.js", "/assets/utils-D7sVM6MX.js"],
 		scripts: [{ attrs: {
 			type: "module",
 			async: !0,
-			src: "/assets/index-CXwjgxgN.js"
+			src: "/assets/index-x8GTTW6S.js"
 		} }]
 	},
 	"/": {
 		filePath: "C:/Users/MAKAU/COMRADES CLINIC/comrades-clinic-chat-main/src/routes/index.tsx",
 		children: void 0,
 		preloads: [
-			"/assets/routes-xKS4i1Ir.js",
-			"/assets/dist-rYdjxKe5.js",
+			"/assets/routes-SWQ3nwed.js",
+			"/assets/dist-lLW_1nhI.js",
 			"/assets/shield-check-DIRqJkLR.js",
 			"/assets/button-iwelcAjq.js"
 		]
@@ -29,8 +29,8 @@ var tsrStartManifest = () => ({ routes: {
 		filePath: "C:/Users/MAKAU/COMRADES CLINIC/comrades-clinic-chat-main/src/routes/doctor.tsx",
 		children: void 0,
 		preloads: [
-			"/assets/doctor-YdoP9vwF.js",
-			"/assets/dist-rYdjxKe5.js",
+			"/assets/doctor-CdGE719O.js",
+			"/assets/dist-lLW_1nhI.js",
 			"/assets/shield-alert-DxzHpDhk.js",
 			"/assets/shield-check-DIRqJkLR.js",
 			"/assets/button-iwelcAjq.js"

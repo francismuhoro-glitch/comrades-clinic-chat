@@ -1,8 +1,8 @@
-import { n as supabase, t as DOCTOR } from "./supabase-CqAS8xZT.mjs";
+import { n as supabase, t as DOCTOR } from "./supabase-CS5UBS67.mjs";
 import { c as createServerFn, i as TSS_SERVER_FUNCTION } from "./createServerFn-CIHAFgYl.mjs";
 import { n as stringType, t as objectType } from "../_libs/zod.mjs";
 import { i as useSession$1, r as setResponseHeader } from "./request-response-Dtzl9ZrW.mjs";
-//#region node_modules/.nitro/vite/services/ssr/assets/doctor-auth-CAVotkN6.js
+//#region node_modules/.nitro/vite/services/ssr/assets/doctor-auth-BKih2GFU.js
 var createServerRpc = (serverFnMeta, splitImportFn) => {
 	const url = "/_serverFn/" + serverFnMeta.id;
 	return Object.assign(splitImportFn, {

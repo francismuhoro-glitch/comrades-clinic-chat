@@ -17,12 +17,24 @@ export interface Prescription {
   medication: string;
   dosage: string;
   duration: string;
-  notes?: string;
+  notes?: string | undefined;
 }
 
 export interface Referral {
   destination: string;
   reason: string;
+}
+
+export type LabCollectionMethod = "visit_lab" | "doorstep";
+
+export interface LabOrder {
+  panels: string[];
+  collection_method: LabCollectionMethod;
+  scheduled_date?: string | undefined;
+  scheduled_time?: string | undefined;
+  collection_address?: string | undefined;
+  collection_phone?: string | undefined;
+  status: "pending" | "collected" | "processing" | "resulted" | "reviewed";
 }
 
 export interface ConsultSession {
@@ -41,13 +53,14 @@ export interface ConsultSession {
   paid: boolean;
   fee_kes: number;
   mpesa_receipt: string | null;
-  mpesa_code?: string | null;
-  payment_phone?: string | null;
-  payment_status?: "pending" | "confirmed" | "rejected";
+  mpesa_code?: string | null | undefined;
+  payment_phone?: string | null | undefined;
+  payment_status?: "pending" | "confirmed" | "rejected" | undefined;
   lab_test_requested: boolean;
   diagnosis_notes: string;
   prescription: Prescription | null;
   referral: Referral | null;
+  lab_order?: LabOrder | null | undefined;
   created_at: string;
   ended_at: string | null;
 }
@@ -66,23 +79,9 @@ export interface ClinicSettings {
 }
 
 export const DOCTOR: Doctor = {
-  name: "Dr. Aisha Wanjiku",
-  title: "MBChB, General Practitioner",
-  // Hardcoded placeholder — swap for the real license number.
-  kmpdc_license: "KMPDC/12345/2021",
+  name: "Dr. Francis Muhoro, MBChB",
+  title: "General Practitioner · Telemedicine Lead",
+  kmpdc_license: "A.84920",
 };
 
 export const CONSULT_FEE_KES = 150;
-
-export const CAMPUSES = [
-  "University of Nairobi",
-  "Kenyatta University",
-  "JKUAT",
-  "Moi University",
-  "Egerton University",
-  "Strathmore University",
-  "Technical University of Kenya",
-  "Maseno University",
-  "Mount Kenya University",
-  "Other campus",
-];

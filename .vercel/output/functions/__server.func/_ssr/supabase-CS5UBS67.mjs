@@ -1,9 +1,9 @@
 import { t as createClient } from "../_libs/supabase__supabase-js.mjs";
-//#region node_modules/.nitro/vite/services/ssr/assets/supabase-CqAS8xZT.js
+//#region node_modules/.nitro/vite/services/ssr/assets/supabase-CS5UBS67.js
 var DOCTOR = {
-	name: "Dr. Aisha Wanjiku",
-	title: "MBChB, General Practitioner",
-	kmpdc_license: "KMPDC/12345/2021"
+	name: "Dr. Francis Muhoro, MBChB",
+	title: "General Practitioner · Telemedicine Lead",
+	kmpdc_license: "A.84920"
 };
 var supabaseUrl = {
 	"BASE_URL": "/",

@@ -1,15 +1,15 @@
 import { r as __toESM } from "../_runtime.mjs";
-import { n as supabase, t as DOCTOR } from "./supabase-CqAS8xZT.mjs";
+import { n as supabase, t as DOCTOR } from "./supabase-CS5UBS67.mjs";
 import { t as cn } from "./utils-C_uf36nf.mjs";
 import { u as require_react } from "../_libs/@floating-ui/react-dom+[...].mjs";
 import { n as CheckboxIndicator, p as require_jsx_runtime, t as Checkbox$1 } from "../_libs/@radix-ui/react-checkbox+[...].mjs";
-import { a as useClinic, i as triage, n as SYMPTOM_OPTIONS } from "./clinic-store-Ccw00kGc.mjs";
+import { a as useClinic, i as triage, n as SYMPTOM_OPTIONS } from "./clinic-store-BnZwULpZ.mjs";
 import { g as Link } from "../_libs/@tanstack/react-router+[...].mjs";
 import { t as Button } from "./button-Bq5vK6RO.mjs";
-import { A as Check, D as CircleAlert, O as ChevronUp, b as FlaskConical, d as Printer, h as MapPin, i as Stethoscope, k as ChevronDown, o as Siren, p as Navigation, r as TriangleAlert, s as ShieldCheck, v as LoaderCircle, y as Landmark } from "../_libs/lucide-react.mjs";
+import { A as ChevronUp, D as Clock, M as Check, N as Calendar, O as CircleCheck, S as FlaskConical, b as Landmark, d as RotateCcw, f as Printer, g as MapPin, i as Stethoscope, j as ChevronDown, k as CircleAlert, m as Navigation, o as Siren, r as TriangleAlert, s as ShieldCheck, x as History, y as LoaderCircle } from "../_libs/lucide-react.mjs";
 import { a as Textarea, i as Label, n as FALLBACK_FACILITIES, o as calculateDistanceKm, r as Input, s as getGoogleMapsDirectionsUrl, t as ChatWindow } from "./facilities-DEcETZq1.mjs";
 import { a as SelectItemIndicator, c as SelectPortal, d as SelectSeparator$1, f as SelectTrigger$1, i as SelectItem$1, l as SelectScrollDownButton$1, m as SelectViewport, n as SelectContent$1, o as SelectItemText, p as SelectValue$1, r as SelectIcon, s as SelectLabel$1, t as Select$1, u as SelectScrollUpButton$1 } from "../_libs/@radix-ui/react-select+[...].mjs";
-//#region node_modules/.nitro/vite/services/ssr/assets/routes-yM4jhfy2.js
+//#region node_modules/.nitro/vite/services/ssr/assets/routes-B4REDuHu.js
 var import_react = /* @__PURE__ */ __toESM(require_react());
 var import_jsx_runtime = require_jsx_runtime();
 function formatDate(iso) {
@@ -2088,7 +2088,8 @@ function IntakeForm({ onSubmit }) {
 					value: form.full_name,
 					onChange: (e) => set("full_name", e.target.value),
 					placeholder: "e.g. Brian Otieno",
-					autoComplete: "name"
+					autoComplete: "name",
+					required: true
 				})]
 			}),
 			/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
@@ -2103,21 +2104,22 @@ function IntakeForm({ onSubmit }) {
 					value: form.phone,
 					onChange: (e) => set("phone", e.target.value),
 					placeholder: "07XX XXX XXX",
-					autoComplete: "tel"
+					autoComplete: "tel",
+					required: true
 				})]
 			}),
 			/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
 				className: "space-y-1.5",
 				children: [/* @__PURE__ */ (0, import_jsx_runtime.jsx)(Label, {
 					htmlFor: "campus",
-					children: "Institution / Campus / College"
+					children: "Institution / Campus / TVET / College"
 				}), /* @__PURE__ */ (0, import_jsx_runtime.jsxs)(Select, {
 					value: form.campus,
 					onValueChange: (v) => set("campus", v),
 					children: [/* @__PURE__ */ (0, import_jsx_runtime.jsx)(SelectTrigger, {
 						id: "campus",
 						className: "w-full",
-						children: /* @__PURE__ */ (0, import_jsx_runtime.jsx)(SelectValue, { placeholder: "Select your institution or campus" })
+						children: /* @__PURE__ */ (0, import_jsx_runtime.jsx)(SelectValue, { placeholder: "Select your institution..." })
 					}), /* @__PURE__ */ (0, import_jsx_runtime.jsxs)(SelectContent, {
 						className: "max-h-72",
 						children: [
@@ -2227,7 +2229,8 @@ function IntakeForm({ onSubmit }) {
 					rows: 4,
 					value: form.symptoms,
 					onChange: (e) => set("symptoms", e.target.value),
-					placeholder: "Tell the doctor what you are feeling, for how long, and any medication you have taken."
+					placeholder: "Tell the doctor what you are feeling, for how long, and any medication you have taken.",
+					required: true
 				})]
 			}),
 			/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("label", {
@@ -2261,11 +2264,278 @@ function IntakeForm({ onSubmit }) {
 			}),
 			/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("p", {
 				className: "flex items-center justify-center gap-1.5 text-[11px] text-muted-foreground",
-				children: [/* @__PURE__ */ (0, import_jsx_runtime.jsx)(ShieldCheck, { className: "size-3.5 text-success" }), "Paid securely with M-Pesa · Private & confidential"]
+				children: [/* @__PURE__ */ (0, import_jsx_runtime.jsx)(ShieldCheck, { className: "size-3.5 text-success" }), "Paid securely via Pochi la Biashara · Private & confidential"]
 			}),
 			!doctorOnline && /* @__PURE__ */ (0, import_jsx_runtime.jsx)("p", {
 				className: "text-center text-[11px] text-muted-foreground",
 				children: "The doctor is offline. You can still submit — you will be queued for the next available session."
+			})
+		]
+	});
+}
+var TIME_SLOTS = [
+	"7:00 AM - 9:00 AM",
+	"9:00 AM - 11:00 AM",
+	"11:00 AM - 1:00 PM",
+	"2:00 PM - 4:00 PM",
+	"4:00 PM - 6:00 PM"
+];
+function getTomorrowDate() {
+	const d = /* @__PURE__ */ new Date();
+	d.setDate(d.getDate() + 1);
+	return d.toISOString().split("T")[0] || "";
+}
+function LabOrderChoice({ session }) {
+	const { submitLabOrder } = useClinic();
+	const [choice, setChoice] = (0, import_react.useState)(null);
+	const [date, setDate] = (0, import_react.useState)(getTomorrowDate());
+	const [timeSlot, setTimeSlot] = (0, import_react.useState)("9:00 AM - 11:00 AM");
+	const [address, setAddress] = (0, import_react.useState)("");
+	const [phone, setPhone] = (0, import_react.useState)(session.phone);
+	const [submitted, setSubmitted] = (0, import_react.useState)(false);
+	const labPanels = session.suggested_labs.length > 0 ? session.suggested_labs : [
+		"Full Blood Count",
+		"Urinalysis",
+		"Malaria Smear"
+	];
+	const nearestLabs = FALLBACK_FACILITIES.slice(0, 3);
+	const handleDoorstepSubmit = async (e) => {
+		e.preventDefault();
+		if (!address.trim()) return;
+		await submitLabOrder(session.id, {
+			panels: labPanels,
+			collection_method: "doorstep",
+			scheduled_date: date,
+			scheduled_time: timeSlot,
+			collection_address: address,
+			collection_phone: phone,
+			status: "pending"
+		});
+		setSubmitted(true);
+	};
+	const handleVisitLab = async () => {
+		await submitLabOrder(session.id, {
+			panels: labPanels,
+			collection_method: "visit_lab",
+			status: "pending"
+		});
+		setSubmitted(true);
+	};
+	if (submitted) return /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
+		className: "rounded-2xl border bg-card p-5 shadow-card text-center space-y-3",
+		children: [
+			/* @__PURE__ */ (0, import_jsx_runtime.jsx)("span", {
+				className: "mx-auto flex size-12 items-center justify-center rounded-full bg-success/15 text-success",
+				children: /* @__PURE__ */ (0, import_jsx_runtime.jsx)(CircleCheck, { className: "size-6" })
+			}),
+			/* @__PURE__ */ (0, import_jsx_runtime.jsx)("h3", {
+				className: "text-base font-bold",
+				children: "Lab Order Confirmed"
+			}),
+			/* @__PURE__ */ (0, import_jsx_runtime.jsx)("p", {
+				className: "text-xs text-muted-foreground leading-relaxed",
+				children: choice === "doorstep" ? `A certified phlebotomist will visit you on ${date} between ${timeSlot} at ${address}. Please keep your phone on.` : "Your lab referral is active. Present this order at the health center or laboratory."
+			})
+		]
+	});
+	if (!choice) return /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
+		className: "rounded-2xl border bg-card p-5 shadow-card space-y-4",
+		children: [
+			/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
+				className: "flex items-center gap-2",
+				children: [/* @__PURE__ */ (0, import_jsx_runtime.jsx)(FlaskConical, { className: "size-5 text-warning" }), /* @__PURE__ */ (0, import_jsx_runtime.jsx)("h3", {
+					className: "text-base font-bold",
+					children: "Lab Test Requested by Doctor"
+				})]
+			}),
+			/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
+				className: "rounded-lg bg-warning/10 p-3 text-xs text-warning-foreground",
+				children: [
+					/* @__PURE__ */ (0, import_jsx_runtime.jsx)("strong", { children: "Recommended panels:" }),
+					" ",
+					labPanels.join(", ")
+				]
+			}),
+			/* @__PURE__ */ (0, import_jsx_runtime.jsx)("p", {
+				className: "text-xs text-muted-foreground",
+				children: "How would you like to have your sample collected?"
+			}),
+			/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
+				className: "grid gap-3",
+				children: [/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("button", {
+					type: "button",
+					onClick: () => setChoice("visit_lab"),
+					className: "flex items-start gap-3 rounded-xl border border-border p-3.5 text-left transition-colors hover:border-primary/50 hover:bg-primary/5",
+					children: [/* @__PURE__ */ (0, import_jsx_runtime.jsx)("span", {
+						className: "flex size-10 shrink-0 items-center justify-center rounded-lg bg-primary/10 text-primary",
+						children: /* @__PURE__ */ (0, import_jsx_runtime.jsx)(MapPin, { className: "size-5" })
+					}), /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", { children: [/* @__PURE__ */ (0, import_jsx_runtime.jsx)("p", {
+						className: "text-sm font-semibold",
+						children: "Option A: Visit a Nearby Lab / Hospital"
+					}), /* @__PURE__ */ (0, import_jsx_runtime.jsx)("p", {
+						className: "text-xs text-muted-foreground mt-0.5",
+						children: "Get a referral slip and directions to the nearest facility."
+					})] })]
+				}), /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("button", {
+					type: "button",
+					onClick: () => setChoice("doorstep"),
+					className: "flex items-start gap-3 rounded-xl border border-border p-3.5 text-left transition-colors hover:border-success/50 hover:bg-success/5",
+					children: [/* @__PURE__ */ (0, import_jsx_runtime.jsx)("span", {
+						className: "flex size-10 shrink-0 items-center justify-center rounded-lg bg-success/10 text-success",
+						children: /* @__PURE__ */ (0, import_jsx_runtime.jsx)(Calendar, { className: "size-5" })
+					}), /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", { children: [
+						/* @__PURE__ */ (0, import_jsx_runtime.jsx)("p", {
+							className: "text-sm font-semibold text-success-foreground",
+							children: "Option B: Doorstep Sample Collection"
+						}),
+						/* @__PURE__ */ (0, import_jsx_runtime.jsx)("p", {
+							className: "text-xs text-muted-foreground mt-0.5",
+							children: "A certified phlebotomist visits your hostel, campus room, or home."
+						}),
+						/* @__PURE__ */ (0, import_jsx_runtime.jsx)("p", {
+							className: "mt-1 text-[10px] font-semibold text-success",
+							children: "Available daily · 7:00 AM to 6:00 PM"
+						})
+					] })]
+				})]
+			})
+		]
+	});
+	if (choice === "visit_lab") return /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
+		className: "rounded-2xl border bg-card p-5 shadow-card space-y-4",
+		children: [
+			/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("h3", {
+				className: "text-base font-bold flex items-center gap-2",
+				children: [/* @__PURE__ */ (0, import_jsx_runtime.jsx)(MapPin, { className: "size-4 text-primary" }), "Recommended Facilities for Lab Tests"]
+			}),
+			/* @__PURE__ */ (0, import_jsx_runtime.jsx)("div", {
+				className: "space-y-2",
+				children: nearestLabs.map((lab, i) => {
+					const mapsUrl = getGoogleMapsDirectionsUrl(lab.latitude, lab.longitude);
+					return /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
+						className: "flex items-center justify-between rounded-lg border p-3 bg-muted/30",
+						children: [/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", { children: [/* @__PURE__ */ (0, import_jsx_runtime.jsx)("p", {
+							className: "text-sm font-semibold",
+							children: lab.name
+						}), /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("p", {
+							className: "text-[10px] text-muted-foreground",
+							children: [
+								lab.level,
+								" · ",
+								lab.district
+							]
+						})] }), /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
+							className: "flex items-center gap-2",
+							children: [/* @__PURE__ */ (0, import_jsx_runtime.jsx)("a", {
+								href: mapsUrl,
+								target: "_blank",
+								rel: "noreferrer",
+								className: "text-[10px] text-primary hover:underline",
+								children: "Map ↗"
+							}), /* @__PURE__ */ (0, import_jsx_runtime.jsx)(Button, {
+								size: "sm",
+								className: "h-7 text-[10px]",
+								onClick: handleVisitLab,
+								children: "Confirm Facility"
+							})]
+						})]
+					}, i);
+				})
+			}),
+			/* @__PURE__ */ (0, import_jsx_runtime.jsx)(Button, {
+				variant: "ghost",
+				size: "sm",
+				onClick: () => setChoice(null),
+				className: "w-full text-xs",
+				children: "Back to Options"
+			})
+		]
+	});
+	return /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("form", {
+		onSubmit: handleDoorstepSubmit,
+		className: "rounded-2xl border bg-card p-5 shadow-card space-y-4",
+		children: [
+			/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("h3", {
+				className: "text-base font-bold flex items-center gap-2",
+				children: [/* @__PURE__ */ (0, import_jsx_runtime.jsx)(Calendar, { className: "size-4 text-success" }), "Schedule Doorstep Phlebotomy"]
+			}),
+			/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
+				className: "grid grid-cols-2 gap-3",
+				children: [/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
+					className: "space-y-1.5",
+					children: [/* @__PURE__ */ (0, import_jsx_runtime.jsx)(Label, {
+						htmlFor: "lab-date",
+						children: "Date"
+					}), /* @__PURE__ */ (0, import_jsx_runtime.jsx)(Input, {
+						id: "lab-date",
+						type: "date",
+						value: date,
+						min: getTomorrowDate(),
+						onChange: (e) => setDate(e.target.value),
+						required: true
+					})]
+				}), /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
+					className: "space-y-1.5",
+					children: [/* @__PURE__ */ (0, import_jsx_runtime.jsx)(Label, {
+						htmlFor: "lab-time",
+						children: "Time Slot"
+					}), /* @__PURE__ */ (0, import_jsx_runtime.jsx)("select", {
+						id: "lab-time",
+						value: timeSlot,
+						onChange: (e) => setTimeSlot(e.target.value),
+						className: "flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-xs text-foreground",
+						required: true,
+						children: TIME_SLOTS.map((slot) => /* @__PURE__ */ (0, import_jsx_runtime.jsx)("option", {
+							value: slot,
+							children: slot
+						}, slot))
+					})]
+				})]
+			}),
+			/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
+				className: "space-y-1.5",
+				children: [/* @__PURE__ */ (0, import_jsx_runtime.jsx)(Label, {
+					htmlFor: "lab-address",
+					children: "Hostel / Campus Room / Location Address"
+				}), /* @__PURE__ */ (0, import_jsx_runtime.jsx)(Input, {
+					id: "lab-address",
+					value: address,
+					onChange: (e) => setAddress(e.target.value),
+					placeholder: "e.g. KU Ruiru Campus, Nyayo Hostel Block 4, Room 12B",
+					required: true
+				})]
+			}),
+			/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
+				className: "space-y-1.5",
+				children: [/* @__PURE__ */ (0, import_jsx_runtime.jsx)(Label, {
+					htmlFor: "lab-phone",
+					children: "Phone Number"
+				}), /* @__PURE__ */ (0, import_jsx_runtime.jsx)(Input, {
+					id: "lab-phone",
+					type: "tel",
+					value: phone,
+					onChange: (e) => setPhone(e.target.value),
+					placeholder: "0712345678",
+					required: true
+				})]
+			}),
+			/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
+				className: "flex items-center gap-1.5 text-[10px] text-muted-foreground",
+				children: [/* @__PURE__ */ (0, import_jsx_runtime.jsx)(Clock, { className: "size-3 text-primary" }), "The phlebotomist calls 15 minutes before arrival for sample collection."]
+			}),
+			/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
+				className: "flex gap-2 pt-1",
+				children: [/* @__PURE__ */ (0, import_jsx_runtime.jsx)(Button, {
+					type: "button",
+					variant: "outline",
+					className: "flex-1 text-xs",
+					onClick: () => setChoice(null),
+					children: "Back"
+				}), /* @__PURE__ */ (0, import_jsx_runtime.jsx)(Button, {
+					type: "submit",
+					className: "flex-1 bg-success hover:bg-success/90 text-xs",
+					children: "Schedule Sample Collection"
+				})]
 			})
 		]
 	});
@@ -2555,11 +2825,78 @@ function StudentLayout({ subtitle, compact = false, children }) {
 	});
 }
 function PatientRouteComponent() {
-	const { doctorOnline, studentSessionId, setStudentSessionId, getSession, messagesFor, createSession, simulatePayment, sendMessage } = useClinic();
+	const { doctorOnline, studentSessionId, setStudentSessionId, clearActiveSession, resumeSessionByPhone, getSession, messagesFor, createSession, simulatePayment, sendMessage } = useClinic();
+	const [resumePhone, setResumePhone] = (0, import_react.useState)("");
+	const [showResume, setShowResume] = (0, import_react.useState)(false);
+	const [resumeError, setResumeError] = (0, import_react.useState)(null);
+	const [resuming, setResuming] = (0, import_react.useState)(false);
 	const session = getSession(studentSessionId);
+	const handleResumeSubmit = async (e) => {
+		e.preventDefault();
+		setResumeError(null);
+		setResuming(true);
+		const found = await resumeSessionByPhone(resumePhone);
+		setResuming(false);
+		if (!found) setResumeError("No active consultation found for this phone number. Please submit a new intake.");
+	};
 	if (!session) return /* @__PURE__ */ (0, import_jsx_runtime.jsx)(StudentLayout, {
 		subtitle: "Affordable care for comrades across Kenyan campuses",
-		children: /* @__PURE__ */ (0, import_jsx_runtime.jsx)(IntakeForm, { onSubmit: (input) => createSession(input) })
+		children: !showResume ? /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
+			className: "space-y-4",
+			children: [/* @__PURE__ */ (0, import_jsx_runtime.jsx)(IntakeForm, { onSubmit: (input) => createSession(input) }), /* @__PURE__ */ (0, import_jsx_runtime.jsx)("div", {
+				className: "border-t pt-3 text-center",
+				children: /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("button", {
+					type: "button",
+					onClick: () => setShowResume(true),
+					className: "text-xs font-medium text-primary hover:underline inline-flex items-center gap-1",
+					children: [/* @__PURE__ */ (0, import_jsx_runtime.jsx)(History, { className: "size-3.5" }), "Already have an ongoing consultation? Resume here"]
+				})
+			})]
+		}) : /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("form", {
+			onSubmit: handleResumeSubmit,
+			className: "space-y-4 rounded-2xl border bg-card p-5 shadow-card",
+			children: [
+				/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
+					className: "space-y-1",
+					children: [/* @__PURE__ */ (0, import_jsx_runtime.jsx)("h3", {
+						className: "text-base font-bold",
+						children: "Resume Ongoing Consultation"
+					}), /* @__PURE__ */ (0, import_jsx_runtime.jsx)("p", {
+						className: "text-xs text-muted-foreground",
+						children: "Enter the phone number you used during intake to restore your active chat."
+					})]
+				}),
+				/* @__PURE__ */ (0, import_jsx_runtime.jsx)("div", {
+					className: "space-y-1.5",
+					children: /* @__PURE__ */ (0, import_jsx_runtime.jsx)(Input, {
+						type: "tel",
+						placeholder: "e.g. 0712345678",
+						value: resumePhone,
+						onChange: (e) => setResumePhone(e.target.value),
+						required: true
+					})
+				}),
+				resumeError && /* @__PURE__ */ (0, import_jsx_runtime.jsx)("p", {
+					className: "text-xs font-medium text-destructive",
+					children: resumeError
+				}),
+				/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
+					className: "flex gap-2",
+					children: [/* @__PURE__ */ (0, import_jsx_runtime.jsx)(Button, {
+						type: "button",
+						variant: "outline",
+						className: "flex-1 text-xs",
+						onClick: () => setShowResume(false),
+						children: "Back to Intake"
+					}), /* @__PURE__ */ (0, import_jsx_runtime.jsx)(Button, {
+						type: "submit",
+						className: "flex-1 text-xs",
+						disabled: resuming,
+						children: resuming ? "Finding chat…" : "Restore My Consultation"
+					})]
+				})
+			]
+		})
 	});
 	if (session.status === "awaiting_payment" && !session.paid) return /* @__PURE__ */ (0, import_jsx_runtime.jsx)(StudentLayout, {
 		subtitle: "Pochi la Biashara Consultation Payment",
@@ -2567,11 +2904,12 @@ function PatientRouteComponent() {
 		children: /* @__PURE__ */ (0, import_jsx_runtime.jsx)(MpesaProcessing, {
 			phone: session.phone,
 			onSimulateSuccess: () => simulatePayment(session.id),
-			onCancel: () => setStudentSessionId(null)
+			onCancel: () => clearActiveSession()
 		})
 	});
 	const msgs = messagesFor(session.id);
 	const assessment = triage(session.symptom_codes);
+	const isCompleted = session.status === "completed";
 	return /* @__PURE__ */ (0, import_jsx_runtime.jsx)(StudentLayout, {
 		subtitle: `${session.campus} · ${session.phone}`,
 		children: /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
@@ -2581,7 +2919,11 @@ function PatientRouteComponent() {
 					className: "flex items-center justify-between gap-2",
 					children: [/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("h2", {
 						className: "text-lg font-bold sm:text-xl",
-						children: ["Consultation · ", session.full_name]
+						children: [
+							isCompleted ? "Completed Consultation" : "Active Consultation",
+							" · ",
+							session.full_name
+						]
 					}), /* @__PURE__ */ (0, import_jsx_runtime.jsx)(StatusBadge, {
 						status: session.status,
 						paid: session.paid
@@ -2612,20 +2954,55 @@ function PatientRouteComponent() {
 					]
 				}),
 				/* @__PURE__ */ (0, import_jsx_runtime.jsx)("div", {
-					className: "h-[480px] overflow-hidden rounded-2xl border bg-card shadow-card",
+					className: "h-[460px] overflow-hidden rounded-2xl border bg-card shadow-card",
 					children: /* @__PURE__ */ (0, import_jsx_runtime.jsx)(ChatWindow, {
 						messages: msgs,
 						viewer: "student",
 						onSend: (body) => sendMessage(session.id, "student", body),
-						disabled: session.status === "completed"
+						disabled: isCompleted,
+						disabledLabel: "This consultation has concluded"
 					})
 				}),
-				session.status === "completed" && /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
+				session.lab_test_requested && !session.lab_order && !isCompleted && /* @__PURE__ */ (0, import_jsx_runtime.jsx)(LabOrderChoice, { session }),
+				session.lab_order && !isCompleted && /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
+					className: "rounded-xl border border-success/30 bg-success/5 p-3.5 text-xs text-success-foreground space-y-1",
+					children: [/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("p", {
+						className: "font-semibold flex items-center gap-1.5",
+						children: [
+							/* @__PURE__ */ (0, import_jsx_runtime.jsx)(CircleCheck, { className: "size-3.5" }),
+							"Lab Order Active: ",
+							session.lab_order.panels.join(", ")
+						]
+					}), session.lab_order.collection_method === "doorstep" && /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("p", {
+						className: "text-muted-foreground",
+						children: [
+							"Doorstep sample collection on ",
+							/* @__PURE__ */ (0, import_jsx_runtime.jsx)("strong", { children: session.lab_order.scheduled_date }),
+							" (",
+							session.lab_order.scheduled_time,
+							") at ",
+							session.lab_order.collection_address,
+							"."
+						]
+					})]
+				}),
+				isCompleted && /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
 					className: "space-y-4 pt-2",
 					children: [
 						session.prescription && /* @__PURE__ */ (0, import_jsx_runtime.jsx)(PrescriptionTemplate, { session }),
 						session.referral && /* @__PURE__ */ (0, import_jsx_runtime.jsx)(ReferralTemplate, { session }),
-						/* @__PURE__ */ (0, import_jsx_runtime.jsx)(DocumentActions, { label: session.prescription ? "prescription" : "referral" })
+						/* @__PURE__ */ (0, import_jsx_runtime.jsx)(DocumentActions, { label: session.prescription ? "prescription" : "referral" }),
+						/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
+							className: "rounded-2xl border bg-card p-4 text-center shadow-card space-y-2",
+							children: [/* @__PURE__ */ (0, import_jsx_runtime.jsx)("p", {
+								className: "text-xs text-muted-foreground",
+								children: "Your consultation is completed and your records are archived."
+							}), /* @__PURE__ */ (0, import_jsx_runtime.jsxs)(Button, {
+								className: "w-full gap-2 rounded-xl",
+								onClick: () => clearActiveSession(),
+								children: [/* @__PURE__ */ (0, import_jsx_runtime.jsx)(RotateCcw, { className: "size-4" }), "Done · Start New Consultation"]
+							})]
+						})
 					]
 				})
 			]

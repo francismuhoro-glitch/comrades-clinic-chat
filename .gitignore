@@ -35,5 +35,8 @@ dist-ssr
 .env
 .env.local
 .env.*.local
-.vercelbun.lock
+.vercel
+
+# Lockfiles from other package managers (this project uses npm)
+bun.lock
 bun.lockb

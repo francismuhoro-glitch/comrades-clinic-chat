@@ -1,4 +1,5 @@
 import { createFileRoute } from "@tanstack/react-router";
+import { Siren } from "lucide-react";
 
 import { ChatWindow } from "@/components/clinic/ChatWindow";
 import {
@@ -113,9 +114,12 @@ function StudentApp() {
         </span>
       </div>
       {session.emergency_flag && (
-        <div className="mt-3 rounded-xl border border-destructive bg-destructive/10 p-3 text-xs font-medium text-destructive">
-          <strong className="block">🚨 Emergency flag</strong>
-          {EMERGENCY_NOTICE}
+        <div className="mt-3 flex items-start gap-2 rounded-xl border border-destructive bg-destructive/10 p-3 text-xs font-medium text-destructive">
+          <Siren className="mt-0.5 size-4 shrink-0" />
+          <span>
+            <strong className="block">Emergency flag</strong>
+            {EMERGENCY_NOTICE}
+          </span>
         </div>
       )}
 

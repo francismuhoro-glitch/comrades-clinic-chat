@@ -1,16 +1,13 @@
-import { createHash, timingSafeEqual } from "node:crypto";
-
 import { createServerFn } from "@tanstack/react-start";
 import { setResponseHeader, useSession } from "@tanstack/react-start/server";
 import { z } from "zod";
 
 import { DOCTOR } from "./clinic-types";
+import { supabase } from "./supabase";
 
 const SESSION_NAME = "comrades-clinic-doctor";
 const SESSION_MAX_AGE_SECONDS = 8 * 60 * 60;
 const DEVELOPMENT_SESSION_SECRET = "comrades-clinic-development-session-secret-change-me";
-const DEVELOPMENT_DOCTOR_EMAIL = "doctor@lovableclinic.co.ke";
-const DEVELOPMENT_DOCTOR_PASSWORD = "ComradeClinic150!";
 
 type DoctorSessionData = {
   userId: string;
@@ -36,20 +33,15 @@ function isProduction() {
   return process.env["NODE_ENV"] === "production";
 }
 
-function requiredProductionValue(name: string, developmentValue: string) {
-  const value = process.env[name]?.trim();
-
-  if (value) return value;
-  if (!isProduction()) return developmentValue;
-
-  throw new Error(`${name} must be configured before the doctor portal can be used.`);
-}
-
 function sessionSecret() {
-  const secret = requiredProductionValue("SESSION_SECRET", DEVELOPMENT_SESSION_SECRET);
+  const secret =
+    process.env["SESSION_SECRET"]?.trim() || (!isProduction() ? DEVELOPMENT_SESSION_SECRET : "");
 
   if (secret.length < 32) {
-    throw new Error("SESSION_SECRET must contain at least 32 characters.");
+    if (isProduction()) {
+      throw new Error("SESSION_SECRET must contain at least 32 characters.");
+    }
+    return DEVELOPMENT_SESSION_SECRET;
   }
 
   return secret;
@@ -68,20 +60,6 @@ function useDoctorSession() {
       maxAge: SESSION_MAX_AGE_SECONDS,
     },
   });
-}
-
-function configuredCredentials() {
-  return {
-    email: requiredProductionValue("DOCTOR_EMAIL", DEVELOPMENT_DOCTOR_EMAIL).toLowerCase(),
-    password: requiredProductionValue("DOCTOR_PASSWORD", DEVELOPMENT_DOCTOR_PASSWORD),
-  };
-}
-
-/** Compare fixed-length hashes so credential checks do not leak prefix timing. */
-function credentialsMatch(actual: string, expected: string) {
-  const actualHash = createHash("sha256").update(actual).digest();
-  const expectedHash = createHash("sha256").update(expected).digest();
-  return timingSafeEqual(actualHash, expectedHash);
 }
 
 function preventAuthResponseCaching() {
@@ -110,22 +88,39 @@ export const loginDoctor = createServerFn({ method: "POST" })
   .validator(loginSchema)
   .handler(async ({ data }) => {
     preventAuthResponseCaching();
-    const credentials = configuredCredentials();
-    const emailMatches = credentialsMatch(data.email.toLowerCase(), credentials.email);
-    const passwordMatches = credentialsMatch(data.password, credentials.password);
 
-    if (!emailMatches || !passwordMatches) {
+    const { data: authData, error: authError } = await supabase.auth.signInWithPassword({
+      email: data.email,
+      password: data.password,
+    });
+
+    if (authError || !authData?.user) {
       return {
         ok: false as const,
-        error: "The email or password is incorrect.",
+        error: "Invalid doctor email or password.",
+      };
+    }
+
+    // Verify clinician role in profiles table
+    const { data: profile } = await supabase
+      .from("profiles")
+      .select("full_name, role, kmpdc_license")
+      .eq("id", authData.user.id)
+      .maybeSingle();
+
+    if (profile?.role !== "doctor") {
+      await supabase.auth.signOut();
+      return {
+        ok: false as const,
+        error: "Access denied. This account does not have clinician authorization.",
       };
     }
 
     const session = await useDoctorSession();
     await session.update({
-      userId: "doctor-primary",
-      email: credentials.email,
-      name: DOCTOR.name,
+      userId: authData.user.id,
+      email: authData.user.email || data.email,
+      name: profile.full_name || DOCTOR.name,
       role: "doctor",
       authenticatedAt: new Date().toISOString(),
     });
@@ -135,6 +130,11 @@ export const loginDoctor = createServerFn({ method: "POST" })
 
 export const logoutDoctor = createServerFn({ method: "POST" }).handler(async () => {
   preventAuthResponseCaching();
+  try {
+    await supabase.auth.signOut();
+  } catch {
+    // Ignore signOut errors if offline
+  }
   const session = await useDoctorSession();
   await session.clear();
   return { ok: true as const };

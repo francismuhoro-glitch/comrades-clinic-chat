@@ -100,6 +100,19 @@ Please build the entire app layout, state management, and user flows using mock 
 
 - Provide clean, downloadable PDF mockups or beautifully formatted print-friendly views for prescriptions, ensuring placeholders for the doctor's KMPDC license number are easily hardcoded.
 
+## Doctor portal authentication
+
+The `/doctor` portal is protected by a server-validated email/password login and an encrypted, HTTP-only session cookie. In local development, use:
+
+- **Email:** `doctor@lovableclinic.co.ke`
+- **Password:** `ComradeClinic150!`
+
+Production deliberately has no fallback credentials. Copy `.env.example` into your deployment configuration and set unique values for `SESSION_SECRET` (at least 32 characters), `DOCTOR_EMAIL`, and `DOCTOR_PASSWORD`.
+
+This is the secure gate for the current single-doctor mock. Before handling real patient data, replace the shared environment account with individual clinician identities (for example, Supabase Auth + MFA) and enforce authorization/RLS on every database read and mutation.
+
+See [`docs/AUTOMATION_RECOMMENDATIONS.md`](docs/AUTOMATION_RECOMMENDATIONS.md) for the recommended backend, M-Pesa, queue, clinical, notification, and CI automation roadmap.
+
 This project was built with [Lovable](https://lovable.dev).
 
 ## Build with Lovable

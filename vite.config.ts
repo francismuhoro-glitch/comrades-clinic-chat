@@ -12,4 +12,8 @@ export default defineConfig({
     // nitro/vite builds from this
     server: { entry: "server" },
   },
+  vite: {
+    // Arena previews proxy the dev server through a generated hostname.
+    server: { allowedHosts: true },
+  },
 });

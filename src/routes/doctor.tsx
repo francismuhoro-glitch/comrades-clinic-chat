@@ -1,12 +1,16 @@
-import { createFileRoute } from "@tanstack/react-router";
+import { createFileRoute, useRouter } from "@tanstack/react-router";
+import { LogOut } from "lucide-react";
 import { useState } from "react";
 
 import { ChatWindow } from "@/components/clinic/ChatWindow";
 import { ClinicalPanel } from "@/components/clinic/ClinicalPanel";
+import { DoctorLogin } from "@/components/clinic/DoctorLogin";
 import { PatientQueue } from "@/components/clinic/PatientQueue";
+import { Button } from "@/components/ui/button";
 import { Switch } from "@/components/ui/switch";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useClinic } from "@/lib/clinic-store";
+import { getCurrentDoctor, logoutDoctor, type AuthenticatedDoctor } from "@/lib/doctor-auth";
 import { DOCTOR } from "@/lib/clinic-types";
 
 export const Route = createFileRoute("/doctor")({
@@ -24,12 +28,24 @@ export const Route = createFileRoute("/doctor")({
         content:
           "Manage the student consultation queue, chat in real time, and issue digital prescriptions and referrals.",
       },
+      { name: "robots", content: "noindex, nofollow" },
     ],
   }),
-  component: DoctorPortal,
+  loader: () => getCurrentDoctor(),
+  component: DoctorPortalRoute,
 });
 
-function DoctorPortal() {
+function DoctorPortalRoute() {
+  const authenticatedDoctor = Route.useLoaderData();
+
+  if (!authenticatedDoctor) return <DoctorLogin />;
+
+  return <DoctorPortal authenticatedDoctor={authenticatedDoctor} />;
+}
+
+function DoctorPortal({ authenticatedDoctor }: { authenticatedDoctor: AuthenticatedDoctor }) {
+  const router = useRouter();
+  const [signingOut, setSigningOut] = useState(false);
   const {
     doctorOnline,
     setDoctorOnline,
@@ -48,6 +64,17 @@ function DoctorPortal() {
     activateSession(id);
   };
 
+  const signOut = async () => {
+    setSigningOut(true);
+
+    try {
+      await logoutDoctor();
+      await router.invalidate();
+    } finally {
+      setSigningOut(false);
+    }
+  };
+
   return (
     <div className="min-h-screen bg-background">
       <header className="no-print bg-gradient-medical px-4 py-4 text-primary-foreground">
@@ -58,10 +85,29 @@ function DoctorPortal() {
               {DOCTOR.title} · {DOCTOR.kmpdc_license}
             </p>
           </div>
-          <label className="flex items-center gap-2 rounded-full bg-primary-foreground/15 px-3 py-1.5 text-xs font-semibold">
-            <Switch checked={doctorOnline} onCheckedChange={setDoctorOnline} />
-            {doctorOnline ? "Available" : "Unavailable"}
-          </label>
+          <div className="flex flex-wrap items-center justify-end gap-2">
+            <span className="hidden text-right text-[11px] opacity-80 sm:block">
+              Signed in as
+              <strong className="ml-1 font-semibold text-primary-foreground">
+                {authenticatedDoctor.email}
+              </strong>
+            </span>
+            <label className="flex items-center gap-2 rounded-full bg-primary-foreground/15 px-3 py-1.5 text-xs font-semibold">
+              <Switch checked={doctorOnline} onCheckedChange={setDoctorOnline} />
+              {doctorOnline ? "Available" : "Unavailable"}
+            </label>
+            <Button
+              type="button"
+              variant="ghost"
+              size="sm"
+              onClick={signOut}
+              disabled={signingOut}
+              className="rounded-full bg-primary-foreground/10 text-primary-foreground hover:bg-primary-foreground/20 hover:text-primary-foreground"
+            >
+              <LogOut className="size-3.5" aria-hidden="true" />
+              {signingOut ? "Signing out…" : "Sign out"}
+            </Button>
+          </div>
         </div>
       </header>
 

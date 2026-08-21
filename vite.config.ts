@@ -13,17 +13,6 @@ export default defineConfig({
   },
   nitro: {
     preset: process.env["NITRO_PRESET"] || "vercel",
-    externals: {
-      inline: [
-        "tslib",
-        "@supabase/supabase-js",
-        "@supabase/functions-js",
-        "@supabase/postgrest-js",
-        "@supabase/auth-js",
-        "@supabase/realtime-js",
-        "@supabase/storage-js",
-      ],
-    },
   },
   vite: {
     ssr: {

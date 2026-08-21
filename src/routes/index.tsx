@@ -1,5 +1,5 @@
-import { createFileRoute } from "@tanstack/react-router";
-import { ArrowRight, CheckCircle2, History, RotateCcw } from "lucide-react";
+import { createFileRoute, Link } from "@tanstack/react-router";
+import { ArrowRight, CheckCircle2, History, RotateCcw, UserRound, XCircle } from "lucide-react";
 import { useState } from "react";
 
 import { ChatWindow } from "@/components/clinic/ChatWindow";
@@ -15,6 +15,7 @@ import { StatusBadge, StudentLayout } from "@/components/clinic/StudentLayout";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { useClinic } from "@/lib/clinic-store";
+import { LAB_ORDER_STATUS_LABELS } from "@/lib/clinic-types";
 import { EMERGENCY_NOTICE, triage } from "@/lib/triage";
 
 export const Route = createFileRoute("/")({
@@ -43,6 +44,7 @@ function PatientRouteComponent() {
     createSession,
     simulatePayment,
     sendMessage,
+    reopenLabChoice,
   } = useClinic();
 
   const [resumePhone, setResumePhone] = useState("");
@@ -59,7 +61,9 @@ function PatientRouteComponent() {
     const found = await resumeSessionByPhone(resumePhone);
     setResuming(false);
     if (!found) {
-      setResumeError("No active consultation found for this phone number. Please submit a new intake.");
+      setResumeError(
+        "No active consultation found for this phone number. Please submit a new intake.",
+      );
     }
   };
 
@@ -70,7 +74,7 @@ function PatientRouteComponent() {
         {!showResume ? (
           <div className="space-y-4">
             <IntakeForm onSubmit={(input) => createSession(input)} />
-            <div className="border-t pt-3 text-center">
+            <div className="border-t pt-3 text-center space-y-2">
               <button
                 type="button"
                 onClick={() => setShowResume(true)}
@@ -79,10 +83,22 @@ function PatientRouteComponent() {
                 <History className="size-3.5" />
                 Already have an ongoing consultation? Resume here
               </button>
+              <div>
+                <Link
+                  to="/visits"
+                  className="text-xs font-medium text-primary hover:underline inline-flex items-center gap-1"
+                >
+                  <UserRound className="size-3.5" />
+                  Sign in to view your past visits
+                </Link>
+              </div>
             </div>
           </div>
         ) : (
-          <form onSubmit={handleResumeSubmit} className="space-y-4 rounded-2xl border bg-card p-5 shadow-card">
+          <form
+            onSubmit={handleResumeSubmit}
+            className="space-y-4 rounded-2xl border bg-card p-5 shadow-card"
+          >
             <div className="space-y-1">
               <h3 className="text-base font-bold">Resume Ongoing Consultation</h3>
               <p className="text-xs text-muted-foreground">
@@ -100,9 +116,7 @@ function PatientRouteComponent() {
               />
             </div>
 
-            {resumeError && (
-              <p className="text-xs font-medium text-destructive">{resumeError}</p>
-            )}
+            {resumeError && <p className="text-xs font-medium text-destructive">{resumeError}</p>}
 
             <div className="flex gap-2">
               <Button
@@ -142,9 +156,7 @@ function PatientRouteComponent() {
 
   // Case 3: In Queue, In Consultation, or Completed
   return (
-    <StudentLayout
-      subtitle={`${session.campus} · ${session.phone}`}
-    >
+    <StudentLayout subtitle={`${session.campus} · ${session.phone}`}>
       <div className="space-y-4">
         <div className="flex items-center justify-between gap-2">
           <h2 className="text-lg font-bold sm:text-xl">
@@ -190,7 +202,29 @@ function PatientRouteComponent() {
           <LabOrderChoice session={session} />
         )}
 
-        {session.lab_order && !isCompleted && (
+        {session.lab_order && session.lab_order.status === "declined" && !isCompleted && (
+          <div className="rounded-xl border border-border bg-muted/40 p-3.5 text-xs space-y-2">
+            <p className="font-semibold flex items-center gap-1.5 text-muted-foreground">
+              <XCircle className="size-3.5" />
+              You declined the lab test
+              {session.lab_order.decline_reason ? `: "${session.lab_order.decline_reason}"` : "."}
+            </p>
+            <p className="text-muted-foreground">
+              The doctor has been notified. If you change your mind, you can choose a collection
+              option again.
+            </p>
+            <Button
+              size="sm"
+              variant="outline"
+              className="h-7 text-[11px]"
+              onClick={() => reopenLabChoice(session.id)}
+            >
+              I've changed my mind — show options again
+            </Button>
+          </div>
+        )}
+
+        {session.lab_order && session.lab_order.status !== "declined" && !isCompleted && (
           <div className="rounded-xl border border-success/30 bg-success/5 p-3.5 text-xs text-success-foreground space-y-1">
             <p className="font-semibold flex items-center gap-1.5">
               <CheckCircle2 className="size-3.5" />
@@ -198,9 +232,13 @@ function PatientRouteComponent() {
             </p>
             {session.lab_order.collection_method === "doorstep" && (
               <p className="text-muted-foreground">
-                Doorstep sample collection on <strong>{session.lab_order.scheduled_date}</strong> ({session.lab_order.scheduled_time}) at {session.lab_order.collection_address}.
+                Doorstep sample collection on <strong>{session.lab_order.scheduled_date}</strong> (
+                {session.lab_order.scheduled_time}) at {session.lab_order.collection_address}.
               </p>
             )}
+            <p className="text-muted-foreground">
+              Status: <strong>{LAB_ORDER_STATUS_LABELS[session.lab_order.status]}</strong>
+            </p>
           </div>
         )}
 
@@ -216,13 +254,18 @@ function PatientRouteComponent() {
               <p className="text-xs text-muted-foreground">
                 Your consultation is completed and your records are archived.
               </p>
-              <Button
-                className="w-full gap-2 rounded-xl"
-                onClick={() => clearActiveSession()}
-              >
+              <Button className="w-full gap-2 rounded-xl" onClick={() => clearActiveSession()}>
                 <RotateCcw className="size-4" />
                 Done · Start New Consultation
               </Button>
+              <Link
+                to="/visits"
+                className="inline-flex items-center gap-1 text-xs font-medium text-primary hover:underline"
+              >
+                <UserRound className="size-3.5" />
+                View all your past visits
+                <ArrowRight className="size-3" />
+              </Link>
             </div>
           </div>
         )}

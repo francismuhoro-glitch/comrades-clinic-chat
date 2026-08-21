@@ -10,16 +10,20 @@ import {
 } from "react";
 import { decryptMessage, encryptMessage } from "./crypto";
 import { supabase } from "./supabase";
+import { mapConsultationRow, type ConsultationRow } from "./consultation-mapper";
 
 import { triage } from "./triage";
 import {
   CONSULT_FEE_KES,
+  LAB_ORDER_STATUS_LABELS,
   type ChatMessage,
   type ClinicSettings,
   type ConsultSession,
   type LabOrder,
+  type LabOrderStatus,
   type Prescription,
   type Referral,
+  type Sender,
 } from "./clinic-types";
 
 const uid = () =>
@@ -27,8 +31,7 @@ const uid = () =>
     ? globalThis.crypto.randomUUID()
     : `${Date.now().toString(16)}-${Math.random().toString(16).slice(2, 10)}-4000-8000-${Math.random().toString(16).slice(2, 14)}`;
 const now = () => new Date().toISOString();
-const minutesAgo = (m: number) =>
-  new Date(Date.now() - m * 60_000).toISOString();
+const minutesAgo = (m: number) => new Date(Date.now() - m * 60_000).toISOString();
 
 const DEFAULT_SETTINGS: ClinicSettings = {
   pochi_phone: "0712345678",
@@ -111,8 +114,7 @@ function seed(): State {
     fee_kes: CONSULT_FEE_KES,
     mpesa_receipt: "QPP0099ZZA",
     lab_test_requested: false,
-    diagnosis_notes:
-      "Acute gastroenteritis. Prescribed oral rehydration salts and Zinc.",
+    diagnosis_notes: "Acute gastroenteritis. Prescribed oral rehydration salts and Zinc.",
     prescription: {
       medication: "Oral Rehydration Salts (ORS) + Zinc sulphate 20mg",
       dosage: "1 sachet in 1L clean water, sip throughout day. Zinc 1 tab OD.",
@@ -183,9 +185,7 @@ function reducer(state: State, action: Action): State {
       return {
         ...state,
         sessions: state.sessions.map((s) =>
-          s.id === action.id && s.status === "waiting"
-            ? { ...s, status: "active" }
-            : s,
+          s.id === action.id && s.status === "waiting" ? { ...s, status: "active" } : s,
         ),
       };
     case "add_message":
@@ -194,9 +194,7 @@ function reducer(state: State, action: Action): State {
     case "patch_session":
       return {
         ...state,
-        sessions: state.sessions.map((s) =>
-          s.id === action.id ? { ...s, ...action.patch } : s,
-        ),
+        sessions: state.sessions.map((s) => (s.id === action.id ? { ...s, ...action.patch } : s)),
       };
     default:
       return state;
@@ -227,14 +225,16 @@ interface ClinicApi {
   createSession: (input: IntakeInput) => string;
   resumeSessionByPhone: (phone: string) => Promise<boolean>;
   clearActiveSession: () => void;
-  submitPaymentClaim: (
-    id: string,
-    mpesaCode: string,
-    paymentPhone: string,
-  ) => Promise<void>;
+  submitPaymentClaim: (id: string, mpesaCode: string, paymentPhone: string) => Promise<void>;
   confirmPayment: (id: string) => Promise<void>;
   rejectPayment: (id: string) => Promise<void>;
   submitLabOrder: (id: string, order: LabOrder) => Promise<void>;
+  /** Patient declines the doctor's lab request (with an optional reason). */
+  declineLabOrder: (id: string, reason?: string) => Promise<void>;
+  /** Patient reopens the collection choice (e.g. after declining or to change plans). */
+  reopenLabChoice: (id: string) => Promise<void>;
+  /** Doctor advances the lab order through its fulfilment pipeline. */
+  updateLabOrderStatus: (id: string, status: LabOrderStatus) => Promise<void>;
   simulatePayment: (id: string) => void;
   activateSession: (id: string) => void;
   sendMessage: (id: string, sender: "student" | "doctor", body: string) => void;
@@ -250,14 +250,12 @@ export function ClinicProvider({ children }: { children: ReactNode }) {
   const [state, dispatch] = useReducer(reducer, undefined, seed);
 
   // Auto-restore session ID from localStorage across browser restarts
-  const [studentSessionId, setStudentSessionIdState] = useState<string | null>(
-    () => {
-      if (typeof window !== "undefined") {
-        return localStorage.getItem("comrades_active_session_id") || null;
-      }
-      return null;
-    },
-  );
+  const [studentSessionId, setStudentSessionIdState] = useState<string | null>(() => {
+    if (typeof window !== "undefined") {
+      return localStorage.getItem("comrades_active_session_id") || null;
+    }
+    return null;
+  });
 
   const setStudentSessionId = useCallback((id: string | null) => {
     setStudentSessionIdState(id);
@@ -277,6 +275,30 @@ export function ClinicProvider({ children }: { children: ReactNode }) {
     }
   }, []);
 
+  // Persist any chat message (student/doctor/system) to Supabase, encrypted.
+  const persistMessage = useCallback(
+    (msgId: string, sessionId: string, sender: Sender, body: string, createdAt: string) => {
+      (async () => {
+        try {
+          const encryptedContent = await encryptMessage(body, sessionId);
+          const { error } = await supabase.from("messages").insert({
+            id: msgId,
+            consultation_id: sessionId,
+            sender_role: sender === "student" ? "patient" : sender,
+            sender_name:
+              sender === "doctor" ? "Doctor" : sender === "system" ? "System" : "Student",
+            content: encryptedContent,
+            created_at: createdAt,
+          });
+          if (error) console.error("Supabase message insert failed:", error.message);
+        } catch (err) {
+          console.warn("Supabase message sync notice:", err);
+        }
+      })();
+    },
+    [],
+  );
+
   // Send message with AES-256 client-side encryption and Supabase sync
   const sendMessage = useCallback(
     (id: string, sender: "student" | "doctor", body: string) => {
@@ -294,25 +316,30 @@ export function ClinicProvider({ children }: { children: ReactNode }) {
         },
       });
 
-      (async () => {
-        try {
-          const encryptedContent = await encryptMessage(body, id);
-          const { error } = await supabase.from("messages").insert({
-            id: msgId,
-            consultation_id: id,
-            sender_role: sender === "student" ? "patient" : sender,
-            sender_name: sender === "doctor" ? "Doctor" : "Student",
-            content: encryptedContent,
-            created_at: createdAt,
-          });
-          if (error)
-            console.error("Supabase message insert failed:", error.message);
-        } catch (err) {
-          console.warn("Supabase message sync notice:", err);
-        }
-      })();
+      persistMessage(msgId, id, sender, body, createdAt);
     },
-    [],
+    [persistMessage],
+  );
+
+  // System messages must reach BOTH sides (doctor and patient), so they are
+  // dispatched locally and synced through Supabase like any other message.
+  const sendSystemMessage = useCallback(
+    (id: string, body: string) => {
+      const msgId = uid();
+      const createdAt = now();
+      dispatch({
+        type: "add_message",
+        message: {
+          id: msgId,
+          session_id: id,
+          sender: "system",
+          body,
+          created_at: createdAt,
+        },
+      });
+      persistMessage(msgId, id, "system", body, createdAt);
+    },
+    [persistMessage],
   );
 
   // Realtime Supabase subscription for live chat and live queue sync
@@ -329,15 +356,11 @@ export function ClinicProvider({ children }: { children: ReactNode }) {
           dispatch({
             type: "set_settings",
             settings: {
-              pochi_phone:
-                settingsData.pochi_phone || DEFAULT_SETTINGS.pochi_phone,
-              pochi_name:
-                settingsData.pochi_name || DEFAULT_SETTINGS.pochi_name,
-              helpline_phone:
-                settingsData.helpline_phone || DEFAULT_SETTINGS.helpline_phone,
+              pochi_phone: settingsData.pochi_phone || DEFAULT_SETTINGS.pochi_phone,
+              pochi_name: settingsData.pochi_name || DEFAULT_SETTINGS.pochi_name,
+              helpline_phone: settingsData.helpline_phone || DEFAULT_SETTINGS.helpline_phone,
               consultation_fee_kes:
-                settingsData.consultation_fee_kes ||
-                DEFAULT_SETTINGS.consultation_fee_kes,
+                settingsData.consultation_fee_kes || DEFAULT_SETTINGS.consultation_fee_kes,
             },
           });
         }
@@ -348,47 +371,39 @@ export function ClinicProvider({ children }: { children: ReactNode }) {
           .order("created_at", { ascending: false });
 
         if (data && data.length > 0) {
-          for (const row of data) {
-            const mappedStatus: ConsultSession["status"] =
-              row.status === "waiting"
-                ? "waiting"
-                : row.status === "active"
-                  ? "active"
-                  : row.status === "completed"
-                    ? "completed"
-                    : "awaiting_payment";
+          for (const row of data as ConsultationRow[]) {
+            dispatch({ type: "create_session", session: mapConsultationRow(row) });
+          }
+        }
 
-            const session: ConsultSession = {
-              id: row.id,
-              full_name: row.patient_name || "Patient",
-              phone: row.patient_phone || "",
-              campus: row.campus || "",
-              symptoms: row.symptoms_description || "",
-              symptom_codes: row.symptoms_selected || [],
-              triage_level: row.triage_level || "routine",
-              emergency_flag: row.triage_level === "emergency",
-              suggested_labs: [],
-              status: mappedStatus,
-              paid:
-                row.paid ||
-                row.payment_status === "confirmed" ||
-                (row.status !== "payment_pending" && row.status !== "intake"),
-              fee_kes: CONSULT_FEE_KES,
-              mpesa_receipt: row.mpesa_code || null,
-              mpesa_code: row.mpesa_code,
-              payment_phone: row.payment_phone,
-              payment_status:
-                row.payment_status ||
-                (row.status === "payment_pending" ? "pending" : "confirmed"),
-              lab_test_requested: Boolean(row.lab_test_requested),
-              diagnosis_notes: row.diagnosis || "",
-              prescription: row.prescription || null,
-              referral: row.referral || null,
-              lab_order: row.lab_order || null,
-              created_at: row.created_at || now(),
-              ended_at: null,
-            };
-            dispatch({ type: "create_session", session });
+        // Restore chat history so a page refresh (or a new device) does not
+        // lose past messages. Messages are stored encrypted per consultation.
+        const { data: messageRows } = await supabase
+          .from("messages")
+          .select("*")
+          .order("created_at", { ascending: true })
+          .limit(1000);
+
+        if (messageRows && messageRows.length > 0) {
+          for (const raw of messageRows as {
+            id: string;
+            consultation_id: string;
+            sender_role: "patient" | "doctor" | "system";
+            content: string;
+            created_at: string | null;
+          }[]) {
+            if (!raw.id || !raw.consultation_id) continue;
+            const body = await decryptMessage(raw.content, raw.consultation_id);
+            dispatch({
+              type: "add_message",
+              message: {
+                id: raw.id,
+                session_id: raw.consultation_id,
+                sender: raw.sender_role === "patient" ? "student" : (raw.sender_role ?? "system"),
+                body,
+                created_at: raw.created_at || now(),
+              },
+            });
           }
         }
       } catch (err) {
@@ -411,20 +426,14 @@ export function ClinicProvider({ children }: { children: ReactNode }) {
           };
 
           if (!raw || !raw.consultation_id) return;
-          const decryptedBody = await decryptMessage(
-            raw.content,
-            raw.consultation_id,
-          );
+          const decryptedBody = await decryptMessage(raw.content, raw.consultation_id);
 
           dispatch({
             type: "add_message",
             message: {
               id: raw.id,
               session_id: raw.consultation_id,
-              sender:
-                raw.sender_role === "patient"
-                  ? "student"
-                  : (raw.sender_role ?? "system"),
+              sender: raw.sender_role === "patient" ? "student" : (raw.sender_role ?? "system"),
               body: decryptedBody,
               created_at: raw.created_at || now(),
             },
@@ -483,7 +492,7 @@ export function ClinicProvider({ children }: { children: ReactNode }) {
             diagnosis?: string;
             prescription?: Prescription;
             referral?: Referral;
-            lab_order?: LabOrder;
+            lab_order?: LabOrder | null;
             payment_status?: "pending" | "confirmed" | "rejected";
             lab_test_requested?: boolean;
           };
@@ -500,7 +509,11 @@ export function ClinicProvider({ children }: { children: ReactNode }) {
 
           const patch: Partial<ConsultSession> = {
             status: mappedStatus,
-            paid: row.payment_status === "confirmed" || row.status === "waiting" || row.status === "active" || row.status === "completed",
+            paid:
+              row.payment_status === "confirmed" ||
+              row.status === "waiting" ||
+              row.status === "active" ||
+              row.status === "completed",
           };
           if (typeof row.diagnosis === "string") {
             patch.diagnosis_notes = row.diagnosis;
@@ -511,7 +524,7 @@ export function ClinicProvider({ children }: { children: ReactNode }) {
           if (row.referral) {
             patch.referral = row.referral;
           }
-          if (row.lab_order) {
+          if (row.lab_order !== undefined) {
             patch.lab_order = row.lab_order;
           }
           if (row.payment_status) {
@@ -536,17 +549,8 @@ export function ClinicProvider({ children }: { children: ReactNode }) {
   }, []);
 
   const api = useMemo<ClinicApi>(() => {
-    const system = (id: string, body: string) =>
-      dispatch({
-        type: "add_message",
-        message: {
-          id: uid(),
-          session_id: id,
-          sender: "system",
-          body,
-          created_at: now(),
-        },
-      });
+    // Synced to Supabase so both the doctor and the patient see it.
+    const system = sendSystemMessage;
 
     return {
       doctorOnline: state.doctorOnline,
@@ -567,15 +571,11 @@ export function ClinicProvider({ children }: { children: ReactNode }) {
       },
       sessions: state.sessions,
       pendingPayments: state.sessions.filter(
-        (s) =>
-          (s.payment_status === "pending" || s.status === "awaiting_payment") &&
-          !s.paid,
+        (s) => (s.payment_status === "pending" || s.status === "awaiting_payment") && !s.paid,
       ),
-      sessionsByStatus: (status) =>
-        state.sessions.filter((s) => s.status === status),
+      sessionsByStatus: (status) => state.sessions.filter((s) => s.status === status),
       getSession: (id) => state.sessions.find((s) => s.id === id) ?? null,
-      messagesFor: (id) =>
-        id ? state.messages.filter((m) => m.session_id === id) : [],
+      messagesFor: (id) => (id ? state.messages.filter((m) => m.session_id === id) : []),
       studentSessionId,
       setStudentSessionId,
       clearActiveSession,
@@ -583,9 +583,7 @@ export function ClinicProvider({ children }: { children: ReactNode }) {
         const cleaned = searchPhone.trim().replace(/\s/g, "");
         // Search local state first
         const local = state.sessions.find(
-          (s) =>
-            s.phone.replace(/\s/g, "") === cleaned &&
-            s.status !== "completed",
+          (s) => s.phone.replace(/\s/g, "") === cleaned && s.status !== "completed",
         );
         if (local) {
           setStudentSessionId(local.id);
@@ -639,6 +637,16 @@ export function ClinicProvider({ children }: { children: ReactNode }) {
 
         (async () => {
           try {
+            // Attach the logged-in patient account (if any) so this visit
+            // shows up under "My Visits" on any device.
+            let patientId: string | null = null;
+            try {
+              const { data } = await supabase.auth.getUser();
+              patientId = data.user?.id ?? null;
+            } catch {
+              patientId = null;
+            }
+
             const { error } = await supabase.from("consultations").insert({
               id: session.id,
               patient_name: input.full_name,
@@ -648,12 +656,9 @@ export function ClinicProvider({ children }: { children: ReactNode }) {
               symptoms_selected: input.symptom_codes,
               triage_level: t.level,
               status: "payment_pending",
+              ...(patientId ? { patient_id: patientId } : {}),
             });
-            if (error)
-              console.error(
-                "Supabase consultation insert failed:",
-                error.message,
-              );
+            if (error) console.error("Supabase consultation insert failed:", error.message);
           } catch (err) {
             console.warn("Supabase session sync notice:", err);
           }
@@ -686,8 +691,7 @@ export function ClinicProvider({ children }: { children: ReactNode }) {
       },
       confirmPayment: async (id) => {
         const s = state.sessions.find((x) => x.id === id);
-        const receipt =
-          s?.mpesa_code || "POCHI-" + uid().toUpperCase().slice(0, 8);
+        const receipt = s?.mpesa_code || "POCHI-" + uid().toUpperCase().slice(0, 8);
         dispatch({ type: "mark_paid", id, receipt });
         dispatch({
           type: "patch_session",
@@ -717,10 +721,7 @@ export function ClinicProvider({ children }: { children: ReactNode }) {
             paid: false,
           },
         });
-        system(
-          id,
-          `Payment reference could not be verified. Please check and resubmit.`,
-        );
+        system(id, `Payment reference could not be verified. Please check and resubmit.`);
         try {
           await supabase
             .from("consultations")
@@ -737,10 +738,7 @@ export function ClinicProvider({ children }: { children: ReactNode }) {
         const receipt = "Q" + uid().toUpperCase().slice(0, 9);
         dispatch({ type: "mark_paid", id, receipt });
         const s = state.sessions.find((x) => x.id === id);
-        system(
-          id,
-          `Payment of KSh ${CONSULT_FEE_KES} received. Receipt ${receipt}.`,
-        );
+        system(id, `Payment of KSh ${CONSULT_FEE_KES} received. Receipt ${receipt}.`);
         if (s) {
           const t = triage(s.symptom_codes);
           if (t.emergency) {
@@ -788,19 +786,27 @@ export function ClinicProvider({ children }: { children: ReactNode }) {
         dispatch({
           type: "patch_session",
           id,
-          patch: { lab_test_requested: value },
+          // Re-requesting clears any previous (e.g. declined) order so the
+          // patient gets a fresh choice card.
+          patch: value
+            ? { lab_test_requested: value, lab_order: null }
+            : { lab_test_requested: value },
         });
         system(
           id,
           value
-            ? "Doctor requested a lab test for this file. Please choose doorstep collection or visit a lab below."
+            ? "Doctor requested a lab test for this file. Please choose doorstep collection or visit a lab below — or decline if you prefer."
             : "Lab test request withdrawn.",
         );
         (async () => {
           try {
             await supabase
               .from("consultations")
-              .update({ lab_test_requested: value })
+              .update(
+                value
+                  ? { lab_test_requested: value, lab_order: null }
+                  : { lab_test_requested: value },
+              )
               .eq("id", id);
           } catch (err) {
             console.error("Failed to toggle lab in Supabase:", err);
@@ -817,10 +823,7 @@ export function ClinicProvider({ children }: { children: ReactNode }) {
           order.collection_method === "doorstep"
             ? `Doorstep collection scheduled for ${order.scheduled_date} (${order.scheduled_time}) at ${order.collection_address}`
             : "Lab referral chosen. Visit the selected facility.";
-        system(
-          id,
-          `Lab order confirmed: ${order.panels.join(", ")}. ${methodLabel}`,
-        );
+        system(id, `Lab order confirmed: ${order.panels.join(", ")}. ${methodLabel}`);
         try {
           await supabase
             .from("consultations")
@@ -830,6 +833,50 @@ export function ClinicProvider({ children }: { children: ReactNode }) {
             .eq("id", id);
         } catch (err) {
           console.error("Failed to save lab order:", err);
+        }
+      },
+      declineLabOrder: async (id, reason) => {
+        const s = state.sessions.find((x) => x.id === id);
+        const order: LabOrder = {
+          panels: s?.suggested_labs?.length ? s.suggested_labs : [],
+          status: "declined",
+          ...(reason?.trim() ? { decline_reason: reason.trim() } : {}),
+        };
+        dispatch({ type: "patch_session", id, patch: { lab_order: order } });
+        system(
+          id,
+          `Patient declined the lab test${reason?.trim() ? `: "${reason.trim()}"` : "."} The doctor has been notified.`,
+        );
+        try {
+          await supabase
+            .from("consultations")
+            .update({ lab_order: order as unknown as Record<string, unknown> })
+            .eq("id", id);
+        } catch (err) {
+          console.error("Failed to decline lab order:", err);
+        }
+      },
+      reopenLabChoice: async (id) => {
+        dispatch({ type: "patch_session", id, patch: { lab_order: null } });
+        try {
+          await supabase.from("consultations").update({ lab_order: null }).eq("id", id);
+        } catch (err) {
+          console.error("Failed to reopen lab choice:", err);
+        }
+      },
+      updateLabOrderStatus: async (id, status) => {
+        const s = state.sessions.find((x) => x.id === id);
+        if (!s?.lab_order) return;
+        const order: LabOrder = { ...s.lab_order, status };
+        dispatch({ type: "patch_session", id, patch: { lab_order: order } });
+        system(id, `Lab order update: ${LAB_ORDER_STATUS_LABELS[status]}.`);
+        try {
+          await supabase
+            .from("consultations")
+            .update({ lab_order: order as unknown as Record<string, unknown> })
+            .eq("id", id);
+        } catch (err) {
+          console.error("Failed to update lab order status:", err);
         }
       },
       endWithPrescription: (id, prescription) => {
@@ -843,19 +890,13 @@ export function ClinicProvider({ children }: { children: ReactNode }) {
             ended_at: now(),
           },
         });
-        system(
-          id,
-          "Consultation completed. A digital prescription has been signed and issued.",
-        );
+        system(id, "Consultation completed. A digital prescription has been signed and issued.");
         (async () => {
           try {
             await supabase
               .from("consultations")
               .update({
-                prescription: prescription as unknown as Record<
-                  string,
-                  unknown
-                >,
+                prescription: prescription as unknown as Record<string, unknown>,
                 referral: null,
                 status: "completed",
                 ended_at: now(),
@@ -904,11 +945,10 @@ export function ClinicProvider({ children }: { children: ReactNode }) {
     setStudentSessionId,
     clearActiveSession,
     sendMessage,
+    sendSystemMessage,
   ]);
 
-  return (
-    <ClinicContext.Provider value={api}>{children}</ClinicContext.Provider>
-  );
+  return <ClinicContext.Provider value={api}>{children}</ClinicContext.Provider>;
 }
 
 // eslint-disable-next-line react-refresh/only-export-components

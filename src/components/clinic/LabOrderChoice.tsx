@@ -1,8 +1,9 @@
 import { useState } from "react";
-import { Calendar, CheckCircle2, Clock, FlaskConical, MapPin, Navigation } from "lucide-react";
+import { Calendar, CheckCircle2, Clock, FlaskConical, MapPin, XCircle } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { Textarea } from "@/components/ui/textarea";
 import { useClinic } from "@/lib/clinic-store";
 import type { ConsultSession, LabCollectionMethod } from "@/lib/clinic-types";
 import { FALLBACK_FACILITIES, getGoogleMapsDirectionsUrl } from "@/lib/facilities";
@@ -22,12 +23,13 @@ function getTomorrowDate(): string {
 }
 
 export function LabOrderChoice({ session }: { session: ConsultSession }) {
-  const { submitLabOrder } = useClinic();
-  const [choice, setChoice] = useState<LabCollectionMethod | null>(null);
+  const { submitLabOrder, declineLabOrder } = useClinic();
+  const [choice, setChoice] = useState<LabCollectionMethod | "decline" | null>(null);
   const [date, setDate] = useState<string>(getTomorrowDate());
   const [timeSlot, setTimeSlot] = useState<string>("9:00 AM - 11:00 AM");
   const [address, setAddress] = useState<string>("");
   const [phone, setPhone] = useState<string>(session.phone);
+  const [declineReason, setDeclineReason] = useState<string>("");
   const [submitted, setSubmitted] = useState<boolean>(false);
 
   const labPanels =
@@ -61,17 +63,35 @@ export function LabOrderChoice({ session }: { session: ConsultSession }) {
     setSubmitted(true);
   };
 
+  const handleDecline = async (e: React.FormEvent) => {
+    e.preventDefault();
+    await declineLabOrder(session.id, declineReason);
+    setSubmitted(true);
+  };
+
   if (submitted) {
     return (
       <div className="rounded-2xl border bg-card p-5 shadow-card text-center space-y-3">
-        <span className="mx-auto flex size-12 items-center justify-center rounded-full bg-success/15 text-success">
-          <CheckCircle2 className="size-6" />
+        <span
+          className={`mx-auto flex size-12 items-center justify-center rounded-full ${
+            choice === "decline" ? "bg-muted text-muted-foreground" : "bg-success/15 text-success"
+          }`}
+        >
+          {choice === "decline" ? (
+            <XCircle className="size-6" />
+          ) : (
+            <CheckCircle2 className="size-6" />
+          )}
         </span>
-        <h3 className="text-base font-bold">Lab Order Confirmed</h3>
+        <h3 className="text-base font-bold">
+          {choice === "decline" ? "Lab Test Declined" : "Lab Order Confirmed"}
+        </h3>
         <p className="text-xs text-muted-foreground leading-relaxed">
-          {choice === "doorstep"
-            ? `A certified phlebotomist will visit you on ${date} between ${timeSlot} at ${address}. Please keep your phone on.`
-            : "Your lab referral is active. Present this order at the health center or laboratory."}
+          {choice === "decline"
+            ? "The doctor has been notified of your decision. You can discuss it further in the chat."
+            : choice === "doorstep"
+              ? `A certified phlebotomist will visit you on ${date} between ${timeSlot} at ${address}. Please keep your phone on.`
+              : "Your lab referral is active. Present this order at the health center or laboratory."}
         </p>
       </div>
     );
@@ -90,7 +110,8 @@ export function LabOrderChoice({ session }: { session: ConsultSession }) {
         </div>
 
         <p className="text-xs text-muted-foreground">
-          How would you like to have your sample collected?
+          How would you like to have your sample collected? The choice is yours — you can also
+          decline and discuss it with the doctor first.
         </p>
 
         <div className="grid gap-3">
@@ -132,8 +153,67 @@ export function LabOrderChoice({ session }: { session: ConsultSession }) {
               </p>
             </div>
           </button>
+
+          {/* Option C: Decline */}
+          <button
+            type="button"
+            onClick={() => setChoice("decline")}
+            className="flex items-start gap-3 rounded-xl border border-border p-3.5 text-left transition-colors hover:border-destructive/40 hover:bg-destructive/5"
+          >
+            <span className="flex size-10 shrink-0 items-center justify-center rounded-lg bg-muted text-muted-foreground">
+              <XCircle className="size-5" />
+            </span>
+            <div>
+              <p className="text-sm font-semibold">Option C: Decline the Lab Test</p>
+              <p className="text-xs text-muted-foreground mt-0.5">
+                Not ready for a test? Let the doctor know — you can talk it through in the chat.
+              </p>
+            </div>
+          </button>
         </div>
       </div>
+    );
+  }
+
+  if (choice === "decline") {
+    return (
+      <form
+        onSubmit={handleDecline}
+        className="rounded-2xl border bg-card p-5 shadow-card space-y-4"
+      >
+        <h3 className="text-base font-bold flex items-center gap-2">
+          <XCircle className="size-4 text-destructive" />
+          Decline Lab Test
+        </h3>
+        <p className="text-xs text-muted-foreground leading-relaxed">
+          The doctor recommended: <strong>{labPanels.join(", ")}</strong>. If you decline, the
+          doctor will be notified and may follow up in the chat. You can change your mind later.
+        </p>
+        <div className="space-y-1.5">
+          <Label htmlFor="decline-reason">Reason (optional)</Label>
+          <Textarea
+            id="decline-reason"
+            rows={3}
+            value={declineReason}
+            onChange={(e) => setDeclineReason(e.target.value)}
+            placeholder="e.g. I can't afford it right now / I'd like to understand why it's needed first"
+            className="text-xs"
+          />
+        </div>
+        <div className="flex gap-2">
+          <Button
+            type="button"
+            variant="outline"
+            className="flex-1 text-xs"
+            onClick={() => setChoice(null)}
+          >
+            Back
+          </Button>
+          <Button type="submit" variant="destructive" className="flex-1 text-xs">
+            Decline Lab Test
+          </Button>
+        </div>
+      </form>
     );
   }
 

@@ -13,6 +13,7 @@ import appCss from "../styles.css?url";
 import { reportLovableError } from "../lib/lovable-error-reporting";
 import { RoleSwitcher } from "../components/clinic/RoleSwitcher";
 import { ClinicProvider } from "../lib/clinic-store";
+import { PatientAuthProvider } from "../lib/patient-auth";
 
 function NotFoundComponent() {
   return (
@@ -133,11 +134,13 @@ function RootComponent() {
 
   return (
     <QueryClientProvider client={queryClient}>
-      <ClinicProvider>
-        <RoleSwitcher />
-        {/* Required: nested routes render here. Removing <Outlet /> breaks all child routes. */}
-        <Outlet />
-      </ClinicProvider>
+      <PatientAuthProvider>
+        <ClinicProvider>
+          <RoleSwitcher />
+          {/* Required: nested routes render here. Removing <Outlet /> breaks all child routes. */}
+          <Outlet />
+        </ClinicProvider>
+      </PatientAuthProvider>
     </QueryClientProvider>
   );
 }

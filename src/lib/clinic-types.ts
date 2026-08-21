@@ -31,6 +31,12 @@ export interface ConsultSession {
   phone: string;
   campus: string;
   symptoms: string;
+  /** Codes from SYMPTOM_OPTIONS in src/lib/triage.ts */
+  symptom_codes: string[];
+  triage_level: "routine" | "urgent" | "emergency";
+  emergency_flag: boolean;
+  /** Lab panels auto-suggested by the triage rules. */
+  suggested_labs: string[];
   status: SessionStatus;
   paid: boolean;
   fee_kes: number;
@@ -42,6 +48,7 @@ export interface ConsultSession {
   created_at: string;
   ended_at: string | null;
 }
+
 
 export interface Doctor {
   name: string;

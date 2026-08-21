@@ -8,13 +8,27 @@ import { defineConfig } from "@lovable.dev/vite-tanstack-config";
 
 export default defineConfig({
   tanstackStart: {
-    // Redirect TanStack Start's bundled server entry to src/server.ts (our SSR error wrapper).
+    // Redirect TanStack Start's bundled server entry to src/server.ts
     server: { entry: "server" },
   },
   nitro: {
     preset: process.env["NITRO_PRESET"] || "vercel",
+    externals: {
+      inline: [
+        "tslib",
+        "@supabase/supabase-js",
+        "@supabase/functions-js",
+        "@supabase/postgrest-js",
+        "@supabase/auth-js",
+        "@supabase/realtime-js",
+        "@supabase/storage-js",
+      ],
+    },
   },
   vite: {
+    ssr: {
+      noExternal: ["tslib", "@supabase/supabase-js"],
+    },
     // Arena previews proxy the dev server through a generated hostname.
     server: { allowedHosts: true },
   },

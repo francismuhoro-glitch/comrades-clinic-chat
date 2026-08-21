@@ -162,9 +162,7 @@ function reducer(state: State, action: Action): State {
     case "patch_session":
       return {
         ...state,
-        sessions: state.sessions.map((s) =>
-          s.id === action.id ? { ...s, ...action.patch } : s,
-        ),
+        sessions: state.sessions.map((s) => (s.id === action.id ? { ...s, ...action.patch } : s)),
       };
     default:
       return state;
@@ -205,15 +203,12 @@ export function ClinicProvider({ children }: { children: ReactNode }) {
   const [state, dispatch] = useReducer(reducer, undefined, seed);
   const [studentSessionId, setStudentSessionId] = useState<string | null>(null);
 
-  const sendMessage = useCallback(
-    (id: string, sender: "student" | "doctor", body: string) => {
-      dispatch({
-        type: "add_message",
-        message: { id: uid(), session_id: id, sender, body, created_at: now() },
-      });
-    },
-    [],
-  );
+  const sendMessage = useCallback((id: string, sender: "student" | "doctor", body: string) => {
+    dispatch({
+      type: "add_message",
+      message: { id: uid(), session_id: id, sender, body, created_at: now() },
+    });
+  }, []);
 
   const api = useMemo<ClinicApi>(() => {
     const system = (id: string, body: string) =>
@@ -228,8 +223,7 @@ export function ClinicProvider({ children }: { children: ReactNode }) {
       sessions: state.sessions,
       sessionsByStatus: (status) => state.sessions.filter((s) => s.status === status),
       getSession: (id) => state.sessions.find((s) => s.id === id) ?? null,
-      messagesFor: (id) =>
-        id ? state.messages.filter((m) => m.session_id === id) : [],
+      messagesFor: (id) => (id ? state.messages.filter((m) => m.session_id === id) : []),
       studentSessionId,
       setStudentSessionId,
       createSession: (input) => {

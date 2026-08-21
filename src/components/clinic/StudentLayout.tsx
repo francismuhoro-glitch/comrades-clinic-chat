@@ -10,9 +10,7 @@ export function StatusBadge({ className }: { className?: string }) {
     <span
       className={cn(
         "inline-flex items-center gap-2 rounded-full px-3 py-1.5 text-xs font-semibold",
-        doctorOnline
-          ? "bg-success/15 text-success"
-          : "bg-destructive/12 text-destructive",
+        doctorOnline ? "bg-success/15 text-success" : "bg-destructive/12 text-destructive",
         className,
       )}
     >

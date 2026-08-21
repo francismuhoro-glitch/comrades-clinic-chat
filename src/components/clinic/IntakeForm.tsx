@@ -1,5 +1,7 @@
 import { AlertTriangle, FlaskConical, ShieldCheck, Siren } from "lucide-react";
 import { useState } from "react";
+import { KENYAN_INSTITUTIONS } from "../../lib/kenya-institutions";
+import { NearbyFacilities } from "./NearbyFacilities";
 
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
@@ -92,15 +94,45 @@ export function IntakeForm({ onSubmit }: { onSubmit: (input: IntakeInput) => voi
       </div>
 
       <div className="space-y-1.5">
-        <Label htmlFor="campus">University / campus</Label>
+        <Label htmlFor="campus">Institution / Campus / College</Label>
         <Select value={form.campus} onValueChange={(v) => set("campus", v)}>
           <SelectTrigger id="campus" className="w-full">
-            <SelectValue placeholder="Select your campus" />
+            <SelectValue placeholder="Select your institution or campus" />
           </SelectTrigger>
-          <SelectContent>
-            {CAMPUSES.map((c) => (
-              <SelectItem key={c} value={c}>
-                {c}
+          <SelectContent className="max-h-72">
+            <div className="px-2 py-1.5 text-xs font-bold text-primary">Public Universities</div>
+            {KENYAN_INSTITUTIONS.filter((u) => u.category === "public_uni").map((u) => (
+              <SelectItem key={u.name} value={u.name}>
+                {u.name} ({u.region})
+              </SelectItem>
+            ))}
+
+            <div className="px-2 py-1.5 text-xs font-bold text-primary">Private Universities</div>
+            {KENYAN_INSTITUTIONS.filter((u) => u.category === "private_uni").map((u) => (
+              <SelectItem key={u.name} value={u.name}>
+                {u.name} ({u.region})
+              </SelectItem>
+            ))}
+
+            <div className="px-2 py-1.5 text-xs font-bold text-primary">National Polytechnics</div>
+            {KENYAN_INSTITUTIONS.filter((u) => u.category === "national_poly").map((u) => (
+              <SelectItem key={u.name} value={u.name}>
+                {u.name} ({u.region})
+              </SelectItem>
+            ))}
+
+            <div className="px-2 py-1.5 text-xs font-bold text-primary">
+              TVETs, Colleges & Institutes
+            </div>
+            {KENYAN_INSTITUTIONS.filter(
+              (u) =>
+                u.category === "tvet" ||
+                u.category === "college" ||
+                u.category === "proprietary" ||
+                u.category === "specialized",
+            ).map((u) => (
+              <SelectItem key={u.name} value={u.name}>
+                {u.name} ({u.region})
               </SelectItem>
             ))}
           </SelectContent>
@@ -134,12 +166,15 @@ export function IntakeForm({ onSubmit }: { onSubmit: (input: IntakeInput) => voi
         </div>
 
         {assessment.emergency && (
-          <div className="flex items-start gap-2 rounded-xl border border-destructive bg-destructive/10 p-3 text-xs font-medium text-destructive">
-            <Siren className="mt-0.5 size-4 shrink-0" />
-            <span>
-              <strong className="block">Emergency warning</strong>
-              {EMERGENCY_NOTICE}
-            </span>
+          <div className="space-y-3">
+            <div className="flex items-start gap-2 rounded-xl border border-destructive bg-destructive/10 p-3 text-xs font-medium text-destructive">
+              <Siren className="mt-0.5 size-4 shrink-0" />
+              <span>
+                <strong className="block">Emergency warning</strong>
+                {EMERGENCY_NOTICE}
+              </span>
+            </div>
+            <NearbyFacilities campus={form.campus} onlyEmergency={true} />
           </div>
         )}
 
@@ -173,8 +208,8 @@ export function IntakeForm({ onSubmit }: { onSubmit: (input: IntakeInput) => voi
           className="mt-0.5"
         />
         <span className="text-xs leading-relaxed text-secondary-foreground">
-          I understand this service is for basic care only. For emergencies, I will visit
-          a physical hospital immediately.
+          I understand this service is for basic care only. For emergencies, I will visit a physical
+          hospital immediately.
         </span>
       </label>
 
@@ -195,8 +230,8 @@ export function IntakeForm({ onSubmit }: { onSubmit: (input: IntakeInput) => voi
 
       {!doctorOnline && (
         <p className="text-center text-[11px] text-muted-foreground">
-          The doctor is offline. You can still submit — you will be queued for the next
-          available session.
+          The doctor is offline. You can still submit — you will be queued for the next available
+          session.
         </p>
       )}
     </form>

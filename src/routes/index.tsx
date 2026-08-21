@@ -87,8 +87,8 @@ function StudentApp() {
           ) : null}
           {session.lab_test_requested ? (
             <p className="rounded-xl border border-dashed bg-card px-4 py-3 text-sm text-muted-foreground">
-              You have been flagged for a lab test. Visit your campus clinic lab with
-              your student ID.
+              You have been flagged for a lab test. Visit your campus clinic lab with your student
+              ID.
             </p>
           ) : null}
           <button

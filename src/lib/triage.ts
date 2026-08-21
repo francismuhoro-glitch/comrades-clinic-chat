@@ -17,14 +17,34 @@ export interface SymptomOption {
 }
 
 export const SYMPTOM_OPTIONS: SymptomOption[] = [
-  { code: "fever", label: "Fever / chills", level: "urgent", lab: "Malaria smear + full blood count" },
+  {
+    code: "fever",
+    label: "Fever / chills",
+    level: "urgent",
+    lab: "Malaria smear + full blood count",
+  },
   { code: "cough", label: "Cough / sore throat", level: "routine" },
   { code: "headache", label: "Headache", level: "routine" },
-  { code: "stomach", label: "Stomach pain", level: "urgent", lab: "Stool analysis + H. pylori test" },
-  { code: "diarrhoea", label: "Diarrhoea / vomiting", level: "urgent", lab: "Stool culture + urea & electrolytes" },
+  {
+    code: "stomach",
+    label: "Stomach pain",
+    level: "urgent",
+    lab: "Stool analysis + H. pylori test",
+  },
+  {
+    code: "diarrhoea",
+    label: "Diarrhoea / vomiting",
+    level: "urgent",
+    lab: "Stool culture + urea & electrolytes",
+  },
   { code: "urinary", label: "Painful urination", level: "urgent", lab: "Urinalysis (urine M/C/S)" },
   { code: "rash", label: "Skin rash", level: "routine" },
-  { code: "fatigue", label: "Unusual fatigue / dizziness", level: "urgent", lab: "Haemoglobin + blood sugar" },
+  {
+    code: "fatigue",
+    label: "Unusual fatigue / dizziness",
+    level: "urgent",
+    lab: "Haemoglobin + blood sugar",
+  },
   { code: "sti", label: "STI concern", level: "urgent", lab: "STI screen (VDRL, HIV, swab)" },
   { code: "mental", label: "Stress, anxiety or low mood", level: "routine" },
   { code: "injury", label: "Injury / sprain", level: "routine" },

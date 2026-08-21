@@ -24,13 +24,9 @@ function SheetShell({
   return (
     <div className="print-sheet overflow-hidden rounded-2xl border bg-card shadow-card">
       <div className="bg-gradient-medical px-5 py-4 text-primary-foreground">
-        <p className="text-[11px] font-semibold uppercase tracking-[0.18em] opacity-85">
-          {kicker}
-        </p>
+        <p className="text-[11px] font-semibold uppercase tracking-[0.18em] opacity-85">{kicker}</p>
         <h3 className="mt-0.5 text-lg font-semibold">{title}</h3>
-        <p className="mt-1 text-xs opacity-90">
-          Lovable Student Clinic · Telemedicine Services
-        </p>
+        <p className="mt-1 text-xs opacity-90">Lovable Student Clinic · Telemedicine Services</p>
       </div>
 
       <div className="space-y-4 px-5 py-5">
@@ -68,8 +64,8 @@ function SheetShell({
           <div className="flex items-start gap-2 rounded-xl bg-warning/15 px-3 py-2.5 text-xs text-warning-foreground">
             <FlaskConical className="mt-0.5 size-4 shrink-0" />
             <p>
-              <strong>Lab test required.</strong> Present this document at the campus
-              clinic laboratory for sample collection.
+              <strong>Lab test required.</strong> Present this document at the campus clinic
+              laboratory for sample collection.
             </p>
           </div>
         )}
@@ -79,9 +75,7 @@ function SheetShell({
             <p className="font-display text-sm italic text-primary">{DOCTOR.name}</p>
             <p className="text-xs text-muted-foreground">{DOCTOR.title}</p>
             {/* Hardcoded KMPDC placeholder — see DOCTOR in clinic-types.ts */}
-            <p className="text-xs text-muted-foreground">
-              KMPDC No. {DOCTOR.kmpdc_license}
-            </p>
+            <p className="text-xs text-muted-foreground">KMPDC No. {DOCTOR.kmpdc_license}</p>
           </div>
           <span className="flex items-center gap-1 rounded-full bg-success/15 px-2.5 py-1 text-[10px] font-semibold text-success">
             <ShieldCheck className="size-3" /> Digitally signed
@@ -104,8 +98,8 @@ export function PrescriptionTemplate({ session }: { session: ConsultSession }) {
         <p className="text-sm text-muted-foreground">Duration: {rx.duration}</p>
       </div>
       <p className="text-xs text-muted-foreground">
-        Present this prescription at any licensed pharmacy. Complete the full course
-        even if you start feeling better.
+        Present this prescription at any licensed pharmacy. Complete the full course even if you
+        start feeling better.
       </p>
     </SheetShell>
   );
@@ -124,8 +118,8 @@ export function ReferralTemplate({ session }: { session: ConsultSession }) {
         <p className="mt-2 text-sm leading-relaxed">{ref.reason}</p>
       </div>
       <p className="text-xs text-muted-foreground">
-        Kindly attend to the above patient. This consultation was conducted remotely
-        via Lovable Student Clinic.
+        Kindly attend to the above patient. This consultation was conducted remotely via Lovable
+        Student Clinic.
       </p>
     </SheetShell>
   );

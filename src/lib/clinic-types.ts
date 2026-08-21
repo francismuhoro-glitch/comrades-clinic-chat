@@ -49,7 +49,6 @@ export interface ConsultSession {
   ended_at: string | null;
 }
 
-
 export interface Doctor {
   name: string;
   title: string;

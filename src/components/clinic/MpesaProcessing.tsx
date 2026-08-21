@@ -36,8 +36,8 @@ export function MpesaProcessing({
           <h2 className="text-base font-semibold">M-Pesa payment request sent</h2>
           <p className="mt-2 text-sm leading-relaxed text-muted-foreground">
             Sending KSh {CONSULT_FEE_KES} STK Push to{" "}
-            <strong className="text-foreground">{phone}</strong>… Please check your phone
-            and enter your PIN.
+            <strong className="text-foreground">{phone}</strong>… Please check your phone and enter
+            your PIN.
           </p>
         </div>
 

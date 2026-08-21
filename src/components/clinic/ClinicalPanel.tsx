@@ -12,12 +12,7 @@ import type { ConsultSession } from "@/lib/clinic-types";
 import { symptomLabel, triage } from "@/lib/triage";
 
 export function ClinicalPanel({ session }: { session: ConsultSession }) {
-  const {
-    setDiagnosisNotes,
-    toggleLabTest,
-    endWithPrescription,
-    endWithReferral,
-  } = useClinic();
+  const { setDiagnosisNotes, toggleLabTest, endWithPrescription, endWithReferral } = useClinic();
 
   const [rx, setRx] = useState({ medication: "", dosage: "", duration: "" });
   const [referral, setReferral] = useState({ destination: "", reason: "" });
@@ -61,8 +56,8 @@ export function ClinicalPanel({ session }: { session: ConsultSession }) {
         {assessment.emergency && (
           <p className="mt-3 flex items-start gap-2 rounded-lg border border-destructive bg-destructive/10 p-2.5 text-xs font-medium text-destructive">
             <Siren className="mt-0.5 size-3.5 shrink-0" />
-            Red flags: {assessment.emergencySymptoms.join(", ")}. Advise immediate physical
-            hospital care and consider a referral.
+            Red flags: {assessment.emergencySymptoms.join(", ")}. Advise immediate physical hospital
+            care and consider a referral.
           </p>
         )}
 
@@ -70,8 +65,10 @@ export function ClinicalPanel({ session }: { session: ConsultSession }) {
           <p className="mt-3 flex items-start gap-2 rounded-lg border border-warning bg-warning/12 p-2.5 text-xs text-warning-foreground">
             <FlaskConical className="mt-0.5 size-3.5 shrink-0" />
             Lab test recommended
-            {assessment.labPanels.length ? `: ${assessment.labPanels.join("; ")}` : " (multiple urgent symptoms)"}.
-            {session.lab_test_requested ? " Already flagged for sample collection." : ""}
+            {assessment.labPanels.length
+              ? `: ${assessment.labPanels.join("; ")}`
+              : " (multiple urgent symptoms)"}
+            .{session.lab_test_requested ? " Already flagged for sample collection." : ""}
           </p>
         )}
       </section>
@@ -97,9 +94,7 @@ export function ClinicalPanel({ session }: { session: ConsultSession }) {
           onClick={() => toggleLabTest(session.id)}
           className={cn(
             "flex w-full items-center gap-3 rounded-xl border px-3 py-3 text-left transition-colors disabled:opacity-60",
-            session.lab_test_requested
-              ? "border-warning bg-warning/15"
-              : "hover:border-primary/40",
+            session.lab_test_requested ? "border-warning bg-warning/15" : "hover:border-primary/40",
           )}
         >
           <span

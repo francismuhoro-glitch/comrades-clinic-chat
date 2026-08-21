@@ -29,7 +29,10 @@ import {
   type Referral,
 } from "./clinic-types";
 
-const uid = () => Math.random().toString(36).slice(2, 10);
+const uid = () =>
+  typeof globalThis.crypto?.randomUUID === "function"
+    ? globalThis.crypto.randomUUID()
+    : `${Date.now().toString(16)}-${Math.random().toString(16).slice(2, 10)}-4000-8000-${Math.random().toString(16).slice(2, 14)}`;
 const now = () => new Date().toISOString();
 const minutesAgo = (m: number) => new Date(Date.now() - m * 60_000).toISOString();
 
@@ -143,6 +146,7 @@ function reducer(state: State, action: Action): State {
     case "set_online":
       return { ...state, doctorOnline: action.value };
     case "create_session":
+      if (state.sessions.some((s) => s.id === action.session.id)) return state;
       return { ...state, sessions: [action.session, ...state.sessions] };
     case "mark_paid":
       return {
@@ -161,6 +165,7 @@ function reducer(state: State, action: Action): State {
         ),
       };
     case "add_message":
+      if (state.messages.some((m) => m.id === action.message.id)) return state;
       return { ...state, messages: [...state.messages, action.message] };
     case "patch_session":
       return {
@@ -221,14 +226,15 @@ export function ClinicProvider({ children }: { children: ReactNode }) {
     (async () => {
       try {
         const encryptedContent = await encryptMessage(body, id);
-        await supabase.from("messages").insert({
-          id: msgId.length > 20 ? msgId : undefined,
-          consultation_id: id.length > 20 ? id : undefined,
-          sender_role: sender,
+        const { error } = await supabase.from("messages").insert({
+          id: msgId,
+          consultation_id: id,
+          sender_role: sender === "student" ? "patient" : sender,
           sender_name: sender === "doctor" ? "Doctor" : "Student",
           content: encryptedContent,
           created_at: createdAt,
         });
+        if (error) console.error("Supabase message insert failed:", error.message);
       } catch (err) {
         console.warn("Supabase message sync notice:", err);
       }
@@ -295,7 +301,7 @@ export function ClinicProvider({ children }: { children: ReactNode }) {
           const raw = payload.new as {
             id: string;
             consultation_id: string;
-            sender_role: "student" | "doctor" | "system";
+            sender_role: "patient" | "doctor" | "system";
             content: string;
             created_at: string;
           };
@@ -308,7 +314,7 @@ export function ClinicProvider({ children }: { children: ReactNode }) {
             message: {
               id: raw.id,
               session_id: raw.consultation_id,
-              sender: raw.sender_role || "system",
+              sender: raw.sender_role === "patient" ? "student" : (raw.sender_role ?? "system"),
               body: decryptedBody,
               created_at: raw.created_at || now(),
             },
@@ -443,7 +449,8 @@ export function ClinicProvider({ children }: { children: ReactNode }) {
         // Async write to Supabase consultations
         (async () => {
           try {
-            await supabase.from("consultations").insert({
+            const { error } = await supabase.from("consultations").insert({
+              id: session.id,
               patient_name: input.full_name,
               patient_phone: input.phone,
               campus: input.campus,
@@ -452,6 +459,7 @@ export function ClinicProvider({ children }: { children: ReactNode }) {
               triage_level: t.level,
               status: "payment_pending",
             });
+            if (error) console.error("Supabase consultation insert failed:", error.message);
           } catch (err) {
             console.warn("Supabase session sync notice:", err);
           }

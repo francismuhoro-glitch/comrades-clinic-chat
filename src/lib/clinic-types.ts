@@ -27,14 +27,38 @@ export interface Referral {
 
 export type LabCollectionMethod = "visit_lab" | "doorstep";
 
+export type LabOrderStatus =
+  "pending" | "collected" | "processing" | "resulted" | "reviewed" | "declined";
+
+/** Ordered fulfilment pipeline the doctor advances a lab order through. */
+export const LAB_ORDER_PIPELINE: readonly Exclude<LabOrderStatus, "declined">[] = [
+  "pending",
+  "collected",
+  "processing",
+  "resulted",
+  "reviewed",
+];
+
+export const LAB_ORDER_STATUS_LABELS: Record<LabOrderStatus, string> = {
+  pending: "Pending collection",
+  collected: "Sample collected",
+  processing: "Processing at lab",
+  resulted: "Results ready",
+  reviewed: "Reviewed by doctor",
+  declined: "Declined by patient",
+};
+
 export interface LabOrder {
   panels: string[];
-  collection_method: LabCollectionMethod;
+  /** Not set when the patient declined the lab request. */
+  collection_method?: LabCollectionMethod | undefined;
   scheduled_date?: string | undefined;
   scheduled_time?: string | undefined;
   collection_address?: string | undefined;
   collection_phone?: string | undefined;
-  status: "pending" | "collected" | "processing" | "resulted" | "reviewed";
+  status: LabOrderStatus;
+  /** Optional patient-provided reason when status is "declined". */
+  decline_reason?: string | undefined;
 }
 
 export interface ConsultSession {
@@ -61,6 +85,8 @@ export interface ConsultSession {
   prescription: Prescription | null;
   referral: Referral | null;
   lab_order?: LabOrder | null | undefined;
+  /** Supabase auth user id when the patient created/claimed this visit while logged in. */
+  patient_id?: string | null | undefined;
   created_at: string;
   ended_at: string | null;
 }

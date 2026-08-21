@@ -18,12 +18,22 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Textarea } from "@/components/ui/textarea";
 import { useClinic } from "@/lib/clinic-store";
 import { cn } from "@/lib/utils";
-import type { ConsultSession } from "@/lib/clinic-types";
+import {
+  LAB_ORDER_PIPELINE,
+  LAB_ORDER_STATUS_LABELS,
+  type ConsultSession,
+} from "@/lib/clinic-types";
 import { FALLBACK_FACILITIES } from "@/lib/facilities";
 import { symptomLabel, triage } from "@/lib/triage";
 
 export function ClinicalPanel({ session }: { session: ConsultSession }) {
-  const { setDiagnosisNotes, toggleLabTest, endWithPrescription, endWithReferral } = useClinic();
+  const {
+    setDiagnosisNotes,
+    toggleLabTest,
+    endWithPrescription,
+    endWithReferral,
+    updateLabOrderStatus,
+  } = useClinic();
 
   const [rx, setRx] = useState({ medication: "", dosage: "", duration: "" });
   const [referral, setReferral] = useState({ destination: "", reason: "" });
@@ -143,6 +153,88 @@ export function ClinicalPanel({ session }: { session: ConsultSession }) {
             </span>
           </span>
         </button>
+
+        {/* Patient's response to the lab request */}
+        {session.lab_test_requested && !session.lab_order && (
+          <p className="mt-3 rounded-lg bg-muted px-3 py-2 text-xs text-muted-foreground">
+            Waiting for the patient to choose a collection option (or decline) on their side.
+          </p>
+        )}
+
+        {session.lab_order && (
+          <div
+            className={cn(
+              "mt-3 rounded-lg border p-3 text-xs space-y-1.5",
+              session.lab_order.status === "declined"
+                ? "border-destructive/30 bg-destructive/5"
+                : "border-success/30 bg-success/5",
+            )}
+          >
+            <p className="font-semibold">
+              {session.lab_order.status === "declined"
+                ? "Patient declined the lab test"
+                : session.lab_order.collection_method === "doorstep"
+                  ? "Patient chose: Doorstep sample collection"
+                  : "Patient chose: Visit a lab / facility"}
+            </p>
+
+            {session.lab_order.status === "declined" ? (
+              <>
+                {session.lab_order.decline_reason && (
+                  <p className="text-muted-foreground">
+                    Reason: “{session.lab_order.decline_reason}”
+                  </p>
+                )}
+                <p className="text-muted-foreground">
+                  Discuss it in the chat, or toggle the request off and on to ask again.
+                </p>
+              </>
+            ) : (
+              <>
+                {session.lab_order.panels.length > 0 && (
+                  <p className="text-muted-foreground">
+                    Panels: {session.lab_order.panels.join(", ")}
+                  </p>
+                )}
+                {session.lab_order.collection_method === "doorstep" && (
+                  <p className="text-muted-foreground">
+                    {session.lab_order.scheduled_date} · {session.lab_order.scheduled_time}
+                    <br />
+                    {session.lab_order.collection_address}
+                    {session.lab_order.collection_phone
+                      ? ` · ${session.lab_order.collection_phone}`
+                      : ""}
+                  </p>
+                )}
+                <p>
+                  Status:{" "}
+                  <span className="font-semibold">
+                    {LAB_ORDER_STATUS_LABELS[session.lab_order.status]}
+                  </span>
+                </p>
+                {!ended &&
+                  (() => {
+                    const idx = LAB_ORDER_PIPELINE.indexOf(
+                      session.lab_order.status as (typeof LAB_ORDER_PIPELINE)[number],
+                    );
+                    const next = idx >= 0 ? LAB_ORDER_PIPELINE[idx + 1] : undefined;
+                    return next ? (
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        className="h-7 text-[11px]"
+                        onClick={() => updateLabOrderStatus(session.id, next)}
+                      >
+                        Mark as “{LAB_ORDER_STATUS_LABELS[next]}”
+                      </Button>
+                    ) : (
+                      <p className="text-[11px] font-medium text-success">Lab pipeline complete.</p>
+                    );
+                  })()}
+              </>
+            )}
+          </div>
+        )}
       </section>
 
       <section className="rounded-xl border bg-card p-4 shadow-card">

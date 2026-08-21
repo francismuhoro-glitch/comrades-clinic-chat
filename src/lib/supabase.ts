@@ -15,4 +15,12 @@ function getEnv(key: string): string {
 const supabaseUrl = getEnv("VITE_SUPABASE_URL") || "https://placeholder-project.supabase.co";
 const supabaseAnonKey = getEnv("VITE_SUPABASE_ANON_KEY") || "placeholder-anon-key";
 
+/**
+ * True when real Supabase credentials are configured. When false the app keeps
+ * working locally (in-memory state) but nothing syncs between devices and
+ * patient accounts are unavailable.
+ */
+export const isSupabaseConfigured =
+  Boolean(getEnv("VITE_SUPABASE_URL")) && Boolean(getEnv("VITE_SUPABASE_ANON_KEY"));
+
 export const supabase = createClient(supabaseUrl, supabaseAnonKey);

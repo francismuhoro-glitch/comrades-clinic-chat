@@ -1,5 +1,5 @@
 import { Link } from "@tanstack/react-router";
-import { Stethoscope } from "lucide-react";
+import { Stethoscope, UserRound } from "lucide-react";
 import type { ReactNode } from "react";
 
 import { useClinic } from "@/lib/clinic-store";
@@ -59,11 +59,20 @@ export function StudentLayout({
               </div>
             </Link>
 
-            <div className="flex items-center gap-1.5 rounded-full border bg-muted/60 px-2.5 py-1 text-[11px]">
-              <span
-                className={`size-2 rounded-full ${doctorOnline ? "bg-success animate-pulse" : "bg-muted-foreground"}`}
-              />
-              <span className="font-medium">{doctorOnline ? "Doctor Online" : "Offline"}</span>
+            <div className="flex items-center gap-2">
+              <Link
+                to="/visits"
+                className="inline-flex items-center gap-1 rounded-full border bg-muted/60 px-2.5 py-1 text-[11px] font-medium text-primary transition-colors hover:bg-primary/10"
+              >
+                <UserRound className="size-3" />
+                My Visits
+              </Link>
+              <div className="flex items-center gap-1.5 rounded-full border bg-muted/60 px-2.5 py-1 text-[11px]">
+                <span
+                  className={`size-2 rounded-full ${doctorOnline ? "bg-success animate-pulse" : "bg-muted-foreground"}`}
+                />
+                <span className="font-medium">{doctorOnline ? "Doctor Online" : "Offline"}</span>
+              </div>
             </div>
           </div>
         </header>

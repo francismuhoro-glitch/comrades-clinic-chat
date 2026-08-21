@@ -11,11 +11,14 @@ import {
   createContext,
   useCallback,
   useContext,
+  useEffect,
   useMemo,
   useReducer,
   useState,
   type ReactNode,
 } from "react";
+import { decryptMessage, encryptMessage } from "./crypto";
+import { supabase } from "./supabase";
 
 import { triage } from "./triage";
 import {
@@ -203,11 +206,73 @@ export function ClinicProvider({ children }: { children: ReactNode }) {
   const [state, dispatch] = useReducer(reducer, undefined, seed);
   const [studentSessionId, setStudentSessionId] = useState<string | null>(null);
 
+  // Send message with AES-256 client-side encryption and Supabase sync
   const sendMessage = useCallback((id: string, sender: "student" | "doctor", body: string) => {
+    const msgId = uid();
+    const createdAt = now();
+
+    // 1. Instant local optimistic dispatch (plaintext for local UI)
     dispatch({
       type: "add_message",
-      message: { id: uid(), session_id: id, sender, body, created_at: now() },
+      message: { id: msgId, session_id: id, sender, body, created_at: createdAt },
     });
+
+    // 2. Encrypt and persist to Supabase in background
+    (async () => {
+      try {
+        const encryptedContent = await encryptMessage(body, id);
+        await supabase.from("messages").insert({
+          id: msgId.length > 20 ? msgId : undefined,
+          consultation_id: id.length > 20 ? id : undefined,
+          sender_role: sender,
+          sender_name: sender === "doctor" ? "Doctor" : "Student",
+          content: encryptedContent,
+          created_at: createdAt,
+        });
+      } catch (err) {
+        console.warn("Supabase message sync notice:", err);
+      }
+    })();
+  }, []);
+
+  // Realtime Supabase subscription for multi-device live chat & sync
+  useEffect(() => {
+    const channel = supabase
+      .channel("clinic-realtime")
+      .on(
+        "postgres_changes",
+        { event: "INSERT", schema: "public", table: "messages" },
+        async (payload) => {
+          const raw = payload.new as {
+            id: string;
+            consultation_id: string;
+            sender_role: "student" | "doctor" | "system";
+            content: string;
+            created_at: string;
+          };
+
+          if (!raw || !raw.consultation_id) return;
+
+          // Decrypt if encrypted payload
+          const decryptedBody = await decryptMessage(raw.content, raw.consultation_id);
+
+          dispatch({
+            type: "add_message",
+            message: {
+              id: raw.id,
+              session_id: raw.consultation_id,
+              sender: raw.sender_role || "system",
+              body: decryptedBody,
+              created_at: raw.created_at || now(),
+            },
+          });
+        },
+      )
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(channel);
+    };
   }, []);
 
   const api = useMemo<ClinicApi>(() => {
@@ -251,6 +316,24 @@ export function ClinicProvider({ children }: { children: ReactNode }) {
         };
         dispatch({ type: "create_session", session });
         setStudentSessionId(session.id);
+
+        // Async write to Supabase consultations
+        (async () => {
+          try {
+            await supabase.from("consultations").insert({
+              patient_name: input.full_name,
+              patient_phone: input.phone,
+              campus: input.campus,
+              symptoms_description: input.symptoms,
+              symptoms_selected: input.symptom_codes,
+              triage_level: t.level,
+              status: "payment_pending",
+            });
+          } catch (err) {
+            console.warn("Supabase session sync notice:", err);
+          }
+        })();
+
         return session.id;
       },
       simulatePayment: (id) => {
@@ -324,6 +407,7 @@ export function ClinicProvider({ children }: { children: ReactNode }) {
   return <ClinicContext.Provider value={api}>{children}</ClinicContext.Provider>;
 }
 
+// eslint-disable-next-line react-refresh/only-export-components
 export function useClinic() {
   const ctx = useContext(ClinicContext);
   if (!ctx) throw new Error("useClinic must be used inside <ClinicProvider>");

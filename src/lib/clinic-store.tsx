@@ -235,8 +235,57 @@ export function ClinicProvider({ children }: { children: ReactNode }) {
     })();
   }, []);
 
-  // Realtime Supabase subscription for multi-device live chat & sync
+  // Realtime Supabase subscription for live chat and live queue sync
   useEffect(() => {
+    // 1. Fetch initial consultations from Supabase database
+    (async () => {
+      try {
+        const { data } = await supabase
+          .from("consultations")
+          .select("*")
+          .order("created_at", { ascending: false });
+
+        if (data && data.length > 0) {
+          for (const row of data) {
+            const mappedStatus: ConsultSession["status"] =
+              row.status === "waiting"
+                ? "waiting"
+                : row.status === "active"
+                  ? "active"
+                  : row.status === "completed"
+                    ? "completed"
+                    : "awaiting_payment";
+
+            const session: ConsultSession = {
+              id: row.id,
+              full_name: row.patient_name || "Patient",
+              phone: row.patient_phone || "",
+              campus: row.campus || "",
+              symptoms: row.symptoms_description || "",
+              symptom_codes: row.symptoms_selected || [],
+              triage_level: row.triage_level || "routine",
+              emergency_flag: row.triage_level === "emergency",
+              suggested_labs: [],
+              status: mappedStatus,
+              paid: row.status !== "payment_pending" && row.status !== "intake",
+              fee_kes: CONSULT_FEE_KES,
+              mpesa_receipt: null,
+              lab_test_requested: false,
+              diagnosis_notes: row.diagnosis || "",
+              prescription: null,
+              referral: null,
+              created_at: row.created_at || now(),
+              ended_at: null,
+            };
+            dispatch({ type: "create_session", session });
+          }
+        }
+      } catch (err) {
+        console.warn("Supabase initial load notice:", err);
+      }
+    })();
+
+    // 2. Realtime listener for messages & consultation queue updates
     const channel = supabase
       .channel("clinic-realtime")
       .on(
@@ -252,8 +301,6 @@ export function ClinicProvider({ children }: { children: ReactNode }) {
           };
 
           if (!raw || !raw.consultation_id) return;
-
-          // Decrypt if encrypted payload
           const decryptedBody = await decryptMessage(raw.content, raw.consultation_id);
 
           dispatch({
@@ -265,6 +312,82 @@ export function ClinicProvider({ children }: { children: ReactNode }) {
               body: decryptedBody,
               created_at: raw.created_at || now(),
             },
+          });
+        },
+      )
+      .on(
+        "postgres_changes",
+        { event: "INSERT", schema: "public", table: "consultations" },
+        (payload) => {
+          const row = payload.new as {
+            id: string;
+            patient_name: string;
+            patient_phone: string;
+            campus: string;
+            symptoms_description: string;
+            symptoms_selected: string[];
+            triage_level: "routine" | "urgent" | "emergency";
+            status: string;
+            created_at: string;
+          };
+
+          if (!row || !row.id) return;
+
+          const session: ConsultSession = {
+            id: row.id,
+            full_name: row.patient_name,
+            phone: row.patient_phone,
+            campus: row.campus,
+            symptoms: row.symptoms_description,
+            symptom_codes: row.symptoms_selected || [],
+            triage_level: row.triage_level || "routine",
+            emergency_flag: row.triage_level === "emergency",
+            suggested_labs: [],
+            status: "awaiting_payment",
+            paid: false,
+            fee_kes: CONSULT_FEE_KES,
+            mpesa_receipt: null,
+            lab_test_requested: false,
+            diagnosis_notes: "",
+            prescription: null,
+            referral: null,
+            created_at: row.created_at || now(),
+            ended_at: null,
+          };
+          dispatch({ type: "create_session", session });
+        },
+      )
+      .on(
+        "postgres_changes",
+        { event: "UPDATE", schema: "public", table: "consultations" },
+        (payload) => {
+          const row = payload.new as {
+            id: string;
+            status: string;
+            diagnosis?: string;
+          };
+          if (!row || !row.id) return;
+
+          const mappedStatus: ConsultSession["status"] =
+            row.status === "waiting"
+              ? "waiting"
+              : row.status === "active"
+                ? "active"
+                : row.status === "completed"
+                  ? "completed"
+                  : "awaiting_payment";
+
+          const patch: Partial<ConsultSession> = {
+            status: mappedStatus,
+          };
+          if (typeof row.diagnosis === "string") {
+            patch.diagnosis_notes = row.diagnosis;
+          }
+
+          dispatch({
+            type: "patch_session",
+            id: row.id,
+            patch,
           });
         },
       )

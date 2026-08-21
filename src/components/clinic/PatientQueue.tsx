@@ -1,7 +1,8 @@
-import { Clock, FlaskConical, MessageSquare, Stethoscope } from "lucide-react";
+import { Clock, FlaskConical, MessageSquare, Siren, Stethoscope } from "lucide-react";
 
 import { cn } from "@/lib/utils";
 import type { ConsultSession } from "@/lib/clinic-types";
+import { symptomLabel } from "@/lib/triage";
 
 function since(iso: string) {
   const mins = Math.max(0, Math.round((Date.now() - new Date(iso).getTime()) / 60000));
@@ -38,6 +39,7 @@ export function PatientQueue({
             className={cn(
               "w-full rounded-xl border bg-card p-3.5 text-left shadow-card transition-colors hover:border-primary/40",
               selectedId === s.id && "border-primary ring-1 ring-primary/30",
+              s.emergency_flag && "border-destructive/60 bg-destructive/5",
             )}
           >
             <div className="flex items-start justify-between gap-3">
@@ -51,6 +53,18 @@ export function PatientQueue({
                 <Clock className="size-3" /> {since(s.created_at)}
               </span>
             </div>
+
+            {s.emergency_flag && (
+              <p className="mt-2 flex items-center gap-1.5 rounded-lg bg-destructive/12 px-2 py-1 text-[11px] font-semibold text-destructive">
+                <Siren className="size-3" /> Emergency triage — prioritise
+              </p>
+            )}
+
+            {s.symptom_codes.length > 0 && (
+              <p className="mt-2 text-[11px] font-medium text-muted-foreground">
+                {s.symptom_codes.map(symptomLabel).join(" · ")}
+              </p>
+            )}
 
             <p className="mt-2 line-clamp-2 text-sm text-foreground/80">{s.symptoms}</p>
 

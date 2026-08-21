@@ -224,24 +224,81 @@ export function ClinicalPanel({ session }: { session: ConsultSession }) {
           </TabsContent>
 
           <TabsContent value="ref" className="mt-4 space-y-3">
+            {/* Proximity-Based Hospital Recommendations */}
             <div className="space-y-1.5">
-              <Label htmlFor="dest">Destination Facility (Hospital / Level 4/5 / Lab)</Label>
+              <div className="flex items-center justify-between">
+                <Label className="text-xs font-semibold text-foreground flex items-center gap-1.5">
+                  <MapPin className="size-3.5 text-primary" />
+                  Nearby Facilities to {session.campus || "Patient"}
+                </Label>
+                <span className="text-[10px] text-muted-foreground">1-Click Select</span>
+              </div>
+
+              <div className="grid gap-1.5 max-h-48 overflow-y-auto pr-1">
+                {FALLBACK_FACILITIES.slice(0, 5).map((fac, idx) => {
+                  const mapsUrl = `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(fac.name)}`;
+                  const isSelected = referral.destination.includes(fac.name);
+
+                  return (
+                    <div
+                      key={idx}
+                      className={cn(
+                        "flex items-center justify-between p-2 rounded-lg border text-xs transition-colors cursor-pointer",
+                        isSelected
+                          ? "border-primary bg-primary/10"
+                          : "border-border/60 bg-muted/40 hover:bg-muted/80",
+                      )}
+                      onClick={() => {
+                        if (!ended) {
+                          setReferral((prev) => ({
+                            ...prev,
+                            destination: `${fac.name} (${fac.level || "Hospital"} · ${fac.district || "Kenya"})`,
+                          }));
+                        }
+                      }}
+                    >
+                      <div className="min-w-0 pr-2">
+                        <p className="font-semibold text-foreground truncate">{fac.name}</p>
+                        <p className="text-[10px] text-muted-foreground">
+                          {fac.level || "Hospital"} · {fac.facility_type} (
+                          {fac.ownership || "Public"})
+                        </p>
+                      </div>
+                      <div className="flex items-center gap-1.5 shrink-0">
+                        <a
+                          href={mapsUrl}
+                          target="_blank"
+                          rel="noreferrer"
+                          onClick={(e) => e.stopPropagation()}
+                          className="px-2 py-1 rounded border bg-background text-[10px] font-medium text-primary hover:bg-primary/10"
+                          title="Open in Google Maps"
+                        >
+                          Map ↗
+                        </a>
+                        <Button
+                          size="sm"
+                          variant={isSelected ? "default" : "outline"}
+                          className="h-6 text-[10px] px-2"
+                        >
+                          {isSelected ? "Selected" : "Select"}
+                        </Button>
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+
+            <div className="space-y-1.5">
+              <Label htmlFor="dest">Destination Facility (Selected)</Label>
               <Input
                 id="dest"
-                list="referral-facilities-list"
                 disabled={ended}
                 value={referral.destination}
                 onChange={(e) => setReferral({ ...referral, destination: e.target.value })}
-                placeholder="Type or select: e.g. Kenyatta National Hospital, MTRH, Aga Khan..."
+                placeholder="Select from above or type custom facility..."
+                required
               />
-              <datalist id="referral-facilities-list">
-                {FALLBACK_FACILITIES.map((fac) => (
-                  <option
-                    key={fac.name}
-                    value={`${fac.name} (${fac.level || "Hospital"} · ${fac.ownership || "Public"})`}
-                  />
-                ))}
-              </datalist>
             </div>
 
             <div className="space-y-1.5">
@@ -251,18 +308,18 @@ export function ClinicalPanel({ session }: { session: ConsultSession }) {
                   <button
                     type="button"
                     onClick={() => {
-                      const autoReason = `Patient ${session.full_name} referred from Comrades Clinic for urgent clinical evaluation regarding ${session.symptoms || "symptoms"}. Triage classification: ${assessment.level.toUpperCase()}. Please evaluate, perform necessary diagnostic tests, and manage accordingly.`;
+                      const autoReason = `Patient ${session.full_name} (${session.campus}) referred from Comrades Clinic for urgent in-person clinical evaluation regarding reported symptoms: ${session.symptoms || "unspecified"}. Triage level: ${assessment.level.toUpperCase()}. Please assess, investigate, and manage accordingly.`;
                       setReferral((prev) => ({ ...prev, reason: autoReason }));
                     }}
                     className="text-[11px] font-medium text-primary hover:underline"
                   >
-                    Auto-Fill Summary
+                    Auto-Fill Reason
                   </button>
                 )}
               </div>
               <Textarea
                 id="reason"
-                rows={4}
+                rows={3}
                 disabled={ended}
                 value={referral.reason}
                 onChange={(e) => setReferral({ ...referral, reason: e.target.value })}
@@ -270,19 +327,12 @@ export function ClinicalPanel({ session }: { session: ConsultSession }) {
               />
             </div>
 
-            {referral.destination && (
-              <p className="flex items-center gap-1 text-xs text-muted-foreground">
-                <MapPin className="size-3 text-primary" />
-                Google Maps directions will be auto-attached to the student's referral slip.
-              </p>
-            )}
-
             <Button
               className="w-full"
               disabled={ended || !referral.destination.trim() || !referral.reason.trim()}
               onClick={() => endWithReferral(session.id, referral)}
             >
-              End Session &amp; Send Referral Letter
+              End Session &amp; Issue Referral Letter
             </Button>
           </TabsContent>
         </Tabs>

@@ -228,7 +228,23 @@ const ClinicContext = createContext<ClinicApi | null>(null);
 
 export function ClinicProvider({ children }: { children: ReactNode }) {
   const [state, dispatch] = useReducer(reducer, undefined, seed);
-  const [studentSessionId, setStudentSessionId] = useState<string | null>(null);
+  const [studentSessionId, setStudentSessionIdState] = useState<string | null>(() => {
+    if (typeof window !== "undefined") {
+      return localStorage.getItem("comrades_active_session_id") || null;
+    }
+    return null;
+  });
+
+  const setStudentSessionId = useCallback((id: string | null) => {
+    setStudentSessionIdState(id);
+    if (typeof window !== "undefined") {
+      if (id) {
+        localStorage.setItem("comrades_active_session_id", id);
+      } else {
+        localStorage.removeItem("comrades_active_session_id");
+      }
+    }
+  }, []);
 
   // Send message with AES-256 client-side encryption and Supabase sync
   const sendMessage = useCallback((id: string, sender: "student" | "doctor", body: string) => {
@@ -279,7 +295,8 @@ export function ClinicProvider({ children }: { children: ReactNode }) {
               pochi_phone: settingsData.pochi_phone || DEFAULT_SETTINGS.pochi_phone,
               pochi_name: settingsData.pochi_name || DEFAULT_SETTINGS.pochi_name,
               helpline_phone: settingsData.helpline_phone || DEFAULT_SETTINGS.helpline_phone,
-              consultation_fee_kes: settingsData.consultation_fee_kes || DEFAULT_SETTINGS.consultation_fee_kes,
+              consultation_fee_kes:
+                settingsData.consultation_fee_kes || DEFAULT_SETTINGS.consultation_fee_kes,
             },
           });
         }
@@ -311,12 +328,16 @@ export function ClinicProvider({ children }: { children: ReactNode }) {
               emergency_flag: row.triage_level === "emergency",
               suggested_labs: [],
               status: mappedStatus,
-              paid: row.paid || row.payment_status === "confirmed" || (row.status !== "payment_pending" && row.status !== "intake"),
+              paid:
+                row.paid ||
+                row.payment_status === "confirmed" ||
+                (row.status !== "payment_pending" && row.status !== "intake"),
               fee_kes: CONSULT_FEE_KES,
               mpesa_receipt: row.mpesa_code || null,
               mpesa_code: row.mpesa_code,
               payment_phone: row.payment_phone,
-              payment_status: row.payment_status || (row.status === "payment_pending" ? "pending" : "confirmed"),
+              payment_status:
+                row.payment_status || (row.status === "payment_pending" ? "pending" : "confirmed"),
               lab_test_requested: false,
               diagnosis_notes: row.diagnosis || "",
               prescription: null,
@@ -471,7 +492,7 @@ export function ClinicProvider({ children }: { children: ReactNode }) {
       },
       sessions: state.sessions,
       pendingPayments: state.sessions.filter(
-        (s) => s.payment_status === "pending" || s.status === "awaiting_payment"
+        (s) => s.payment_status === "pending" || s.status === "awaiting_payment",
       ),
       sessionsByStatus: (status) => state.sessions.filter((s) => s.status === status),
       submitPaymentClaim: async (id, mpesaCode, paymentPhone) => {
@@ -485,11 +506,14 @@ export function ClinicProvider({ children }: { children: ReactNode }) {
           },
         });
         try {
-          await supabase.from("consultations").update({
-            mpesa_code: mpesaCode,
-            payment_phone: paymentPhone,
-            payment_status: "pending",
-          }).eq("id", id);
+          await supabase
+            .from("consultations")
+            .update({
+              mpesa_code: mpesaCode,
+              payment_phone: paymentPhone,
+              payment_status: "pending",
+            })
+            .eq("id", id);
         } catch (err) {
           console.error("Failed to submit payment claim:", err);
         }
@@ -505,10 +529,13 @@ export function ClinicProvider({ children }: { children: ReactNode }) {
         });
         system(id, `Payment confirmed by clinician. Consultation queued.`);
         try {
-          await supabase.from("consultations").update({
-            status: "waiting",
-            payment_status: "confirmed",
-          }).eq("id", id);
+          await supabase
+            .from("consultations")
+            .update({
+              status: "waiting",
+              payment_status: "confirmed",
+            })
+            .eq("id", id);
         } catch (err) {
           console.error("Failed to confirm payment in Supabase:", err);
         }
@@ -521,10 +548,13 @@ export function ClinicProvider({ children }: { children: ReactNode }) {
         });
         system(id, `Payment reference could not be verified. Please check and resubmit.`);
         try {
-          await supabase.from("consultations").update({
-            payment_status: "rejected",
-            status: "payment_pending",
-          }).eq("id", id);
+          await supabase
+            .from("consultations")
+            .update({
+              payment_status: "rejected",
+              status: "payment_pending",
+            })
+            .eq("id", id);
         } catch (err) {
           console.error("Failed to reject payment:", err);
         }
@@ -646,7 +676,7 @@ export function ClinicProvider({ children }: { children: ReactNode }) {
         system(id, "Session ended. A referral letter has been issued.");
       },
     };
-  }, [state, studentSessionId, sendMessage]);
+  }, [state, studentSessionId, setStudentSessionId, sendMessage]);
 
   return <ClinicContext.Provider value={api}>{children}</ClinicContext.Provider>;
 }

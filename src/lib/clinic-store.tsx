@@ -17,6 +17,7 @@ import {
   type ReactNode,
 } from "react";
 
+import { triage } from "./triage";
 import {
   CONSULT_FEE_KES,
   type ChatMessage,
@@ -50,6 +51,10 @@ function seed(): State {
     phone: "0712 345 678",
     campus: "Kenyatta University",
     symptoms: "Sore throat and mild fever for two days. Hard to swallow.",
+    symptom_codes: ["fever", "cough"],
+    triage_level: "urgent",
+    emergency_flag: false,
+    suggested_labs: ["Malaria smear + full blood count"],
     status: "waiting",
     paid: true,
     fee_kes: CONSULT_FEE_KES,
@@ -67,6 +72,10 @@ function seed(): State {
     phone: "0798 111 222",
     campus: "University of Nairobi",
     symptoms: "Recurring migraines during exam week, plus blurred vision.",
+    symptom_codes: ["headache", "fatigue"],
+    triage_level: "urgent",
+    emergency_flag: false,
+    suggested_labs: ["Haemoglobin + blood sugar"],
     status: "active",
     paid: true,
     fee_kes: CONSULT_FEE_KES,
@@ -84,6 +93,10 @@ function seed(): State {
     phone: "0733 909 909",
     campus: "JKUAT",
     symptoms: "Skin rash on forearms after hostel laundry change.",
+    symptom_codes: ["rash"],
+    triage_level: "routine",
+    emergency_flag: false,
+    suggested_labs: [],
     status: "completed",
     paid: true,
     fee_kes: CONSULT_FEE_KES,
@@ -163,6 +176,7 @@ export interface IntakeInput {
   phone: string;
   campus: string;
   symptoms: string;
+  symptom_codes: string[];
 }
 
 interface ClinicApi {
@@ -219,12 +233,17 @@ export function ClinicProvider({ children }: { children: ReactNode }) {
       studentSessionId,
       setStudentSessionId,
       createSession: (input) => {
+        const t = triage(input.symptom_codes);
         const session: ConsultSession = {
           id: uid(),
           full_name: input.full_name,
           phone: input.phone,
           campus: input.campus,
           symptoms: input.symptoms,
+          symptom_codes: input.symptom_codes,
+          triage_level: t.level,
+          emergency_flag: t.emergency,
+          suggested_labs: t.labPanels,
           status: "awaiting_payment",
           paid: false,
           fee_kes: CONSULT_FEE_KES,
@@ -245,6 +264,22 @@ export function ClinicProvider({ children }: { children: ReactNode }) {
         dispatch({ type: "mark_paid", id, receipt });
         const s = state.sessions.find((x) => x.id === id);
         system(id, `Payment of KSh ${CONSULT_FEE_KES} received. Receipt ${receipt}.`);
+        if (s) {
+          const t = triage(s.symptom_codes);
+          if (t.emergency) {
+            system(
+              id,
+              "EMERGENCY TRIAGE: the selected symptoms are red flags. This file is marked urgent for the doctor.",
+            );
+          }
+          if (t.labRecommended) {
+            dispatch({ type: "patch_session", id, patch: { lab_test_requested: true } });
+            system(
+              id,
+              `Auto-triage recommends a lab test${t.labPanels.length ? `: ${t.labPanels.join("; ")}` : ""}. The doctor will confirm.`,
+            );
+          }
+        }
         if (s?.symptoms) {
           dispatch({
             type: "add_message",

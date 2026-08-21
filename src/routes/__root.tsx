@@ -11,6 +11,8 @@ import { useEffect, type ReactNode } from "react";
 
 import appCss from "../styles.css?url";
 import { reportLovableError } from "../lib/lovable-error-reporting";
+import { RoleSwitcher } from "../components/clinic/RoleSwitcher";
+import { ClinicProvider } from "../lib/clinic-store";
 
 function NotFoundComponent() {
   return (

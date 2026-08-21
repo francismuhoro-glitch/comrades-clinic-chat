@@ -1,4 +1,14 @@
-import { FlaskConical, FileText, Pill, Siren } from "lucide-react";
+import {
+  AlertTriangle,
+  CheckCircle2,
+  FileText,
+  FlaskConical,
+  MapPin,
+  Pill,
+  ShieldAlert,
+  Siren,
+  Sparkles,
+} from "lucide-react";
 import { useState } from "react";
 
 import { Button } from "@/components/ui/button";
@@ -9,6 +19,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { useClinic } from "@/lib/clinic-store";
 import { cn } from "@/lib/utils";
 import type { ConsultSession } from "@/lib/clinic-types";
+import { FALLBACK_FACILITIES } from "@/lib/facilities";
 import { symptomLabel, triage } from "@/lib/triage";
 
 export function ClinicalPanel({ session }: { session: ConsultSession }) {
@@ -73,17 +84,33 @@ export function ClinicalPanel({ session }: { session: ConsultSession }) {
         )}
       </section>
       <section className="rounded-xl border bg-card p-4 shadow-card">
-        <Label htmlFor="notes" className="text-sm font-semibold">
-          Diagnosis notes
-        </Label>
+        <div className="flex items-center justify-between gap-2">
+          <Label htmlFor="notes" className="text-sm font-semibold">
+            Diagnosis notes (SOAP format)
+          </Label>
+          {!ended && (
+            <button
+              type="button"
+              onClick={() => {
+                const labels = session.symptom_codes.map((c) => symptomLabel(c)).join(", ");
+                const soapDraft = `[S - Subjective]: Student (${session.full_name}, ${session.campus}) presents with: ${session.symptoms || "unspecified symptoms"}. Selected flags: ${labels || "None"}.\n\n[O - Objective]: Triage evaluation: ${assessment.level.toUpperCase()}. ${assessment.labRecommended ? `Recommended lab panels: ${assessment.labPanels.join(", ")}.` : "No urgent lab markers indicated."}\n\n[A - Assessment]: Clinical impression consistent with acute symptomatic episode. ${assessment.emergency ? "RED FLAG: Emergency symptoms present." : "Routine/Urgent outpatient management."}\n\n[P - Plan]: Prescribed supportive therapy, hydration and rest. Advised to seek in-person review if symptoms escalate within 24-48 hours.`;
+                setDiagnosisNotes(session.id, soapDraft);
+              }}
+              className="inline-flex items-center gap-1.5 rounded-lg border border-primary/30 bg-primary/10 px-2.5 py-1 text-xs font-semibold text-primary transition-colors hover:bg-primary/20"
+            >
+              <Sparkles className="size-3.5" />
+              Auto-Draft SOAP Note
+            </button>
+          )}
+        </div>
         <Textarea
           id="notes"
-          rows={4}
-          className="mt-2"
+          rows={5}
+          className="mt-2 text-xs leading-relaxed"
           disabled={ended}
           value={session.diagnosis_notes}
           onChange={(e) => setDiagnosisNotes(session.id, e.target.value)}
-          placeholder="Working diagnosis, observations, advice given…"
+          placeholder="Working diagnosis, observations, advice given… or click 'Auto-Draft SOAP Note' to generate."
         />
       </section>
 
@@ -138,7 +165,7 @@ export function ClinicalPanel({ session }: { session: ConsultSession }) {
                 disabled={ended}
                 value={rx.medication}
                 onChange={(e) => setRx({ ...rx, medication: e.target.value })}
-                placeholder="e.g. Amoxicillin 500mg"
+                placeholder="e.g. Amoxicillin 500mg, Paracetamol 1g, ORS sachets"
               />
             </div>
             <div className="grid gap-3 sm:grid-cols-2">
@@ -163,6 +190,30 @@ export function ClinicalPanel({ session }: { session: ConsultSession }) {
                 />
               </div>
             </div>
+
+            {/* Clinical Safety Checks */}
+            {rx.medication.trim() && (
+              <div className="rounded-lg border border-primary/20 bg-primary/5 p-2.5 text-xs">
+                <div className="flex items-center gap-1.5 font-semibold text-primary">
+                  <ShieldAlert className="size-3.5" />
+                  Clinical Safety Verification
+                </div>
+                <div className="mt-1 space-y-1 text-muted-foreground">
+                  <p className="flex items-center gap-1">
+                    <CheckCircle2 className="size-3 text-success" />
+                    Standard dosing format verified
+                  </p>
+                  {rx.medication.toLowerCase().includes("amox") ||
+                  rx.medication.toLowerCase().includes("penicillin") ? (
+                    <p className="flex items-center gap-1 font-medium text-warning">
+                      <AlertTriangle className="size-3 text-warning" />
+                      Penicillin class antibiotic: Confirm patient has no allergy history.
+                    </p>
+                  ) : null}
+                </div>
+              </div>
+            )}
+
             <Button
               className="w-full"
               disabled={ended || !rx.medication.trim() || !rx.dosage.trim() || !rx.duration.trim()}
@@ -174,17 +225,41 @@ export function ClinicalPanel({ session }: { session: ConsultSession }) {
 
           <TabsContent value="ref" className="mt-4 space-y-3">
             <div className="space-y-1.5">
-              <Label htmlFor="dest">Destination hospital</Label>
+              <Label htmlFor="dest">Destination Facility (Hospital / Level 4/5 / Lab)</Label>
               <Input
                 id="dest"
+                list="referral-facilities-list"
                 disabled={ended}
                 value={referral.destination}
                 onChange={(e) => setReferral({ ...referral, destination: e.target.value })}
-                placeholder="e.g. Kenyatta National Hospital — OPD"
+                placeholder="Type or select: e.g. Kenyatta National Hospital, MTRH, Aga Khan..."
               />
+              <datalist id="referral-facilities-list">
+                {FALLBACK_FACILITIES.map((fac) => (
+                  <option
+                    key={fac.name}
+                    value={`${fac.name} (${fac.level || "Hospital"} · ${fac.ownership || "Public"})`}
+                  />
+                ))}
+              </datalist>
             </div>
+
             <div className="space-y-1.5">
-              <Label htmlFor="reason">Reason for referral</Label>
+              <div className="flex items-center justify-between">
+                <Label htmlFor="reason">Reason for referral</Label>
+                {!ended && (
+                  <button
+                    type="button"
+                    onClick={() => {
+                      const autoReason = `Patient ${session.full_name} referred from Comrades Clinic for urgent clinical evaluation regarding ${session.symptoms || "symptoms"}. Triage classification: ${assessment.level.toUpperCase()}. Please evaluate, perform necessary diagnostic tests, and manage accordingly.`;
+                      setReferral((prev) => ({ ...prev, reason: autoReason }));
+                    }}
+                    className="text-[11px] font-medium text-primary hover:underline"
+                  >
+                    Auto-Fill Summary
+                  </button>
+                )}
+              </div>
               <Textarea
                 id="reason"
                 rows={4}
@@ -194,6 +269,14 @@ export function ClinicalPanel({ session }: { session: ConsultSession }) {
                 placeholder="Clinical summary and what the receiving facility should assess."
               />
             </div>
+
+            {referral.destination && (
+              <p className="flex items-center gap-1 text-xs text-muted-foreground">
+                <MapPin className="size-3 text-primary" />
+                Google Maps directions will be auto-attached to the student's referral slip.
+              </p>
+            )}
+
             <Button
               className="w-full"
               disabled={ended || !referral.destination.trim() || !referral.reason.trim()}

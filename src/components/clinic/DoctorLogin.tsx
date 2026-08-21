@@ -9,8 +9,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { loginDoctor } from "@/lib/doctor-auth";
 
-const DEMO_EMAIL = "doctor@lovableclinic.co.ke";
-const DEMO_PASSWORD = "ComradeClinic150!";
+// Demo credentials removed — pure Supabase Auth
 
 export function DoctorLogin() {
   const router = useRouter();
@@ -41,11 +40,7 @@ export function DoctorLogin() {
     }
   };
 
-  const fillDemoCredentials = () => {
-    setEmail(DEMO_EMAIL);
-    setPassword(DEMO_PASSWORD);
-    setError(null);
-  };
+  // Demo helper removed
 
   return (
     <main className="relative min-h-[calc(100vh-49px)] overflow-hidden bg-gradient-surface px-4 py-10 sm:py-16">
@@ -136,23 +131,7 @@ export function DoctorLogin() {
               </Button>
             </form>
 
-            {import.meta.env.DEV ? (
-              <div className="mt-5 rounded-xl border border-dashed bg-muted/60 p-3 text-xs leading-relaxed text-muted-foreground">
-                <div className="flex items-center justify-between gap-3">
-                  <strong className="text-foreground">Local demo account</strong>
-                  <button
-                    type="button"
-                    onClick={fillDemoCredentials}
-                    className="font-semibold text-primary underline-offset-4 hover:underline"
-                  >
-                    Fill details
-                  </button>
-                </div>
-                <p className="mt-1">
-                  {DEMO_EMAIL} · {DEMO_PASSWORD}
-                </p>
-              </div>
-            ) : null}
+            {/* Real Supabase Clinician Auth */}
           </CardContent>
         </Card>
 

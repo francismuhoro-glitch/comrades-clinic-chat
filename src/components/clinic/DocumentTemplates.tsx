@@ -1,5 +1,6 @@
 import { FlaskConical, Printer, ShieldCheck } from "lucide-react";
 
+import { MapPin, Navigation } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { DOCTOR, type ConsultSession } from "@/lib/clinic-types";
 
@@ -111,10 +112,24 @@ export function ReferralTemplate({ session }: { session: ConsultSession }) {
   return (
     <SheetShell kicker="Referral letter" title="Your Referral Letter" session={session}>
       <div className="rounded-xl border border-dashed bg-secondary/60 px-4 py-3">
-        <p className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">
-          Referred to
+        <div className="flex items-center justify-between gap-2">
+          <p className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">
+            Referred to
+          </p>
+          <a
+            href={`https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(ref.destination)}`}
+            target="_blank"
+            rel="noreferrer"
+            className="inline-flex items-center gap-1 text-xs font-medium text-primary hover:underline"
+          >
+            <Navigation className="size-3" />
+            Get Directions
+          </a>
+        </div>
+        <p className="mt-1 flex items-center gap-1.5 text-base font-semibold">
+          <MapPin className="size-4 shrink-0 text-primary" />
+          {ref.destination}
         </p>
-        <p className="mt-0.5 text-base font-semibold">{ref.destination}</p>
         <p className="mt-2 text-sm leading-relaxed">{ref.reason}</p>
       </div>
       <p className="text-xs text-muted-foreground">

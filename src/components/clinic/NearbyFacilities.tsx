@@ -15,7 +15,10 @@ interface NearbyFacilitiesProps {
   onlyEmergency?: boolean;
 }
 
-export const NearbyFacilities: React.FC<NearbyFacilitiesProps> = ({ campus = "", onlyEmergency = false }) => {
+export const NearbyFacilities: React.FC<NearbyFacilitiesProps> = ({
+  campus = "",
+  onlyEmergency = false,
+}) => {
   const [userCoords, setUserCoords] = useState<{
     lat: number;
     lng: number;

@@ -53,26 +53,40 @@ export interface RawKMHFLFacility {
   owner?: string;
 }
 
+/** One page of rows resolved from a PostgREST query. */
+type SupabasePage = {
+  data: unknown[] | null;
+  error: { message?: string } | null;
+};
+
+/** Chainable builder shape: `.from(t).select(cols).eq(...).range(...)`. */
+type SupabaseQueryLike = {
+  eq(column: string, value: unknown): SupabaseQueryLike;
+  range(from: number, to: number): PromiseLike<SupabasePage>;
+};
+
+/**
+ * Structural stand-in for a SupabaseClient covering only what we call.
+ * `select` deliberately returns `unknown` (cast to SupabaseQueryLike by the
+ * caller): the real PostgrestFilterBuilder chain is heavily generic, and
+ * checking it structurally triggers TS2345/TS2589 ("excessively deep") errors.
+ */
 type SupabaseLike = {
-  from: (table: string) => {
-    select: (columns: string) => {
-      eq: (column: string, value: unknown) => any;
-      range: (from: number, to: number) => Promise<{ data: unknown[] | null; error: { message?: string } | null }>;
-      limit?: (count: number) => Promise<{ data: unknown[] | null; error: { message?: string } | null }>;
-    };
-  };
+  from(table: string): { select(columns: string): unknown };
 };
 
 const PAGE_SIZE = 1000;
-const FACILITY_TABLES = ["campus_facilities", "hospitals", "facilities"] as const;
+// Query `campus_facilities` DIRECTLY. Legacy table names (`hospitals`, `facilities`)
+// do not exist in the hosted Supabase schema — probing them makes PostgREST throw
+// PGRST205 ("Could not find the table public.facilities in the schema cache"),
+// which surfaced as facility-loading failures on Vercel.
+const FACILITY_TABLE = "campus_facilities";
 
 /** Normalize the different column names used by the facility uploads. */
 export function normalizeFacility(row: RawKMHFLFacility): Facility {
   const record = row as Record<string, unknown>;
   const value = (keys: string[]) =>
-    keys
-      .map((key) => record[key])
-      .find((v) => v !== null && v !== undefined && v !== "");
+    keys.map((key) => record[key]).find((v) => v !== null && v !== undefined && v !== "");
 
   const toNumber = (raw: unknown): number => {
     if (typeof raw === "number" && Number.isFinite(raw)) return raw;
@@ -85,28 +99,19 @@ export function normalizeFacility(row: RawKMHFLFacility): Facility {
 
   return {
     id: String(value(["id"]) || ""),
-    name: String(
-      value(["Facility Name", "facility_name", "name", "Name"]) || "Medical Facility",
-    ),
+    name: String(value(["Facility Name", "facility_name", "name", "Name"]) || "Medical Facility"),
     campus: String(value(["campus", "Campus", "county", "County"]) || ""),
     district: String(
-      value([
-        "District",
-        "district",
-        "LOCATION",
-        "location",
-        "County",
-        "county",
-        "Province",
-      ]) || "Kenya",
+      value(["District", "district", "LOCATION", "location", "County", "county", "Province"]) ||
+        "Kenya",
     ),
-    facility_type: String(
-      value(["Facility Type", "facility_type", "type", "Type"]) || "Hospital",
-    ),
+    facility_type: String(value(["Facility Type", "facility_type", "type", "Type"]) || "Hospital"),
     latitude: toNumber(value(["Latitude", "latitude", "lat", "LATITUDE"])),
     longitude: toNumber(value(["Longitude", "longitude", "lng", "lon", "LONGITUDE"])),
     phone: String(value(["Phone", "phone", "telephone"]) || ""),
-    agency: String(value(["Agency", "agency", "owner", "ownership", "Ownership"]) || "Health Provider"),
+    agency: String(
+      value(["Agency", "agency", "owner", "ownership", "Ownership"]) || "Health Provider",
+    ),
     level: String(value(["Level", "level", "facility_level"]) || ""),
     ownership: String(value(["Ownership", "ownership"]) || ""),
     is_emergency: Boolean(value(["is_emergency", "emergency"]) || false),
@@ -126,14 +131,15 @@ async function fetchAllRows(
   let from = 0;
 
   for (;;) {
-    let query: any = supabaseClient.from(table).select("*");
-    if (onlyEmergency) {
-      query = query.eq("is_emergency", true);
-    }
+    const base = supabaseClient.from(table).select("*") as SupabaseQueryLike;
+    const query = onlyEmergency ? base.eq("is_emergency", true) : base;
     const { data, error } = await query.range(from, from + PAGE_SIZE - 1);
 
     if (error) {
-      // Table missing / column missing / RLS — try next table name.
+      // Schema mismatch / RLS / network problem — log it and let the caller fall
+      // back to the static directory. Never probe other table names: querying
+      // tables missing from the schema cache triggers Supabase PGRST205 errors.
+      console.warn(`[facilities] Failed to load "${table}":`, error.message ?? error);
       return null;
     }
     if (!data?.length) {
@@ -151,21 +157,19 @@ async function fetchAllRows(
 }
 
 /**
- * Load the full Kenyan facility directory from Supabase `campus_facilities`
- * (falling back to legacy table names). Normalizes capitalized KMHFL columns:
- * "Facility Name", "Facility Type", "District", "LOCATION", "Latitude", "Longitude".
+ * Load the full Kenyan facility directory by querying the Supabase
+ * `campus_facilities` table directly (pages through all 1,438+ rows).
+ * Legacy table names are intentionally NOT probed to avoid PostgREST
+ * PGRST205 "Could not find the table in the schema cache" errors on Vercel.
+ * Normalizes capitalized KMHFL columns: "Facility Name", "Facility Type",
+ * "District", "LOCATION", "Latitude", "Longitude".
  */
 export async function loadFacilitiesFromSupabase(
   supabaseClient: SupabaseLike,
   onlyEmergency = false,
 ): Promise<Facility[]> {
-  for (const table of FACILITY_TABLES) {
-    const rows = await fetchAllRows(supabaseClient, table, onlyEmergency);
-    if (rows && rows.length > 0) {
-      return rows.map(normalizeFacility);
-    }
-  }
-  return [];
+  const rows = await fetchAllRows(supabaseClient, FACILITY_TABLE, onlyEmergency);
+  return rows ? rows.map(normalizeFacility) : [];
 }
 
 /** @deprecated Prefer loadFacilitiesFromSupabase — kept as a thin alias. */

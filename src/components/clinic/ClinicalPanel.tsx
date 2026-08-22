@@ -40,11 +40,7 @@ import {
   type LabResultFlag,
   type LabResultStage,
 } from "@/lib/clinic-types";
-import {
-  FALLBACK_FACILITIES,
-  loadFacilitiesFromSupabase,
-  type Facility,
-} from "@/lib/facilities";
+import { FALLBACK_FACILITIES, loadFacilitiesFromSupabase, type Facility } from "@/lib/facilities";
 import { supabase } from "@/lib/supabase";
 import { sendVisitReportFn } from "@/lib/send-visit-report";
 import { symptomLabel, triage } from "@/lib/triage";
@@ -894,7 +890,7 @@ export function ClinicalPanel({ session }: { session: ConsultSession }) {
                   <button
                     type="button"
                     onClick={() => {
-                      const autoReason = `Patient ${session.full_name} (${session.campus}) referred from Comrades Clinic for urgent in-person clinical evaluation regarding reported symptoms: ${session.symptoms || "unspecified"}. Triage level: ${assessment.level.toUpperCase()}. Please assess, investigate, and manage accordingly.`;
+                      const autoReason = `Patient ${session.full_name} (${session.campus}) referred from COMRACARE Student Clinic for urgent in-person clinical evaluation regarding reported symptoms: ${session.symptoms || "unspecified"}. Triage level: ${assessment.level.toUpperCase()}. Please assess, investigate, and manage accordingly.`;
                       setReferral((prev) => ({ ...prev, reason: autoReason }));
                     }}
                     className="text-[11px] font-medium text-primary hover:underline"

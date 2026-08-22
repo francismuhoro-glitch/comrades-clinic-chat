@@ -34,6 +34,36 @@ export interface RawKMHFLFacility {
   ownership?: string;
 }
 
+/** Normalize the different column names used by the facility uploads. */
+export function normalizeFacility(row: RawKMHFLFacility): Facility {
+  const value = (keys: string[]) => keys.map((key) => (row as Record<string, unknown>)[key]).find((v) => v !== null && v !== undefined && v !== "");
+  return {
+    id: String(value(["id"]) || ""),
+    name: String(value(["Facility Name", "facility_name", "name"]) || "Medical Facility"),
+    campus: String(value(["campus", "Campus", "county", "County"]) || ""),
+    district: String(value(["District", "district", "LOCATION", "location", "County", "county", "Province"]) || "Kenya"),
+    facility_type: String(value(["Facility Type", "facility_type", "type"]) || "Hospital"),
+    latitude: Number(value(["Latitude", "latitude", "lat"]) || 0),
+    longitude: Number(value(["Longitude", "longitude", "lng", "lon"]) || 0),
+    phone: String(value(["Phone", "phone", "telephone"]) || ""),
+    agency: String(value(["Agency", "agency", "owner", "ownership"]) || "Health Provider"),
+    level: String(value(["Level", "level", "facility_level"]) || ""),
+    ownership: String(value(["Ownership", "ownership"]) || ""),
+    is_emergency: Boolean(value(["is_emergency", "emergency"]) || false),
+  };
+}
+
+/** Read whichever facility table is installed in this Supabase project. */
+export async function fetchFacilities(supabaseClient: { from: (table: string) => any }, onlyEmergency = false): Promise<Facility[]> {
+  for (const table of ["hospitals", "facilities", "campus_facilities"]) {
+    let query = supabaseClient.from(table).select("*").limit(10000);
+    if (onlyEmergency) query = query.eq("is_emergency", true);
+    const { data, error } = await query;
+    if (!error && data?.length) return (data as RawKMHFLFacility[]).map(normalizeFacility);
+  }
+  return [];
+}
+
 export const FALLBACK_FACILITIES: Facility[] = [
   {
     name: "Kenyatta National Hospital (KNH)",

@@ -1,0 +1,27 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" role="img" aria-labelledby="title">
+  <title id="title">COMRACARE Student Clinic</title>
+  <defs>
+    <linearGradient id="comracare-badge" x1="0" y1="0" x2="64" y2="64" gradientUnits="userSpaceOnUse">
+      <stop offset="0" stop-color="#2dd4bf" />
+      <stop offset="1" stop-color="#0f766e" />
+    </linearGradient>
+  </defs>
+  <rect width="64" height="64" rx="15" fill="url(#comracare-badge)" />
+  <g transform="translate(0 -3)">
+    <!-- Stethoscope badge -->
+    <g fill="none" stroke="#ffffff" stroke-width="4" stroke-linecap="round" stroke-linejoin="round">
+      <!-- Ear tubes meeting at the Y-junction -->
+      <path d="M20 14 C 20 26, 26.5 30.5, 32 30.5" />
+      <path d="M44 14 C 44 26, 37.5 30.5, 32 30.5" />
+      <!-- Chest tube -->
+      <path d="M32 30.5 L 32 41" />
+      <!-- Chest piece stem -->
+      <path d="M32 41 L 32 43.5" />
+      <!-- Chest piece -->
+      <circle cx="32" cy="50" r="6.5" />
+    </g>
+    <!-- Earpieces -->
+    <circle cx="20" cy="14" r="2.4" fill="#ffffff" />
+    <circle cx="44" cy="14" r="2.4" fill="#ffffff" />
+  </g>
+</svg>

@@ -1,6 +1,6 @@
 # Comrades Clinic Chat
 
-Create a standalone, highly responsive mobile-first Telemedicine Web App called "Lovable Student Clinic" designed for Kenyan university students ("comrades"). The app allows students to pay a flat consultation fee of KSh 150 via M-Pesa to access a live, real-time text chat consultation with a doctor. If the case is basic, the doctor issues a digital prescription. If it is complex, the doctor generates a referral letter or flags them for a lab test.
+Create a standalone, highly responsive mobile-first Telemedicine Web App called "COMRACARE Student Clinic" designed for Kenyan university students ("comrades"). The app allows students to pay a flat consultation fee of KSh 150 via M-Pesa to access a live, real-time text chat consultation with a doctor. If the case is basic, the doctor issues a digital prescription. If it is complex, the doctor generates a referral letter or flags them for a lab test.
 
 Please build the entire app layout, state management, and user flows using mock data first, ensuring it is modular so I can easily swap out the frontend state for Supabase and actual M-Pesa API webhooks later.
 
@@ -16,7 +16,7 @@ Please build the entire app layout, state management, and user flows using mock 
 
 1. STUDENT LANDING & TRIAGE PAGE
 
-- A welcoming header: "Lovable Student Clinic — Affordable Care for Comrades".
+- A welcoming header: "COMRACARE Student Clinic — Affordable Care for Comrades".
 
 - A prominent status badge driven by global state: "🟢 Doctor is Online" or "🔴 Doctor is Offline (Emergency disclaimer displayed)".
 
@@ -88,7 +88,7 @@ Please build the entire app layout, state management, and user flows using mock 
 
 The `/doctor` portal is protected by a server-validated email/password login and an encrypted, HTTP-only session cookie. In local development, use:
 
-- **Email:** `doctor@lovableclinic.co.ke`
+- **Email:** `doctor@comracareclinic.co.ke`
 - **Password:** `ComradeClinic150!`
 
 Production deliberately has no fallback credentials. Copy `.env.example` into your deployment configuration and set unique values for `SESSION_SECRET` (at least 32 characters), `DOCTOR_EMAIL`, and `DOCTOR_PASSWORD`.

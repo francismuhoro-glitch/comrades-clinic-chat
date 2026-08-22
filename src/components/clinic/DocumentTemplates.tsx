@@ -27,7 +27,7 @@ function SheetShell({
       <div className="bg-gradient-medical px-5 py-4 text-primary-foreground">
         <p className="text-[11px] font-semibold uppercase tracking-[0.18em] opacity-85">{kicker}</p>
         <h3 className="mt-0.5 text-lg font-semibold">{title}</h3>
-        <p className="mt-1 text-xs opacity-90">Lovable Student Clinic · Telemedicine Services</p>
+        <p className="mt-1 text-xs opacity-90">COMRACARE Student Clinic · Telemedicine Services</p>
       </div>
 
       <div className="space-y-4 px-5 py-5">
@@ -133,7 +133,7 @@ export function ReferralTemplate({ session }: { session: ConsultSession }) {
         <p className="mt-2 text-sm leading-relaxed">{ref.reason}</p>
       </div>
       <p className="text-xs text-muted-foreground">
-        Kindly attend to the above patient. This consultation was conducted remotely via Lovable
+        Kindly attend to the above patient. This consultation was conducted remotely via COMRACARE
         Student Clinic.
       </p>
     </SheetShell>

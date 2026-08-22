@@ -18,50 +18,162 @@ export interface RawKMHFLFacility {
   id?: string;
   "Facility Name"?: string;
   name?: string;
+  facility_name?: string;
   "Facility Type"?: string;
   facility_type?: string;
+  type?: string;
   District?: string;
+  district?: string;
   Province?: string;
   LOCATION?: string;
+  location?: string;
   campus?: string;
-  Latitude?: number;
-  latitude?: number;
-  Longitude?: number;
-  longitude?: number;
+  Campus?: string;
+  County?: string;
+  county?: string;
+  Latitude?: number | string;
+  latitude?: number | string;
+  lat?: number | string;
+  Longitude?: number | string;
+  longitude?: number | string;
+  lng?: number | string;
+  lon?: number | string;
   Agency?: string;
+  agency?: string;
+  Phone?: string;
+  phone?: string;
+  telephone?: string;
   is_emergency?: boolean;
+  emergency?: boolean;
+  Level?: string;
   level?: string;
+  facility_level?: string;
+  Ownership?: string;
   ownership?: string;
+  owner?: string;
 }
+
+type SupabaseLike = {
+  from: (table: string) => {
+    select: (columns: string) => {
+      eq: (column: string, value: unknown) => any;
+      range: (from: number, to: number) => Promise<{ data: unknown[] | null; error: { message?: string } | null }>;
+      limit?: (count: number) => Promise<{ data: unknown[] | null; error: { message?: string } | null }>;
+    };
+  };
+};
+
+const PAGE_SIZE = 1000;
+const FACILITY_TABLES = ["campus_facilities", "hospitals", "facilities"] as const;
 
 /** Normalize the different column names used by the facility uploads. */
 export function normalizeFacility(row: RawKMHFLFacility): Facility {
-  const value = (keys: string[]) => keys.map((key) => (row as Record<string, unknown>)[key]).find((v) => v !== null && v !== undefined && v !== "");
+  const record = row as Record<string, unknown>;
+  const value = (keys: string[]) =>
+    keys
+      .map((key) => record[key])
+      .find((v) => v !== null && v !== undefined && v !== "");
+
+  const toNumber = (raw: unknown): number => {
+    if (typeof raw === "number" && Number.isFinite(raw)) return raw;
+    if (typeof raw === "string" && raw.trim() !== "") {
+      const n = Number(raw);
+      return Number.isFinite(n) ? n : 0;
+    }
+    return 0;
+  };
+
   return {
     id: String(value(["id"]) || ""),
-    name: String(value(["Facility Name", "facility_name", "name"]) || "Medical Facility"),
+    name: String(
+      value(["Facility Name", "facility_name", "name", "Name"]) || "Medical Facility",
+    ),
     campus: String(value(["campus", "Campus", "county", "County"]) || ""),
-    district: String(value(["District", "district", "LOCATION", "location", "County", "county", "Province"]) || "Kenya"),
-    facility_type: String(value(["Facility Type", "facility_type", "type"]) || "Hospital"),
-    latitude: Number(value(["Latitude", "latitude", "lat"]) || 0),
-    longitude: Number(value(["Longitude", "longitude", "lng", "lon"]) || 0),
+    district: String(
+      value([
+        "District",
+        "district",
+        "LOCATION",
+        "location",
+        "County",
+        "county",
+        "Province",
+      ]) || "Kenya",
+    ),
+    facility_type: String(
+      value(["Facility Type", "facility_type", "type", "Type"]) || "Hospital",
+    ),
+    latitude: toNumber(value(["Latitude", "latitude", "lat", "LATITUDE"])),
+    longitude: toNumber(value(["Longitude", "longitude", "lng", "lon", "LONGITUDE"])),
     phone: String(value(["Phone", "phone", "telephone"]) || ""),
-    agency: String(value(["Agency", "agency", "owner", "ownership"]) || "Health Provider"),
+    agency: String(value(["Agency", "agency", "owner", "ownership", "Ownership"]) || "Health Provider"),
     level: String(value(["Level", "level", "facility_level"]) || ""),
     ownership: String(value(["Ownership", "ownership"]) || ""),
     is_emergency: Boolean(value(["is_emergency", "emergency"]) || false),
   };
 }
 
-/** Read whichever facility table is installed in this Supabase project. */
-export async function fetchFacilities(supabaseClient: { from: (table: string) => any }, onlyEmergency = false): Promise<Facility[]> {
-  for (const table of ["hospitals", "facilities", "campus_facilities"]) {
-    let query = supabaseClient.from(table).select("*").limit(10000);
-    if (onlyEmergency) query = query.eq("is_emergency", true);
-    const { data, error } = await query;
-    if (!error && data?.length) return (data as RawKMHFLFacility[]).map(normalizeFacility);
+/**
+ * Page through a single Supabase table until all rows are loaded.
+ * Supabase defaults to a max of ~1000 rows per request; campus_facilities has 1,438+.
+ */
+async function fetchAllRows(
+  supabaseClient: SupabaseLike,
+  table: string,
+  onlyEmergency = false,
+): Promise<RawKMHFLFacility[] | null> {
+  const all: RawKMHFLFacility[] = [];
+  let from = 0;
+
+  for (;;) {
+    let query: any = supabaseClient.from(table).select("*");
+    if (onlyEmergency) {
+      query = query.eq("is_emergency", true);
+    }
+    const { data, error } = await query.range(from, from + PAGE_SIZE - 1);
+
+    if (error) {
+      // Table missing / column missing / RLS — try next table name.
+      return null;
+    }
+    if (!data?.length) {
+      break;
+    }
+
+    all.push(...(data as RawKMHFLFacility[]));
+    if (data.length < PAGE_SIZE) {
+      break;
+    }
+    from += PAGE_SIZE;
+  }
+
+  return all;
+}
+
+/**
+ * Load the full Kenyan facility directory from Supabase `campus_facilities`
+ * (falling back to legacy table names). Normalizes capitalized KMHFL columns:
+ * "Facility Name", "Facility Type", "District", "LOCATION", "Latitude", "Longitude".
+ */
+export async function loadFacilitiesFromSupabase(
+  supabaseClient: SupabaseLike,
+  onlyEmergency = false,
+): Promise<Facility[]> {
+  for (const table of FACILITY_TABLES) {
+    const rows = await fetchAllRows(supabaseClient, table, onlyEmergency);
+    if (rows && rows.length > 0) {
+      return rows.map(normalizeFacility);
+    }
   }
   return [];
+}
+
+/** @deprecated Prefer loadFacilitiesFromSupabase — kept as a thin alias. */
+export async function fetchFacilities(
+  supabaseClient: SupabaseLike,
+  onlyEmergency = false,
+): Promise<Facility[]> {
+  return loadFacilitiesFromSupabase(supabaseClient, onlyEmergency);
 }
 
 export const FALLBACK_FACILITIES: Facility[] = [

@@ -40,7 +40,11 @@ import {
   type LabResultFlag,
   type LabResultStage,
 } from "@/lib/clinic-types";
-import { fetchFacilities, type Facility } from "@/lib/facilities";
+import {
+  FALLBACK_FACILITIES,
+  loadFacilitiesFromSupabase,
+  type Facility,
+} from "@/lib/facilities";
 import { supabase } from "@/lib/supabase";
 import { sendVisitReportFn } from "@/lib/send-visit-report";
 import { symptomLabel, triage } from "@/lib/triage";
@@ -471,20 +475,45 @@ export function ClinicalPanel({ session }: { session: ConsultSession }) {
   const [rx, setRx] = useState({ medication: "", dosage: "", duration: "" });
   const [referral, setReferral] = useState({ destination: "", reason: "" });
   const [facilities, setFacilities] = useState<Facility[]>([]);
+  const [facilitiesLoading, setFacilitiesLoading] = useState(true);
   const [facilitySearch, setFacilitySearch] = useState("");
   const ended = session.status === "completed";
   useEffect(() => {
-    fetchFacilities(supabase).then(setFacilities);
+    let cancelled = false;
+    setFacilitiesLoading(true);
+    loadFacilitiesFromSupabase(supabase)
+      .then((rows) => {
+        if (cancelled) return;
+        setFacilities(rows.length > 0 ? rows : FALLBACK_FACILITIES);
+      })
+      .catch(() => {
+        if (!cancelled) setFacilities(FALLBACK_FACILITIES);
+      })
+      .finally(() => {
+        if (!cancelled) setFacilitiesLoading(false);
+      });
+    return () => {
+      cancelled = true;
+    };
   }, []);
   const search = facilitySearch.trim().toLowerCase();
-  const matchingFacilities = facilities.filter((f) => {
-    const text = `${f.name} ${f.level} ${f.facility_type} ${f.district} ${f.campus}`.toLowerCase();
-    const region = (session.campus || "").toLowerCase();
-    return !search || text.includes(search);
-  }).sort((a, b) => {
-    const region = (session.campus || "").toLowerCase();
-    return Number(`${b.campus} ${b.district}`.toLowerCase().includes(region)) - Number(`${a.campus} ${a.district}`.toLowerCase().includes(region));
-  }).slice(0, 100);
+  // Full 1,438+ directory is loaded; filter by search, prefer patient's campus/region.
+  // Cap rendered rows so the referral panel stays responsive while still searchable.
+  const matchingFacilities = facilities
+    .filter((f) => {
+      const text =
+        `${f.name} ${f.level} ${f.facility_type} ${f.district} ${f.campus} ${f.agency}`.toLowerCase();
+      return !search || text.includes(search);
+    })
+    .sort((a, b) => {
+      const region = (session.campus || "").toLowerCase();
+      if (!region) return a.name.localeCompare(b.name);
+      return (
+        Number(`${b.campus} ${b.district}`.toLowerCase().includes(region)) -
+        Number(`${a.campus} ${a.district}`.toLowerCase().includes(region))
+      );
+    })
+    .slice(0, search ? 250 : 150);
   const assessment = triage(session.symptom_codes);
 
   return (
@@ -773,16 +802,25 @@ export function ClinicalPanel({ session }: { session: ConsultSession }) {
                   <MapPin className="size-3.5 text-primary" />
                   Nearby Facilities to {session.campus || "Patient"}
                 </Label>
-                <span className="text-[10px] text-muted-foreground">1-Click Select</span>
+                <span className="text-[10px] text-muted-foreground">
+                  {facilitiesLoading
+                    ? "Loading directory…"
+                    : `${facilities.length.toLocaleString()} facilities · 1-Click Select`}
+                </span>
               </div>
 
               <div className="grid gap-1.5 max-h-48 overflow-y-auto pr-1">
                 <Input
                   value={facilitySearch}
                   onChange={(e) => setFacilitySearch(e.target.value)}
-                  placeholder="Search all hospitals by name, level, county or location…"
-                  disabled={ended}
+                  placeholder="Search all 1,400+ hospitals by name, level, county or location…"
+                  disabled={ended || facilitiesLoading}
                 />
+                {!facilitiesLoading && matchingFacilities.length === 0 && (
+                  <p className="text-[11px] text-muted-foreground px-1 py-2">
+                    No facilities match “{facilitySearch}”. Try a county, level, or hospital name.
+                  </p>
+                )}
                 {matchingFacilities.map((fac, idx) => {
                   const mapsUrl = `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(fac.name)}`;
                   const isSelected = referral.destination.includes(fac.name);

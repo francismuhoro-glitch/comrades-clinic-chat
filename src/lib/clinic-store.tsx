@@ -15,12 +15,17 @@ import { mapConsultationRow, type ConsultationRow } from "./consultation-mapper"
 import { triage } from "./triage";
 import {
   CONSULT_FEE_KES,
+  FALLBACK_LAB_CATALOG,
   LAB_ORDER_STATUS_LABELS,
+  LAB_RESULT_STAGE_LABELS,
   type ChatMessage,
   type ClinicSettings,
   type ConsultSession,
   type LabOrder,
   type LabOrderStatus,
+  type LabResult,
+  type LabResultStage,
+  type LabTestCatalogItem,
   type Prescription,
   type Referral,
   type Sender,
@@ -45,6 +50,8 @@ interface State {
   settings: ClinicSettings;
   sessions: ConsultSession[];
   messages: ChatMessage[];
+  labResults: LabResult[];
+  labCatalog: LabTestCatalogItem[];
 }
 
 type Action =
@@ -54,7 +61,12 @@ type Action =
   | { type: "mark_paid"; id: string; receipt: string }
   | { type: "activate"; id: string }
   | { type: "add_message"; message: ChatMessage }
-  | { type: "patch_session"; id: string; patch: Partial<ConsultSession> };
+  | { type: "patch_session"; id: string; patch: Partial<ConsultSession> }
+  | { type: "set_lab_results"; results: LabResult[] }
+  | { type: "set_lab_catalog"; catalog: LabTestCatalogItem[] }
+  | { type: "add_lab_result"; result: LabResult }
+  | { type: "patch_lab_result"; id: string; patch: Partial<LabResult> }
+  | { type: "delete_lab_result"; id: string };
 
 function seed(): State {
   const s1: ConsultSession = {
@@ -160,6 +172,8 @@ function seed(): State {
         created_at: minutesAgo(11),
       },
     ],
+    labResults: [],
+    labCatalog: FALLBACK_LAB_CATALOG,
   };
 }
 
@@ -196,6 +210,30 @@ function reducer(state: State, action: Action): State {
         ...state,
         sessions: state.sessions.map((s) => (s.id === action.id ? { ...s, ...action.patch } : s)),
       };
+    case "set_lab_results":
+      return { ...state, labResults: action.results };
+    case "set_lab_catalog":
+      return { ...state, labCatalog: action.catalog };
+    case "add_lab_result":
+      if (state.labResults.some((r) => r.id === action.result.id)) {
+        return {
+          ...state,
+          labResults: state.labResults.map((r) => (r.id === action.result.id ? action.result : r)),
+        };
+      }
+      return { ...state, labResults: [...state.labResults, action.result] };
+    case "patch_lab_result":
+      return {
+        ...state,
+        labResults: state.labResults.map((r) =>
+          r.id === action.id ? { ...r, ...action.patch } : r,
+        ),
+      };
+    case "delete_lab_result":
+      return {
+        ...state,
+        labResults: state.labResults.filter((r) => r.id !== action.id),
+      };
     default:
       return state;
   }
@@ -204,6 +242,7 @@ function reducer(state: State, action: Action): State {
 export interface IntakeInput {
   full_name: string;
   phone: string;
+  patient_email?: string | undefined;
   campus: string;
   symptoms: string;
   symptom_codes: string[];
@@ -223,7 +262,7 @@ interface ClinicApi {
   studentSessionId: string | null;
   setStudentSessionId: (id: string | null) => void;
   createSession: (input: IntakeInput) => string;
-  resumeSessionByPhone: (phone: string) => Promise<boolean>;
+  resumeSessionByPhone: (phoneOrEmail: string) => Promise<boolean>;
   clearActiveSession: () => void;
   submitPaymentClaim: (id: string, mpesaCode: string, paymentPhone: string) => Promise<void>;
   confirmPayment: (id: string) => Promise<void>;
@@ -242,6 +281,13 @@ interface ClinicApi {
   toggleLabTest: (id: string) => void;
   endWithPrescription: (id: string, prescription: Prescription) => void;
   endWithReferral: (id: string, referral: Referral) => void;
+  /** Lab results and catalog functionality */
+  labCatalog: LabTestCatalogItem[];
+  labResultsFor: (consultationId: string | null) => LabResult[];
+  addLabResult: (input: Omit<LabResult, "id" | "created_at" | "updated_at">) => Promise<void>;
+  updateLabResultStage: (id: string, stage: LabResultStage) => Promise<void>;
+  updateBulkLabResultStage: (ids: string[], stage: LabResultStage) => Promise<void>;
+  deleteLabResult: (id: string) => Promise<void>;
 }
 
 const ClinicContext = createContext<ClinicApi | null>(null);
@@ -342,7 +388,7 @@ export function ClinicProvider({ children }: { children: ReactNode }) {
     [persistMessage],
   );
 
-  // Realtime Supabase subscription for live chat and live queue sync
+  // Realtime Supabase subscription for live chat, queue sync, and lab results
   useEffect(() => {
     (async () => {
       try {
@@ -365,6 +411,20 @@ export function ClinicProvider({ children }: { children: ReactNode }) {
           });
         }
 
+        // Fetch lab catalog
+        try {
+          const { data: catalogData } = await supabase
+            .from("lab_test_catalog")
+            .select("*")
+            .eq("active", true);
+          if (catalogData && catalogData.length > 0) {
+            dispatch({ type: "set_lab_catalog", catalog: catalogData as LabTestCatalogItem[] });
+          }
+        } catch (err) {
+          console.warn("Lab catalog initial load notice:", err);
+        }
+
+        // Fetch consultations
         const { data } = await supabase
           .from("consultations")
           .select("*")
@@ -376,8 +436,20 @@ export function ClinicProvider({ children }: { children: ReactNode }) {
           }
         }
 
-        // Restore chat history so a page refresh (or a new device) does not
-        // lose past messages. Messages are stored encrypted per consultation.
+        // Fetch lab results
+        try {
+          const { data: labData } = await supabase
+            .from("lab_results")
+            .select("*")
+            .order("created_at", { ascending: true });
+          if (labData && labData.length > 0) {
+            dispatch({ type: "set_lab_results", results: labData as LabResult[] });
+          }
+        } catch (err) {
+          console.warn("Lab results initial load notice:", err);
+        }
+
+        // Restore chat history
         const { data: messageRows } = await supabase
           .from("messages")
           .select("*")
@@ -444,42 +516,9 @@ export function ClinicProvider({ children }: { children: ReactNode }) {
         "postgres_changes",
         { event: "INSERT", schema: "public", table: "consultations" },
         (payload) => {
-          const row = payload.new as {
-            id: string;
-            patient_name: string;
-            patient_phone: string;
-            campus: string;
-            symptoms_description: string;
-            symptoms_selected: string[];
-            triage_level: "routine" | "urgent" | "emergency";
-            status: string;
-            created_at: string;
-          };
-
+          const row = payload.new as ConsultationRow;
           if (!row || !row.id) return;
-
-          const session: ConsultSession = {
-            id: row.id,
-            full_name: row.patient_name,
-            phone: row.patient_phone,
-            campus: row.campus,
-            symptoms: row.symptoms_description,
-            symptom_codes: row.symptoms_selected || [],
-            triage_level: row.triage_level || "routine",
-            emergency_flag: row.triage_level === "emergency",
-            suggested_labs: [],
-            status: "awaiting_payment",
-            paid: false,
-            fee_kes: CONSULT_FEE_KES,
-            mpesa_receipt: null,
-            lab_test_requested: false,
-            diagnosis_notes: "",
-            prescription: null,
-            referral: null,
-            created_at: row.created_at || now(),
-            ended_at: null,
-          };
-          dispatch({ type: "create_session", session });
+          dispatch({ type: "create_session", session: mapConsultationRow(row) });
         },
       )
       .on(
@@ -495,6 +534,7 @@ export function ClinicProvider({ children }: { children: ReactNode }) {
             lab_order?: LabOrder | null;
             payment_status?: "pending" | "confirmed" | "rejected";
             lab_test_requested?: boolean;
+            patient_email?: string | null;
           };
           if (!row || !row.id) return;
 
@@ -533,6 +573,9 @@ export function ClinicProvider({ children }: { children: ReactNode }) {
           if (typeof row.lab_test_requested === "boolean") {
             patch.lab_test_requested = row.lab_test_requested;
           }
+          if (row.patient_email !== undefined) {
+            patch.patient_email = row.patient_email;
+          }
 
           dispatch({
             type: "patch_session",
@@ -541,6 +584,24 @@ export function ClinicProvider({ children }: { children: ReactNode }) {
           });
         },
       )
+      .on("postgres_changes", { event: "*", schema: "public", table: "lab_results" }, (payload) => {
+        if (payload.eventType === "INSERT") {
+          const raw = payload.new as LabResult;
+          if (raw && raw.id) {
+            dispatch({ type: "add_lab_result", result: raw });
+          }
+        } else if (payload.eventType === "UPDATE") {
+          const raw = payload.new as LabResult;
+          if (raw && raw.id) {
+            dispatch({ type: "patch_lab_result", id: raw.id, patch: raw });
+          }
+        } else if (payload.eventType === "DELETE") {
+          const raw = payload.old as { id?: string };
+          if (raw && raw.id) {
+            dispatch({ type: "delete_lab_result", id: raw.id });
+          }
+        }
+      })
       .subscribe();
 
     return () => {
@@ -579,11 +640,15 @@ export function ClinicProvider({ children }: { children: ReactNode }) {
       studentSessionId,
       setStudentSessionId,
       clearActiveSession,
-      resumeSessionByPhone: async (searchPhone: string) => {
-        const cleaned = searchPhone.trim().replace(/\s/g, "");
+      resumeSessionByPhone: async (searchTerm: string) => {
+        const cleaned = searchTerm.trim().toLowerCase();
+        const cleanedPhone = cleaned.replace(/\s/g, "");
         // Search local state first
         const local = state.sessions.find(
-          (s) => s.phone.replace(/\s/g, "") === cleaned && s.status !== "completed",
+          (s) =>
+            (s.phone.replace(/\s/g, "").toLowerCase() === cleanedPhone ||
+              (s.patient_email && s.patient_email.toLowerCase() === cleaned)) &&
+            s.status !== "completed",
         );
         if (local) {
           setStudentSessionId(local.id);
@@ -591,10 +656,11 @@ export function ClinicProvider({ children }: { children: ReactNode }) {
         }
         // Search Supabase
         try {
+          const searchParam = cleanedPhone.length >= 9 ? cleanedPhone.slice(-9) : cleaned;
           const { data } = await supabase
             .from("consultations")
             .select("*")
-            .ilike("patient_phone", `%${cleaned.slice(-9)}%`)
+            .or(`patient_phone.ilike.%${searchParam}%,patient_email.ilike.${cleaned}`)
             .neq("status", "completed")
             .order("created_at", { ascending: false })
             .limit(1)
@@ -615,6 +681,7 @@ export function ClinicProvider({ children }: { children: ReactNode }) {
           id: uid(),
           full_name: input.full_name,
           phone: input.phone,
+          patient_email: input.patient_email ?? null,
           campus: input.campus,
           symptoms: input.symptoms,
           symptom_codes: input.symptom_codes,
@@ -640,9 +707,13 @@ export function ClinicProvider({ children }: { children: ReactNode }) {
             // Attach the logged-in patient account (if any) so this visit
             // shows up under "My Visits" on any device.
             let patientId: string | null = null;
+            let accountEmail: string | null = input.patient_email ?? null;
             try {
               const { data } = await supabase.auth.getUser();
               patientId = data.user?.id ?? null;
+              if (!accountEmail && data.user?.email) {
+                accountEmail = data.user.email;
+              }
             } catch {
               patientId = null;
             }
@@ -651,6 +722,7 @@ export function ClinicProvider({ children }: { children: ReactNode }) {
               id: session.id,
               patient_name: input.full_name,
               patient_phone: input.phone,
+              patient_email: accountEmail,
               campus: input.campus,
               symptoms_description: input.symptoms,
               symptoms_selected: input.symptom_codes,
@@ -937,6 +1009,87 @@ export function ClinicProvider({ children }: { children: ReactNode }) {
             console.error("Failed to end session with Referral:", err);
           }
         })();
+      },
+
+      // Lab Results & Catalog API
+      labCatalog: state.labCatalog,
+      labResultsFor: (consultationId) =>
+        consultationId ? state.labResults.filter((r) => r.consultation_id === consultationId) : [],
+      addLabResult: async (input) => {
+        const newId = uid();
+        const timestamp = now();
+        const result: LabResult = {
+          ...input,
+          id: newId,
+          created_at: timestamp,
+          updated_at: timestamp,
+        };
+        dispatch({ type: "add_lab_result", result });
+        system(
+          input.consultation_id,
+          `New lab test entry added: ${input.panel} (${input.loinc_code || "Manual"}). Stage: ${LAB_RESULT_STAGE_LABELS[input.stage]}.`,
+        );
+        try {
+          await supabase.from("lab_results").insert({
+            id: newId,
+            consultation_id: input.consultation_id,
+            panel: input.panel,
+            result_value: input.result_value,
+            unit: input.unit,
+            reference_range: input.reference_range,
+            flag: input.flag,
+            notes: input.notes,
+            stage: input.stage,
+            loinc_code: input.loinc_code,
+            loinc_display: input.loinc_display,
+            created_at: timestamp,
+            updated_at: timestamp,
+          });
+        } catch (err) {
+          console.error("Failed to insert lab result:", err);
+        }
+      },
+      updateLabResultStage: async (id, stage) => {
+        const existing = state.labResults.find((r) => r.id === id);
+        if (!existing) return;
+        const timestamp = now();
+        dispatch({ type: "patch_lab_result", id, patch: { stage, updated_at: timestamp } });
+        system(
+          existing.consultation_id,
+          `Lab result stage update (${existing.panel}): ${LAB_RESULT_STAGE_LABELS[stage]}.`,
+        );
+        try {
+          await supabase.from("lab_results").update({ stage, updated_at: timestamp }).eq("id", id);
+        } catch (err) {
+          console.error("Failed to update lab result stage:", err);
+        }
+      },
+      updateBulkLabResultStage: async (ids, stage) => {
+        if (ids.length === 0) return;
+        const timestamp = now();
+        for (const id of ids) {
+          dispatch({ type: "patch_lab_result", id, patch: { stage, updated_at: timestamp } });
+        }
+        const first = state.labResults.find((r) => ids.includes(r.id));
+        if (first) {
+          system(
+            first.consultation_id,
+            `Bulk lab results update (${ids.length} tests): ${LAB_RESULT_STAGE_LABELS[stage]}.`,
+          );
+        }
+        try {
+          await supabase.from("lab_results").update({ stage, updated_at: timestamp }).in("id", ids);
+        } catch (err) {
+          console.error("Failed to bulk update lab result stage:", err);
+        }
+      },
+      deleteLabResult: async (id) => {
+        dispatch({ type: "delete_lab_result", id });
+        try {
+          await supabase.from("lab_results").delete().eq("id", id);
+        } catch (err) {
+          console.error("Failed to delete lab result:", err);
+        }
       },
     };
   }, [

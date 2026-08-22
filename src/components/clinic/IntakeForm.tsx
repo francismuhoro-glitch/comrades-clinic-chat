@@ -1,5 +1,5 @@
-import { AlertTriangle, FlaskConical, ShieldCheck, Siren } from "lucide-react";
-import { useState } from "react";
+import { AlertTriangle, FlaskConical, Mail, ShieldCheck, Siren } from "lucide-react";
+import { useEffect, useState } from "react";
 import { KENYAN_INSTITUTIONS } from "@/lib/kenya-institutions";
 import { NearbyFacilities } from "./NearbyFacilities";
 
@@ -17,20 +17,31 @@ import {
 import { Textarea } from "@/components/ui/textarea";
 import { useClinic, type IntakeInput } from "@/lib/clinic-store";
 import { CONSULT_FEE_KES } from "@/lib/clinic-types";
+import { usePatientAuth } from "@/lib/patient-auth";
 import { EMERGENCY_NOTICE, SYMPTOM_OPTIONS, triage } from "@/lib/triage";
 import { cn } from "@/lib/utils";
 
 export function IntakeForm({ onSubmit }: { onSubmit: (input: IntakeInput) => void }) {
   const { doctorOnline } = useClinic();
+  const { patient } = usePatientAuth();
+
   const [form, setForm] = useState<IntakeInput>({
     full_name: "",
     phone: "",
+    patient_email: "",
     campus: "",
     symptoms: "",
     symptom_codes: [],
   });
   const [agreed, setAgreed] = useState(false);
   const [error, setError] = useState<string | null>(null);
+
+  // Auto-prefill email if patient is signed in
+  useEffect(() => {
+    if (patient?.email && !form.patient_email) {
+      setForm((f) => ({ ...f, patient_email: patient.email ?? "" }));
+    }
+  }, [patient, form.patient_email]);
 
   const set = <K extends keyof IntakeInput>(key: K, value: IntakeInput[K]) =>
     setForm((f) => ({ ...f, [key]: value }));
@@ -48,11 +59,18 @@ export function IntakeForm({ onSubmit }: { onSubmit: (input: IntakeInput) => voi
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     if (!form.full_name.trim() || !form.phone.trim() || !form.campus || !form.symptoms.trim()) {
-      setError("Please fill in all the fields above.");
+      setError("Please fill in all the required fields above.");
       return;
     }
     if (!/^(?:\+?254|0)7\d{8}$|^(?:\+?254|0)1\d{8}$/.test(form.phone.replace(/\s/g, ""))) {
       setError("Enter a valid Kenyan M-Pesa number, e.g. 0712345678.");
+      return;
+    }
+    if (
+      form.patient_email?.trim() &&
+      !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(form.patient_email.trim())
+    ) {
+      setError("Enter a valid email address.");
       return;
     }
     if (form.symptom_codes.length === 0) {
@@ -93,6 +111,28 @@ export function IntakeForm({ onSubmit }: { onSubmit: (input: IntakeInput) => voi
           autoComplete="tel"
           required
         />
+      </div>
+
+      <div className="space-y-1.5">
+        <div className="flex items-center justify-between">
+          <Label htmlFor="patient_email">Email address (optional)</Label>
+          {patient?.email && (
+            <span className="text-[10px] text-muted-foreground flex items-center gap-1">
+              <Mail className="size-3 text-primary" /> Auto-attached from account
+            </span>
+          )}
+        </div>
+        <Input
+          id="patient_email"
+          type="email"
+          value={form.patient_email || ""}
+          onChange={(e) => set("patient_email", e.target.value)}
+          placeholder="e.g. comrade@students.ku.ac.ke"
+          autoComplete="email"
+        />
+        <p className="text-[10px] text-muted-foreground">
+          Used to send you your official visit report with prescriptions and lab results.
+        </p>
       </div>
 
       <div className="space-y-1.5">

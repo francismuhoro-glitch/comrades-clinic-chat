@@ -1,6 +1,19 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
-import { ArrowRight, CheckCircle2, History, RotateCcw, UserRound, XCircle } from "lucide-react";
-import { useState } from "react";
+import {
+  ArrowRight,
+  CheckCircle2,
+  Clock,
+  FileText,
+  FlaskConical,
+  History,
+  MessageSquare,
+  RotateCcw,
+  ShieldCheck,
+  UserRound,
+  Wallet,
+  XCircle,
+} from "lucide-react";
+import { useEffect, useState } from "react";
 
 import { ChatWindow } from "@/components/clinic/ChatWindow";
 import {
@@ -10,12 +23,15 @@ import {
 } from "@/components/clinic/DocumentTemplates";
 import { IntakeForm } from "@/components/clinic/IntakeForm";
 import { LabOrderChoice } from "@/components/clinic/LabOrderChoice";
+import { LabResultsTracker } from "@/components/clinic/LabResultsTracker";
 import { MpesaProcessing } from "@/components/clinic/MpesaProcessing";
 import { StatusBadge, StudentLayout } from "@/components/clinic/StudentLayout";
 import { Button } from "@/components/ui/button";
+import { Checkbox } from "@/components/ui/checkbox";
 import { Input } from "@/components/ui/input";
 import { useClinic } from "@/lib/clinic-store";
-import { LAB_ORDER_STATUS_LABELS } from "@/lib/clinic-types";
+import { CONSULT_FEE_KES, LAB_ORDER_STATUS_LABELS, type LabResult } from "@/lib/clinic-types";
+import { supabase } from "@/lib/supabase";
 import { EMERGENCY_NOTICE, triage } from "@/lib/triage";
 
 export const Route = createFileRoute("/")({
@@ -32,11 +48,122 @@ export const Route = createFileRoute("/")({
   component: PatientRouteComponent,
 });
 
+function LandingPage({ onAcceptTerms }: { onAcceptTerms: () => void }) {
+  const [agreed, setAgreed] = useState(false);
+
+  return (
+    <div className="space-y-5">
+      {/* Hero Welcome Banner */}
+      <div className="rounded-2xl border bg-card p-5 shadow-card space-y-3">
+        <div className="inline-flex items-center gap-1.5 rounded-full bg-primary/10 px-3 py-1 text-xs font-semibold text-primary">
+          <ShieldCheck className="size-3.5" />
+          KMPDC-Licensed Telemedicine for Comrades
+        </div>
+        <h1 className="text-xl font-extrabold sm:text-2xl leading-tight">
+          Affordable, Confidential Healthcare for Kenyan Students
+        </h1>
+        <p className="text-xs text-muted-foreground leading-relaxed">
+          Get fast, professional medical advice without leaving your campus. Speak with registered
+          doctors, receive verified digital prescriptions, and order doorstep lab tests.
+        </p>
+      </div>
+
+      {/* How It Works Steps */}
+      <div className="rounded-2xl border bg-card p-5 shadow-card space-y-4">
+        <h2 className="text-sm font-bold flex items-center gap-2">
+          <Clock className="size-4 text-primary" />
+          How It Works in 3 Simple Steps
+        </h2>
+
+        <div className="grid gap-3 text-xs">
+          <div className="flex gap-3 rounded-xl border bg-muted/30 p-3 items-start">
+            <span className="flex size-7 shrink-0 items-center justify-center rounded-lg bg-primary text-xs font-bold text-primary-foreground">
+              1
+            </span>
+            <div className="space-y-0.5 min-w-0">
+              <p className="font-semibold text-foreground flex items-center gap-1.5">
+                <Wallet className="size-3.5 text-primary" />
+                Pay KSh {CONSULT_FEE_KES} via Pochi la Biashara
+              </p>
+              <p className="text-muted-foreground leading-relaxed">
+                Fill in basic intake symptoms and pay the affordable consultation fee via M-Pesa.
+              </p>
+            </div>
+          </div>
+
+          <div className="flex gap-3 rounded-xl border bg-muted/30 p-3 items-start">
+            <span className="flex size-7 shrink-0 items-center justify-center rounded-lg bg-primary text-xs font-bold text-primary-foreground">
+              2
+            </span>
+            <div className="space-y-0.5 min-w-0">
+              <p className="font-semibold text-foreground flex items-center gap-1.5">
+                <MessageSquare className="size-3.5 text-primary" />
+                Chat Live with a Licensed Doctor
+              </p>
+              <p className="text-muted-foreground leading-relaxed">
+                Connect in real-time encrypted chat. Discuss your symptoms and receive clinical
+                guidance.
+              </p>
+            </div>
+          </div>
+
+          <div className="flex gap-3 rounded-xl border bg-muted/30 p-3 items-start">
+            <span className="flex size-7 shrink-0 items-center justify-center rounded-lg bg-primary text-xs font-bold text-primary-foreground">
+              3
+            </span>
+            <div className="space-y-0.5 min-w-0">
+              <p className="font-semibold text-foreground flex items-center gap-1.5">
+                <FileText className="size-3.5 text-primary" />
+                Prescriptions, Lab Tests &amp; Referrals
+              </p>
+              <p className="text-muted-foreground leading-relaxed">
+                Receive signed digital prescriptions, doorstep lab sample collection, or hospital
+                referral letters.
+              </p>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      {/* Terms & Privacy Policy Confirmation Gate */}
+      <div className="rounded-2xl border bg-card p-5 shadow-card space-y-4">
+        <label className="flex cursor-pointer items-start gap-3 rounded-xl border bg-secondary/40 p-3.5">
+          <Checkbox
+            checked={agreed}
+            onCheckedChange={(v) => setAgreed(v === true)}
+            className="mt-0.5"
+          />
+          <span className="text-xs leading-relaxed text-foreground">
+            I confirm that I have read and agree to the{" "}
+            <Link to="/terms" target="_blank" className="font-bold text-primary underline">
+              Terms of Service
+            </Link>{" "}
+            and{" "}
+            <Link to="/privacy" target="_blank" className="font-bold text-primary underline">
+              Privacy Policy
+            </Link>
+            . I understand this service is for non-emergency student telemedicine.
+          </span>
+        </label>
+
+        <Button
+          onClick={onAcceptTerms}
+          disabled={!agreed}
+          size="lg"
+          className="w-full rounded-xl gap-2 text-sm font-semibold"
+        >
+          Continue to Consultation Intake
+          <ArrowRight className="size-4" />
+        </Button>
+      </div>
+    </div>
+  );
+}
+
 function PatientRouteComponent() {
   const {
     doctorOnline,
     studentSessionId,
-    setStudentSessionId,
     clearActiveSession,
     resumeSessionByPhone,
     getSession,
@@ -45,14 +172,52 @@ function PatientRouteComponent() {
     simulatePayment,
     sendMessage,
     reopenLabChoice,
+    labResultsFor,
   } = useClinic();
+
+  const [hasAcceptedTerms, setHasAcceptedTerms] = useState<boolean>(() => {
+    if (typeof window !== "undefined") {
+      return localStorage.getItem("comrades_terms_accepted") === "true";
+    }
+    return false;
+  });
 
   const [resumePhone, setResumePhone] = useState("");
   const [showResume, setShowResume] = useState(false);
   const [resumeError, setResumeError] = useState<string | null>(null);
   const [resuming, setResuming] = useState(false);
 
+  const [activeLabResults, setActiveLabResults] = useState<LabResult[]>([]);
+
   const session = getSession(studentSessionId);
+
+  // Sync lab results for active session
+  useEffect(() => {
+    if (!session?.id) {
+      setActiveLabResults([]);
+      return;
+    }
+    const storeResults = labResultsFor(session.id);
+    if (storeResults.length > 0) {
+      setActiveLabResults(storeResults);
+    } else {
+      supabase
+        .from("lab_results")
+        .select("*")
+        .eq("consultation_id", session.id)
+        .order("created_at", { ascending: true })
+        .then(({ data }) => {
+          if (data) setActiveLabResults(data as LabResult[]);
+        });
+    }
+  }, [session?.id, labResultsFor]);
+
+  const handleAcceptTerms = () => {
+    if (typeof window !== "undefined") {
+      localStorage.setItem("comrades_terms_accepted", "true");
+    }
+    setHasAcceptedTerms(true);
+  };
 
   const handleResumeSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -62,13 +227,43 @@ function PatientRouteComponent() {
     setResuming(false);
     if (!found) {
       setResumeError(
-        "No active consultation found for this phone number. Please submit a new intake.",
+        "No active consultation found for this phone number or email. Please submit a new intake.",
       );
     }
   };
 
-  // Case 1: No active session -> Show Intake Form + Resume Option
+  // Case 1: No active session -> First time show Landing Page; accepted show Intake Form
   if (!session) {
+    if (!hasAcceptedTerms) {
+      return (
+        <StudentLayout subtitle="Affordable care for comrades across Kenyan campuses">
+          <LandingPage onAcceptTerms={handleAcceptTerms} />
+          <div className="mt-4 border-t pt-3 text-center space-y-2">
+            <button
+              type="button"
+              onClick={() => {
+                handleAcceptTerms();
+                setShowResume(true);
+              }}
+              className="text-xs font-medium text-primary hover:underline inline-flex items-center gap-1"
+            >
+              <History className="size-3.5" />
+              Already have an ongoing consultation? Resume here
+            </button>
+            <div>
+              <Link
+                to="/visits"
+                className="text-xs font-medium text-primary hover:underline inline-flex items-center gap-1"
+              >
+                <UserRound className="size-3.5" />
+                Sign in to view your past visits
+              </Link>
+            </div>
+          </div>
+        </StudentLayout>
+      );
+    }
+
     return (
       <StudentLayout subtitle="Affordable care for comrades across Kenyan campuses">
         {!showResume ? (
@@ -102,14 +297,14 @@ function PatientRouteComponent() {
             <div className="space-y-1">
               <h3 className="text-base font-bold">Resume Ongoing Consultation</h3>
               <p className="text-xs text-muted-foreground">
-                Enter the phone number you used during intake to restore your active chat.
+                Enter the phone number or email you used during intake to restore your active chat.
               </p>
             </div>
 
             <div className="space-y-1.5">
               <Input
-                type="tel"
-                placeholder="e.g. 0712345678"
+                type="text"
+                placeholder="Phone (e.g. 0712345678) or Email"
                 value={resumePhone}
                 onChange={(e) => setResumePhone(e.target.value)}
                 required
@@ -241,6 +436,9 @@ function PatientRouteComponent() {
             </p>
           </div>
         )}
+
+        {/* Live Lab Results Tracker (if any results present) */}
+        {activeLabResults.length > 0 && <LabResultsTracker results={activeLabResults} />}
 
         {/* Closed Consultation Artifacts (Prescription OR Referral) */}
         {isCompleted && (

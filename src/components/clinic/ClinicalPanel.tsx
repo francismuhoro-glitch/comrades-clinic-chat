@@ -14,7 +14,7 @@ import {
   Sparkles,
   Trash2,
 } from "lucide-react";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -40,7 +40,8 @@ import {
   type LabResultFlag,
   type LabResultStage,
 } from "@/lib/clinic-types";
-import { FALLBACK_FACILITIES } from "@/lib/facilities";
+import { fetchFacilities, type Facility } from "@/lib/facilities";
+import { supabase } from "@/lib/supabase";
 import { sendVisitReportFn } from "@/lib/send-visit-report";
 import { symptomLabel, triage } from "@/lib/triage";
 import { cn } from "@/lib/utils";
@@ -469,7 +470,21 @@ export function ClinicalPanel({ session }: { session: ConsultSession }) {
 
   const [rx, setRx] = useState({ medication: "", dosage: "", duration: "" });
   const [referral, setReferral] = useState({ destination: "", reason: "" });
+  const [facilities, setFacilities] = useState<Facility[]>([]);
+  const [facilitySearch, setFacilitySearch] = useState("");
   const ended = session.status === "completed";
+  useEffect(() => {
+    fetchFacilities(supabase).then(setFacilities);
+  }, []);
+  const search = facilitySearch.trim().toLowerCase();
+  const matchingFacilities = facilities.filter((f) => {
+    const text = `${f.name} ${f.level} ${f.facility_type} ${f.district} ${f.campus}`.toLowerCase();
+    const region = (session.campus || "").toLowerCase();
+    return !search || text.includes(search);
+  }).sort((a, b) => {
+    const region = (session.campus || "").toLowerCase();
+    return Number(`${b.campus} ${b.district}`.toLowerCase().includes(region)) - Number(`${a.campus} ${a.district}`.toLowerCase().includes(region));
+  }).slice(0, 100);
   const assessment = triage(session.symptom_codes);
 
   return (
@@ -762,7 +777,13 @@ export function ClinicalPanel({ session }: { session: ConsultSession }) {
               </div>
 
               <div className="grid gap-1.5 max-h-48 overflow-y-auto pr-1">
-                {FALLBACK_FACILITIES.slice(0, 5).map((fac, idx) => {
+                <Input
+                  value={facilitySearch}
+                  onChange={(e) => setFacilitySearch(e.target.value)}
+                  placeholder="Search all hospitals by name, level, county or location…"
+                  disabled={ended}
+                />
+                {matchingFacilities.map((fac, idx) => {
                   const mapsUrl = `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(fac.name)}`;
                   const isSelected = referral.destination.includes(fac.name);
 

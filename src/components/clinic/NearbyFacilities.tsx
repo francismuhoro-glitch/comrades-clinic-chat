@@ -1,8 +1,7 @@
 import React, { useEffect, useState } from "react";
 import {
   Facility,
-  FALLBACK_FACILITIES,
-  RawKMHFLFacility,
+  fetchFacilities,
   calculateDistanceKm,
   getGoogleMapsDirectionsUrl,
 } from "../../lib/facilities";
@@ -15,7 +14,7 @@ interface NearbyFacilitiesProps {
   onlyEmergency?: boolean;
 }
 
-export const NearbyFacilities: React.FC<NearbyFacilitiesProps> = ({ onlyEmergency = false }) => {
+export const NearbyFacilities: React.FC<NearbyFacilitiesProps> = ({ campus = "", onlyEmergency = false }) => {
   const [userCoords, setUserCoords] = useState<{
     lat: number;
     lng: number;
@@ -45,47 +44,23 @@ export const NearbyFacilities: React.FC<NearbyFacilitiesProps> = ({ onlyEmergenc
     async function loadFacilities() {
       setLoading(true);
       try {
-        let query = supabase.from("campus_facilities").select("*").limit(5000);
-
-        if (onlyEmergency) {
-          query = query.eq("is_emergency", true);
-        }
-
-        const { data, error } = await query;
-        if (error || !data || data.length === 0) {
-          setFacilities(FALLBACK_FACILITIES);
-        } else {
-          // Normalize KMHFL CSV fields
-          const mapped: Facility[] = (data as RawKMHFLFacility[])
-            .map((f) => {
-              const fac: Facility = {
-                name: f["Facility Name"] || f.name || "Medical Facility",
-                facility_type: f["Facility Type"] || f.facility_type || "Hospital",
-                district: f["District"] || f["LOCATION"] || f["Province"] || "Kenya",
-                latitude: Number(f["Latitude"] || f.latitude || 0),
-                longitude: Number(f["Longitude"] || f.longitude || 0),
-                agency: f["Agency"] || "Health Provider",
-                is_emergency: Boolean(f.is_emergency),
-              };
-              if (f.id) fac.id = f.id;
-              return fac;
-            })
-            .filter((f) => f.latitude !== 0 && f.longitude !== 0);
-
-          setFacilities(mapped.length > 0 ? mapped : FALLBACK_FACILITIES);
-        }
+        const mapped = await fetchFacilities(supabase, onlyEmergency);
+        setFacilities(mapped.filter((f) => f.latitude !== 0 && f.longitude !== 0));
       } catch {
-        setFacilities(FALLBACK_FACILITIES);
+        setFacilities([]);
       } finally {
         setLoading(false);
       }
     }
 
     loadFacilities();
-  }, [onlyEmergency]);
+  }, [onlyEmergency, campus]);
 
   // Sort and select the Top 5 Closest Facilities
-  const sortedFacilities = facilities
+  const region = campus.trim().toLowerCase();
+  const regional = region ? facilities.filter((f) => `${f.campus} ${f.district}`.toLowerCase().includes(region)) : [];
+  const regionFacilities = !userCoords && regional.length ? regional : facilities;
+  const sortedFacilities = regionFacilities
     .map((fac) => {
       const distance = userCoords
         ? calculateDistanceKm(userCoords.lat, userCoords.lng, fac.latitude, fac.longitude)

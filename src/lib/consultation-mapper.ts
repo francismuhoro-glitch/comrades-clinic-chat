@@ -14,6 +14,7 @@ export interface ConsultationRow {
   id: string;
   patient_name?: string | null;
   patient_phone?: string | null;
+  patient_email?: string | null;
   campus?: string | null;
   symptoms_description?: string | null;
   symptoms_selected?: string[] | null;
@@ -47,6 +48,7 @@ export function mapConsultationRow(row: ConsultationRow): ConsultSession {
     id: row.id,
     full_name: row.patient_name || "Patient",
     phone: row.patient_phone || "",
+    patient_email: row.patient_email ?? null,
     campus: row.campus || "",
     symptoms: row.symptoms_description || "",
     symptom_codes: row.symptoms_selected || [],

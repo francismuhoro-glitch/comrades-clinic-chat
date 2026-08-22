@@ -3,28 +3,460 @@ import {
   CheckCircle2,
   FileText,
   FlaskConical,
+  LoaderCircle,
+  Mail,
   MapPin,
   Pill,
+  Plus,
+  Send,
   ShieldAlert,
   Siren,
   Sparkles,
+  Trash2,
 } from "lucide-react";
 import { useState } from "react";
 
+import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import { Checkbox } from "@/components/ui/checkbox";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Textarea } from "@/components/ui/textarea";
 import { useClinic } from "@/lib/clinic-store";
-import { cn } from "@/lib/utils";
 import {
   LAB_ORDER_PIPELINE,
   LAB_ORDER_STATUS_LABELS,
+  LAB_RESULT_STAGES,
+  LAB_RESULT_STAGE_LABELS,
   type ConsultSession,
+  type LabResultFlag,
+  type LabResultStage,
 } from "@/lib/clinic-types";
 import { FALLBACK_FACILITIES } from "@/lib/facilities";
+import { sendVisitReportFn } from "@/lib/send-visit-report";
 import { symptomLabel, triage } from "@/lib/triage";
+import { cn } from "@/lib/utils";
+
+function DoctorLabResultsSection({ session }: { session: ConsultSession }) {
+  const {
+    labCatalog,
+    labResultsFor,
+    addLabResult,
+    updateLabResultStage,
+    updateBulkLabResultStage,
+    deleteLabResult,
+  } = useClinic();
+
+  const results = labResultsFor(session.id);
+
+  const [selectedCatalogCode, setSelectedCatalogCode] = useState<string>("");
+  const [panel, setPanel] = useState<string>("");
+  const [loincCode, setLoincCode] = useState<string>("");
+  const [loincDisplay, setLoincDisplay] = useState<string>("");
+  const [resultValue, setResultValue] = useState<string>("");
+  const [unit, setUnit] = useState<string>("");
+  const [referenceRange, setReferenceRange] = useState<string>("");
+  const [flag, setFlag] = useState<LabResultFlag>("normal");
+  const [stage, setStage] = useState<LabResultStage>("resulted");
+  const [notes, setNotes] = useState<string>("");
+  const [adding, setAdding] = useState<boolean>(false);
+
+  const [selectedResultIds, setSelectedResultIds] = useState<string[]>([]);
+  const [bulkStage, setBulkStage] = useState<LabResultStage>("resulted");
+
+  const handleSelectCatalog = (code: string) => {
+    setSelectedCatalogCode(code);
+    if (code === "custom") {
+      setPanel("");
+      setLoincCode("");
+      setLoincDisplay("");
+      setUnit("");
+      setReferenceRange("");
+      return;
+    }
+    const item = labCatalog.find((c) => c.loinc_code === code);
+    if (item) {
+      setPanel(item.display_name);
+      setLoincCode(item.loinc_code);
+      setLoincDisplay(item.display_name);
+      setUnit(item.common_unit || "");
+      setReferenceRange(item.reference_range || "");
+    }
+  };
+
+  const handleAdd = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!panel.trim()) return;
+    setAdding(true);
+    await addLabResult({
+      consultation_id: session.id,
+      panel: panel.trim(),
+      result_value: resultValue.trim(),
+      unit: unit.trim(),
+      reference_range: referenceRange.trim(),
+      flag,
+      notes: notes.trim(),
+      stage,
+      loinc_code: loincCode.trim(),
+      loinc_display: loincDisplay.trim() || panel.trim(),
+    });
+    setAdding(false);
+    setResultValue("");
+    setNotes("");
+  };
+
+  const toggleSelectResult = (id: string) => {
+    setSelectedResultIds((prev) =>
+      prev.includes(id) ? prev.filter((x) => x !== id) : [...prev, id],
+    );
+  };
+
+  const handleBulkStageApply = async () => {
+    if (selectedResultIds.length === 0) return;
+    await updateBulkLabResultStage(selectedResultIds, bulkStage);
+    setSelectedResultIds([]);
+  };
+
+  return (
+    <div className="space-y-4 rounded-xl border bg-card p-4 shadow-card">
+      <div className="flex items-center justify-between">
+        <p className="text-sm font-semibold flex items-center gap-2">
+          <FlaskConical className="size-4 text-primary" />
+          Clinical Lab Results Entry
+        </p>
+        <span className="text-[11px] text-muted-foreground">
+          {results.length} result{results.length === 1 ? "" : "s"}
+        </span>
+      </div>
+
+      {/* Catalog Search & Add Form */}
+      <form onSubmit={handleAdd} className="space-y-3 rounded-lg border bg-muted/30 p-3 text-xs">
+        <div className="space-y-1.5">
+          <Label className="text-xs">Search Lab Catalog or Choose Custom Entry</Label>
+          <Select value={selectedCatalogCode} onValueChange={handleSelectCatalog}>
+            <SelectTrigger className="h-8 text-xs bg-background">
+              <SelectValue placeholder="Search LOINC catalog..." />
+            </SelectTrigger>
+            <SelectContent className="max-h-60">
+              <SelectItem value="custom" className="font-semibold text-primary">
+                + Manual Custom Test Entry
+              </SelectItem>
+              {labCatalog.map((item) => (
+                <SelectItem key={item.loinc_code} value={item.loinc_code}>
+                  {item.display_name} ({item.loinc_code})
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        </div>
+
+        <div className="grid gap-2 sm:grid-cols-2">
+          <div className="space-y-1">
+            <Label className="text-[11px]">Test / Panel Name</Label>
+            <Input
+              value={panel}
+              onChange={(e) => setPanel(e.target.value)}
+              placeholder="e.g. Hemoglobin"
+              className="h-8 text-xs"
+              required
+            />
+          </div>
+          <div className="space-y-1">
+            <Label className="text-[11px]">LOINC Code</Label>
+            <Input
+              value={loincCode}
+              onChange={(e) => setLoincCode(e.target.value)}
+              placeholder="e.g. 718-7"
+              className="h-8 text-xs font-mono"
+            />
+          </div>
+        </div>
+
+        <div className="grid gap-2 sm:grid-cols-3">
+          <div className="space-y-1">
+            <Label className="text-[11px]">Result Value</Label>
+            <Input
+              value={resultValue}
+              onChange={(e) => setResultValue(e.target.value)}
+              placeholder="e.g. 13.5"
+              className="h-8 text-xs font-medium"
+            />
+          </div>
+          <div className="space-y-1">
+            <Label className="text-[11px]">Unit</Label>
+            <Input
+              value={unit}
+              onChange={(e) => setUnit(e.target.value)}
+              placeholder="e.g. g/dL"
+              className="h-8 text-xs"
+            />
+          </div>
+          <div className="space-y-1">
+            <Label className="text-[11px]">Ref Range</Label>
+            <Input
+              value={referenceRange}
+              onChange={(e) => setReferenceRange(e.target.value)}
+              placeholder="e.g. 12.0-16.0"
+              className="h-8 text-xs"
+            />
+          </div>
+        </div>
+
+        <div className="grid gap-2 sm:grid-cols-2">
+          <div className="space-y-1">
+            <Label className="text-[11px]">Flag</Label>
+            <Select value={flag} onValueChange={(v) => setFlag(v as LabResultFlag)}>
+              <SelectTrigger className="h-8 text-xs bg-background">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="normal">Normal</SelectItem>
+                <SelectItem value="low">Low</SelectItem>
+                <SelectItem value="high">High</SelectItem>
+                <SelectItem value="critical">Critical</SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
+
+          <div className="space-y-1">
+            <Label className="text-[11px]">Pipeline Stage</Label>
+            <Select value={stage} onValueChange={(v) => setStage(v as LabResultStage)}>
+              <SelectTrigger className="h-8 text-xs bg-background">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                {LAB_RESULT_STAGES.map((s) => (
+                  <SelectItem key={s} value={s}>
+                    {LAB_RESULT_STAGE_LABELS[s]}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+        </div>
+
+        <div className="space-y-1">
+          <Label className="text-[11px]">Clinical Notes (Optional)</Label>
+          <Input
+            value={notes}
+            onChange={(e) => setNotes(e.target.value)}
+            placeholder="e.g. Normal baseline, repeat in 1 week if fever persists."
+            className="h-8 text-xs"
+          />
+        </div>
+
+        <Button type="submit" size="sm" className="w-full h-8 text-xs gap-1.5" disabled={adding}>
+          <Plus className="size-3.5" />
+          {adding ? "Adding Result…" : "Add Lab Result"}
+        </Button>
+      </form>
+
+      {/* Existing Lab Results List & Stage Management */}
+      {results.length > 0 && (
+        <div className="space-y-3 pt-2">
+          {/* Bulk Update Controls */}
+          {selectedResultIds.length > 0 && (
+            <div className="flex items-center justify-between gap-2 rounded-lg bg-primary/10 p-2 text-xs border border-primary/20">
+              <span className="font-semibold text-primary">
+                {selectedResultIds.length} test{selectedResultIds.length === 1 ? "" : "s"} selected
+              </span>
+              <div className="flex items-center gap-2">
+                <Select value={bulkStage} onValueChange={(v) => setBulkStage(v as LabResultStage)}>
+                  <SelectTrigger className="h-7 text-[11px] w-36 bg-background">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {LAB_RESULT_STAGES.map((s) => (
+                      <SelectItem key={s} value={s}>
+                        {LAB_RESULT_STAGE_LABELS[s]}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+                <Button size="sm" className="h-7 text-[11px]" onClick={handleBulkStageApply}>
+                  Apply Bulk
+                </Button>
+              </div>
+            </div>
+          )}
+
+          <div className="space-y-2">
+            {results.map((r) => (
+              <div
+                key={r.id}
+                className="flex flex-col gap-2 rounded-lg border bg-background p-3 text-xs"
+              >
+                <div className="flex items-start justify-between gap-2">
+                  <div className="flex items-center gap-2 min-w-0">
+                    <Checkbox
+                      checked={selectedResultIds.includes(r.id)}
+                      onCheckedChange={() => toggleSelectResult(r.id)}
+                    />
+                    <div className="min-w-0">
+                      <p className="font-bold text-foreground truncate">{r.panel}</p>
+                      {r.loinc_code && (
+                        <p className="text-[10px] text-muted-foreground font-mono">
+                          LOINC: {r.loinc_code}
+                        </p>
+                      )}
+                    </div>
+                  </div>
+
+                  <div className="flex items-center gap-2">
+                    <Badge
+                      variant="outline"
+                      className={cn(
+                        "text-[10px] uppercase",
+                        r.flag === "critical"
+                          ? "bg-destructive/15 text-destructive font-bold"
+                          : r.flag === "low" || r.flag === "high"
+                            ? "bg-warning/20 text-warning-foreground"
+                            : "bg-success/15 text-success",
+                      )}
+                    >
+                      {r.flag}
+                    </Badge>
+                    <Button
+                      size="icon"
+                      variant="ghost"
+                      className="size-6 text-muted-foreground hover:text-destructive"
+                      onClick={() => deleteLabResult(r.id)}
+                      title="Delete result"
+                    >
+                      <Trash2 className="size-3.5" />
+                    </Button>
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-2 gap-2 text-[11px] bg-muted/40 p-2 rounded">
+                  <div>
+                    <span className="text-muted-foreground">Value: </span>
+                    <strong className="text-foreground">
+                      {r.result_value ? `${r.result_value} ${r.unit}` : "Pending"}
+                    </strong>
+                  </div>
+                  <div>
+                    <span className="text-muted-foreground">Range: </span>
+                    <span>{r.reference_range || "N/A"}</span>
+                  </div>
+                </div>
+
+                <div className="flex items-center justify-between gap-2 pt-1">
+                  <span className="text-[11px] text-muted-foreground">Stage:</span>
+                  <Select
+                    value={r.stage}
+                    onValueChange={(v) => updateLabResultStage(r.id, v as LabResultStage)}
+                  >
+                    <SelectTrigger className="h-7 text-[11px] w-40">
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {LAB_RESULT_STAGES.map((s) => (
+                        <SelectItem key={s} value={s}>
+                          {LAB_RESULT_STAGE_LABELS[s]}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
+function SendVisitReportSection({ session }: { session: ConsultSession }) {
+  const [sending, setSending] = useState(false);
+  const [statusMsg, setStatusMsg] = useState<{ type: "success" | "error"; text: string } | null>(
+    null,
+  );
+
+  const handleSend = async () => {
+    setSending(true);
+    setStatusMsg(null);
+    try {
+      const res = await sendVisitReportFn({ data: { consultationId: session.id } });
+      if (res.ok) {
+        setStatusMsg({
+          type: "success",
+          text: `Visit report successfully sent to ${res.recipient}!`,
+        });
+      } else {
+        setStatusMsg({
+          type: "error",
+          text: res.error || "Failed to send visit report.",
+        });
+      }
+    } catch (err: unknown) {
+      const msg = err instanceof Error ? err.message : String(err);
+      setStatusMsg({
+        type: "error",
+        text: `Error sending report: ${msg}`,
+      });
+    } finally {
+      setSending(false);
+    }
+  };
+
+  return (
+    <div className="rounded-xl border bg-card p-4 shadow-card space-y-3">
+      <div>
+        <h3 className="text-sm font-semibold flex items-center gap-1.5">
+          <Mail className="size-4 text-primary" />
+          Send Official Visit Report
+        </h3>
+        <p className="text-xs text-muted-foreground mt-0.5">
+          Send the patient an HTML report with prescriptions, referrals, lab results, and KMPDC
+          doctor details via Brevo.
+        </p>
+      </div>
+
+      {session.patient_email ? (
+        <p className="text-xs text-muted-foreground">
+          Patient Email: <strong className="text-foreground">{session.patient_email}</strong>
+        </p>
+      ) : (
+        <p className="text-xs text-warning-foreground bg-warning/10 p-2 rounded border border-warning/30">
+          No patient email provided on file. The patient can enter an email address on the intake
+          form or in account settings.
+        </p>
+      )}
+
+      {statusMsg && (
+        <div
+          className={cn(
+            "p-2.5 rounded-lg text-xs font-medium border",
+            statusMsg.type === "success"
+              ? "bg-success/10 border-success/30 text-success"
+              : "bg-destructive/10 border-destructive/30 text-destructive",
+          )}
+        >
+          {statusMsg.text}
+        </div>
+      )}
+
+      <Button onClick={handleSend} disabled={sending} className="w-full gap-2 text-xs">
+        {sending ? (
+          <LoaderCircle className="size-3.5 animate-spin" />
+        ) : (
+          <Send className="size-3.5" />
+        )}
+        {sending ? "Sending Visit Report…" : "Send Visit Report Email"}
+      </Button>
+    </div>
+  );
+}
 
 export function ClinicalPanel({ session }: { session: ConsultSession }) {
   const {
@@ -93,6 +525,7 @@ export function ClinicalPanel({ session }: { session: ConsultSession }) {
           </p>
         )}
       </section>
+
       <section className="rounded-xl border bg-card p-4 shadow-card">
         <div className="flex items-center justify-between gap-2">
           <Label htmlFor="notes" className="text-sm font-semibold">
@@ -124,6 +557,7 @@ export function ClinicalPanel({ session }: { session: ConsultSession }) {
         />
       </section>
 
+      {/* Lab Request & Doorstep Pipeline */}
       <section className="rounded-xl border bg-card p-4 shadow-card">
         <button
           type="button"
@@ -154,7 +588,6 @@ export function ClinicalPanel({ session }: { session: ConsultSession }) {
           </span>
         </button>
 
-        {/* Patient's response to the lab request */}
         {session.lab_test_requested && !session.lab_order && (
           <p className="mt-3 rounded-lg bg-muted px-3 py-2 text-xs text-muted-foreground">
             Waiting for the patient to choose a collection option (or decline) on their side.
@@ -237,6 +670,10 @@ export function ClinicalPanel({ session }: { session: ConsultSession }) {
         )}
       </section>
 
+      {/* Doctor Lab Results Entry & Management */}
+      <DoctorLabResultsSection session={session} />
+
+      {/* Prescription / Referral Tab Section */}
       <section className="rounded-xl border bg-card p-4 shadow-card">
         <p className="text-sm font-semibold">Close the consultation</p>
         <Tabs defaultValue="rx" className="mt-3">
@@ -283,7 +720,6 @@ export function ClinicalPanel({ session }: { session: ConsultSession }) {
               </div>
             </div>
 
-            {/* Clinical Safety Checks */}
             {rx.medication.trim() && (
               <div className="rounded-lg border border-primary/20 bg-primary/5 p-2.5 text-xs">
                 <div className="flex items-center gap-1.5 font-semibold text-primary">
@@ -316,7 +752,6 @@ export function ClinicalPanel({ session }: { session: ConsultSession }) {
           </TabsContent>
 
           <TabsContent value="ref" className="mt-4 space-y-3">
-            {/* Proximity-Based Hospital Recommendations */}
             <div className="space-y-1.5">
               <div className="flex items-center justify-between">
                 <Label className="text-xs font-semibold text-foreground flex items-center gap-1.5">
@@ -435,6 +870,9 @@ export function ClinicalPanel({ session }: { session: ConsultSession }) {
           </p>
         )}
       </section>
+
+      {/* Send Visit Report Section */}
+      <SendVisitReportSection session={session} />
     </div>
   );
 }

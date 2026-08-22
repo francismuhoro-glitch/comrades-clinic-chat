@@ -48,6 +48,141 @@ export const LAB_ORDER_STATUS_LABELS: Record<LabOrderStatus, string> = {
   declined: "Declined by patient",
 };
 
+export type LabResultFlag = "normal" | "low" | "high" | "critical";
+export type LabResultStage = "pending" | "collected" | "processing" | "resulted" | "reviewed";
+
+export const LAB_RESULT_STAGES: readonly LabResultStage[] = [
+  "pending",
+  "collected",
+  "processing",
+  "resulted",
+  "reviewed",
+];
+
+export const LAB_RESULT_STAGE_LABELS: Record<LabResultStage, string> = {
+  pending: "Pending collection",
+  collected: "Sample collected",
+  processing: "Processing at lab",
+  resulted: "Results ready",
+  reviewed: "Reviewed by doctor",
+};
+
+export interface LabResult {
+  id: string;
+  consultation_id: string;
+  panel: string;
+  result_value: string;
+  unit: string;
+  reference_range: string;
+  flag: LabResultFlag;
+  notes: string;
+  stage: LabResultStage;
+  loinc_code: string;
+  loinc_display: string;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface LabTestCatalogItem {
+  loinc_code: string;
+  display_name: string;
+  specimen: string;
+  common_unit: string;
+  reference_range: string;
+  active: boolean;
+}
+
+export const FALLBACK_LAB_CATALOG: LabTestCatalogItem[] = [
+  {
+    loinc_code: "58410-2",
+    display_name: "Complete Blood Count (CBC)",
+    specimen: "Whole Blood",
+    common_unit: "10^3/uL",
+    reference_range: "4.0-10.0",
+    active: true,
+  },
+  {
+    loinc_code: "718-7",
+    display_name: "Hemoglobin",
+    specimen: "Whole Blood",
+    common_unit: "g/dL",
+    reference_range: "12.0-16.0",
+    active: true,
+  },
+  {
+    loinc_code: "6690-2",
+    display_name: "White Blood Cells (WBC)",
+    specimen: "Whole Blood",
+    common_unit: "10^3/uL",
+    reference_range: "4.0-11.0",
+    active: true,
+  },
+  {
+    loinc_code: "777-3",
+    display_name: "Platelets",
+    specimen: "Whole Blood",
+    common_unit: "10^3/uL",
+    reference_range: "150-450",
+    active: true,
+  },
+  {
+    loinc_code: "32700-7",
+    display_name: "Malaria Smear",
+    specimen: "Capillary/Whole Blood",
+    common_unit: "qualitative",
+    reference_range: "Negative",
+    active: true,
+  },
+  {
+    loinc_code: "24356-8",
+    display_name: "Urinalysis Panel",
+    specimen: "Urine",
+    common_unit: "qualitative",
+    reference_range: "Normal",
+    active: true,
+  },
+  {
+    loinc_code: "10701-1",
+    display_name: "Stool Ova & Parasites",
+    specimen: "Stool",
+    common_unit: "qualitative",
+    reference_range: "Negative",
+    active: true,
+  },
+  {
+    loinc_code: "17780-8",
+    display_name: "H. pylori Antigen",
+    specimen: "Stool",
+    common_unit: "qualitative",
+    reference_range: "Negative",
+    active: true,
+  },
+  {
+    loinc_code: "1558-6",
+    display_name: "Fasting Blood Glucose",
+    specimen: "Plasma",
+    common_unit: "mmol/L",
+    reference_range: "3.9-5.6",
+    active: true,
+  },
+  {
+    loinc_code: "2106-3",
+    display_name: "hCG Urine (Pregnancy Test)",
+    specimen: "Urine",
+    common_unit: "qualitative",
+    reference_range: "Negative",
+    active: true,
+  },
+  {
+    loinc_code: "1988-5",
+    display_name: "C-Reactive Protein (CRP)",
+    specimen: "Serum",
+    common_unit: "mg/L",
+    reference_range: "< 5.0",
+    active: true,
+  },
+];
+
 export interface LabOrder {
   panels: string[];
   /** Not set when the patient declined the lab request. */
@@ -85,6 +220,8 @@ export interface ConsultSession {
   prescription: Prescription | null;
   referral: Referral | null;
   lab_order?: LabOrder | null | undefined;
+  /** Optional patient email address provided at intake or associated with account. */
+  patient_email?: string | null | undefined;
   /** Supabase auth user id when the patient created/claimed this visit while logged in. */
   patient_id?: string | null | undefined;
   created_at: string;

@@ -19,11 +19,12 @@ import {
   PrescriptionTemplate,
   ReferralTemplate,
 } from "@/components/clinic/DocumentTemplates";
+import { LabResultsTracker } from "@/components/clinic/LabResultsTracker";
 import { StatusBadge, StudentLayout } from "@/components/clinic/StudentLayout";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { LAB_ORDER_STATUS_LABELS, type ConsultSession } from "@/lib/clinic-types";
+import { LAB_ORDER_STATUS_LABELS, type ConsultSession, type LabResult } from "@/lib/clinic-types";
 import { mapConsultationRow, type ConsultationRow } from "@/lib/consultation-mapper";
 import { usePatientAuth } from "@/lib/patient-auth";
 import { supabase } from "@/lib/supabase";
@@ -96,7 +97,7 @@ function LoginCard() {
         <p className="rounded-lg border border-warning bg-warning/10 p-2.5 text-xs text-warning-foreground">
           Patient accounts require the clinic backend (Supabase) to be configured by the
           administrator. Until then, you can still resume an active consultation from the home page
-          using your phone number.
+          using your phone number or email.
         </p>
       )}
 
@@ -162,6 +163,28 @@ function LoginCard() {
 
 function VisitCard({ visit }: { visit: ConsultSession }) {
   const [open, setOpen] = useState(false);
+  const [labResults, setLabResults] = useState<LabResult[]>([]);
+  const [loadingLabs, setLoadingLabs] = useState(false);
+
+  useEffect(() => {
+    if (open) {
+      setLoadingLabs(true);
+      (async () => {
+        try {
+          const { data } = await supabase
+            .from("lab_results")
+            .select("*")
+            .eq("consultation_id", visit.id)
+            .order("created_at", { ascending: true });
+          if (data) {
+            setLabResults(data as LabResult[]);
+          }
+        } finally {
+          setLoadingLabs(false);
+        }
+      })();
+    }
+  }, [open, visit.id]);
 
   return (
     <div className="rounded-2xl border bg-card shadow-card overflow-hidden">
@@ -209,17 +232,30 @@ function VisitCard({ visit }: { visit: ConsultSession }) {
             </div>
           )}
 
+          {/* Live Lab Results Tracker */}
+          {loadingLabs ? (
+            <div className="py-2 text-center text-muted-foreground text-[11px] flex items-center justify-center gap-1.5">
+              <LoaderCircle className="size-3.5 animate-spin text-primary" /> Loading lab results…
+            </div>
+          ) : (
+            labResults.length > 0 && <LabResultsTracker results={labResults} />
+          )}
+
           {visit.prescription && <PrescriptionTemplate session={visit} />}
           {visit.referral && <ReferralTemplate session={visit} />}
           {(visit.prescription || visit.referral) && (
             <DocumentActions label={visit.prescription ? "prescription" : "referral"} />
           )}
 
-          {!visit.prescription && !visit.referral && !visit.diagnosis_notes && !visit.lab_order && (
-            <p className="text-muted-foreground">
-              No clinical documents were issued for this visit.
-            </p>
-          )}
+          {!visit.prescription &&
+            !visit.referral &&
+            !visit.diagnosis_notes &&
+            !visit.lab_order &&
+            labResults.length === 0 && (
+              <p className="text-muted-foreground">
+                No clinical documents or lab results were issued for this visit.
+              </p>
+            )}
         </div>
       )}
     </div>
@@ -233,7 +269,7 @@ function VisitsRouteComponent() {
   const [fetching, setFetching] = useState(false);
   const [fetchError, setFetchError] = useState<string | null>(null);
 
-  const [linkPhone, setLinkPhone] = useState("");
+  const [linkInput, setLinkInput] = useState("");
   const [linking, setLinking] = useState(false);
   const [linkNotice, setLinkNotice] = useState<string | null>(null);
 
@@ -269,23 +305,29 @@ function VisitsRouteComponent() {
     }
   }, [patient, loadVisits]);
 
-  // Claim older visits (created before the patient had an account) by phone number.
+  // Claim older visits (created before the patient had an account) by phone number OR email.
   const handleLink = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!patient) return;
     setLinking(true);
     setLinkNotice(null);
     try {
-      const cleaned = linkPhone.trim().replace(/\s/g, "");
+      const cleaned = linkInput.trim().toLowerCase();
+      const cleanedPhone = cleaned.replace(/\s/g, "");
+      const searchParam = cleanedPhone.length >= 9 ? cleanedPhone.slice(-9) : cleaned;
+
       const { error } = await supabase
         .from("consultations")
         .update({ patient_id: patient.id })
-        .ilike("patient_phone", `%${cleaned.slice(-9)}%`)
+        .or(`patient_phone.ilike.%${searchParam}%,patient_email.ilike.${cleaned}`)
         .is("patient_id", null);
+
       if (error) {
         setLinkNotice(`Could not link visits: ${error.message}`);
       } else {
-        setLinkNotice("Done! Any past visits made with that phone number are now on your account.");
+        setLinkNotice(
+          "Done! Any past visits matching that phone number or email are now linked to your account.",
+        );
         await loadVisits(patient.id);
       }
     } catch (err) {
@@ -357,8 +399,8 @@ function VisitsRouteComponent() {
                 <p className="text-sm font-semibold">No visits on this account yet</p>
                 <p className="text-xs text-muted-foreground leading-relaxed">
                   New consultations you start while signed in are saved here automatically. Had
-                  visits before creating this account? Link them below with the phone number you
-                  used at intake.
+                  visits before creating this account? Link them below with the phone number or
+                  email you used at intake.
                 </p>
               </div>
             )}
@@ -380,15 +422,15 @@ function VisitsRouteComponent() {
                 Link past visits to this account
               </p>
               <p className="text-xs text-muted-foreground">
-                Enter the M-Pesa phone number you used during intake and we will attach those visits
-                to your account.
+                Enter the phone number or email address you used during intake and we will attach
+                those visits to your account.
               </p>
               <div className="flex gap-2">
                 <Input
-                  type="tel"
-                  value={linkPhone}
-                  onChange={(e) => setLinkPhone(e.target.value)}
-                  placeholder="e.g. 0712345678"
+                  type="text"
+                  value={linkInput}
+                  onChange={(e) => setLinkInput(e.target.value)}
+                  placeholder="Phone (0712345678) or Email"
                   required
                   className="flex-1"
                 />

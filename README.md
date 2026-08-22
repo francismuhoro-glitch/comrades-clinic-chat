@@ -2,11 +2,7 @@
 
 Create a standalone, highly responsive mobile-first Telemedicine Web App called "Lovable Student Clinic" designed for Kenyan university students ("comrades"). The app allows students to pay a flat consultation fee of KSh 150 via M-Pesa to access a live, real-time text chat consultation with a doctor. If the case is basic, the doctor issues a digital prescription. If it is complex, the doctor generates a referral letter or flags them for a lab test.
 
-
-
 Please build the entire app layout, state management, and user flows using mock data first, ensuring it is modular so I can easily swap out the frontend state for Supabase and actual M-Pesa API webhooks later.
-
-
 
 ### 🎨 Design & Layout Requirements
 
@@ -16,11 +12,7 @@ Please build the entire app layout, state management, and user flows using mock 
 
 - Navigation: Keep it simple. Avoid complex multi-tier menus.
 
-
-
 ### 🔄 App Structure & Pages
-
-
 
 1. STUDENT LANDING & TRIAGE PAGE
 
@@ -34,8 +26,6 @@ Please build the entire app layout, state management, and user flows using mock 
 
 - A prominent "Start Consultation (KSh 150)" button.
 
-
-
 2. M-PESA SIMULATION SCREEN
 
 - When the student submits the form, show a modern loading/processing screen simulating an M-Pesa STK Push.
@@ -43,8 +33,6 @@ Please build the entire app layout, state management, and user flows using mock 
 - Display text: "Sending KSh 150 STK Push to [Phone Number]... Please check your phone and enter your PIN."
 
 - Provide a mock "Simulate Successful Payment" button so I can test the user flow. Once clicked, it updates the session state to "Paid" and automatically redirects them to the live chat room.
-
-
 
 3. STUDENT LIVE CHAT & WRAP-UP ROOM
 
@@ -59,8 +47,6 @@ Please build the entire app layout, state management, and user flows using mock 
   - Immediately disable the chat input text box ("This session has ended").
 
   - Display a card containing a downloadable PDF mockup or a beautifully styled card for "Your Digital Prescription" or "Your Referral Letter" depending on the doctor's final action.
-
-
 
 4. DOCTOR PORTAL DASHBOARD (Accessible via a separate route or persistent toggle switcher)
 
@@ -89,8 +75,6 @@ Please build the entire app layout, state management, and user flows using mock 
     - Action Option B: "Issue Referral" form with a textarea for the Destination Hospital/Reason, plus an "End Session & Send Referral Letter" submit button.
 
     - Action Option C: "Request Lab Test" checkbox/button which flags the patient file as "Needs Sample Collection".
-
-
 
 ### ⚙️ Technical Blueprint (For Later Supabase/Vercel Transfer)
 

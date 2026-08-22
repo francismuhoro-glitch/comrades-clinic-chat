@@ -24,7 +24,7 @@ Dashboard → **Authentication → Sign In / Up → Email**:
 
 - Enable the **Email** provider.
 - The app uses **6-digit OTP codes** (`signInWithOtp` + `verifyOtp`), so make
-  sure the *Magic Link / OTP* email template includes the `{{ .Token }}`
+  sure the _Magic Link / OTP_ email template includes the `{{ .Token }}`
   variable (the default template does).
 - For production volume, configure a custom SMTP provider under
   **Authentication → Emails → SMTP** — the built-in sender is rate-limited to a
@@ -36,12 +36,12 @@ Set these wherever the app is built (Vercel → Project → Settings → Environ
 Variables). `VITE_*` variables are baked in **at build time**, so redeploy
 after changing them.
 
-| Variable | Where to find it |
-| --- | --- |
-| `VITE_SUPABASE_URL` | Supabase → Settings → API → Project URL |
-| `VITE_SUPABASE_ANON_KEY` | Supabase → Settings → API → anon public key |
-| `SESSION_SECRET` | generate: `openssl rand -base64 48` (doctor portal) |
-| `DOCTOR_EMAIL` / `DOCTOR_PASSWORD` | doctor portal credentials |
+| Variable                           | Where to find it                                    |
+| ---------------------------------- | --------------------------------------------------- |
+| `VITE_SUPABASE_URL`                | Supabase → Settings → API → Project URL             |
+| `VITE_SUPABASE_ANON_KEY`           | Supabase → Settings → API → anon public key         |
+| `SESSION_SECRET`                   | generate: `openssl rand -base64 48` (doctor portal) |
+| `DOCTOR_EMAIL` / `DOCTOR_PASSWORD` | doctor portal credentials                           |
 
 ## 4. What works without Supabase
 

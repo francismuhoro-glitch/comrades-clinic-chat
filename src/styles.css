@@ -67,8 +67,7 @@
   --color-chat-student-foreground: var(--chat-student-foreground);
   --color-chat-doctor: var(--chat-doctor);
   --color-chat-doctor-foreground: var(--chat-doctor-foreground);
-  --font-sans:
-    "Plus Jakarta Sans", ui-sans-serif, system-ui, sans-serif;
+  --font-sans: "Plus Jakarta Sans", ui-sans-serif, system-ui, sans-serif;
   --font-display: "Sora", ui-sans-serif, system-ui, sans-serif;
 }
 
@@ -115,20 +114,12 @@
   --sidebar-border: oklch(0.915 0.014 214);
   --sidebar-ring: oklch(0.63 0.096 205);
 
-  --gradient-medical: linear-gradient(
-    145deg,
-    oklch(0.5 0.12 226),
-    oklch(0.63 0.11 190)
-  );
-  --gradient-surface: linear-gradient(
-    180deg,
-    oklch(0.985 0.012 205),
-    oklch(1 0 0)
-  );
-  --shadow-card: 0 1px 2px oklch(0.24 0.035 235 / 6%), 0 12px 30px -18px oklch(0.24 0.035 235 / 22%);
+  --gradient-medical: linear-gradient(145deg, oklch(0.5 0.12 226), oklch(0.63 0.11 190));
+  --gradient-surface: linear-gradient(180deg, oklch(0.985 0.012 205), oklch(1 0 0));
+  --shadow-card:
+    0 1px 2px oklch(0.24 0.035 235 / 6%), 0 12px 30px -18px oklch(0.24 0.035 235 / 22%);
   --shadow-float: 0 18px 45px -22px oklch(0.4 0.09 220 / 45%);
 }
-
 
 .dark {
   --background: oklch(0.129 0.042 264.695);
@@ -215,4 +206,3 @@
     max-width: none !important;
   }
 }
-

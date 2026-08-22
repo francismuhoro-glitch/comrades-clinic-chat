@@ -12,7 +12,7 @@ export function RoleSwitcher() {
     <nav className="no-print sticky top-0 z-50 border-b bg-card/95 backdrop-blur">
       <div className="mx-auto flex max-w-6xl items-center justify-between gap-3 px-4 py-2">
         <span className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">
-          Lovable Student Clinic
+          COMRACARE Student Clinic
         </span>
         <div className="flex items-center gap-1 rounded-full bg-secondary p-0.5">
           <Link

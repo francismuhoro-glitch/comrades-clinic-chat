@@ -27,15 +27,15 @@ import { getCurrentDoctor, logoutDoctor, type AuthenticatedDoctor } from "@/lib/
 export const Route = createFileRoute("/doctor")({
   head: () => ({
     meta: [
-      { title: "Doctor Portal — Lovable Student Clinic" },
+      { title: "Doctor Portal — COMRACARE Student Clinic" },
       {
         name: "description",
         content:
-          "Doctor dashboard for Lovable Student Clinic: manage the student queue, chat live, and issue prescriptions, referrals or lab requests.",
+          "Doctor dashboard for COMRACARE Student Clinic: manage the student queue, chat live, and issue prescriptions, referrals or lab requests.",
       },
       {
         property: "og:title",
-        content: "Doctor Portal — Lovable Student Clinic",
+        content: "Doctor Portal — COMRACARE Student Clinic",
       },
       {
         property: "og:description",

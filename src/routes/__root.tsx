@@ -80,13 +80,13 @@ export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()(
     meta: [
       { charSet: "utf-8" },
       { name: "viewport", content: "width=device-width, initial-scale=1" },
-      { title: "Lovable Student Clinic" },
+      { title: "COMRACARE Student Clinic" },
       {
         name: "description",
         content: "Affordable M-Pesa telemedicine for Kenyan university students.",
       },
-      { name: "author", content: "Lovable Student Clinic" },
-      { property: "og:title", content: "Lovable Student Clinic" },
+      { name: "author", content: "COMRACARE Student Clinic" },
+      { property: "og:title", content: "COMRACARE Student Clinic" },
       {
         property: "og:description",
         content: "Affordable M-Pesa telemedicine for Kenyan university students.",
@@ -106,6 +106,7 @@ export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()(
         rel: "stylesheet",
         href: appCss,
       },
+      { rel: "icon", href: "/favicon.svg", type: "image/svg+xml" },
       { rel: "icon", href: "/favicon.ico", type: "image/x-icon" },
     ],
   }),

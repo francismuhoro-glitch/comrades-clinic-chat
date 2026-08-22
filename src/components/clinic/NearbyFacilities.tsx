@@ -1,7 +1,8 @@
 import React, { useEffect, useState } from "react";
 import {
   Facility,
-  fetchFacilities,
+  FALLBACK_FACILITIES,
+  loadFacilitiesFromSupabase,
   calculateDistanceKm,
   getGoogleMapsDirectionsUrl,
 } from "../../lib/facilities";
@@ -40,25 +41,39 @@ export const NearbyFacilities: React.FC<NearbyFacilitiesProps> = ({ campus = "",
       );
     }
 
-    // 2. Fetch KMHFL dataset from Supabase
+    // 2. Fetch full campus_facilities directory from Supabase (1,438+ rows)
+    let cancelled = false;
     async function loadFacilities() {
       setLoading(true);
       try {
-        const mapped = await fetchFacilities(supabase, onlyEmergency);
-        setFacilities(mapped.filter((f) => f.latitude !== 0 && f.longitude !== 0));
+        const mapped = await loadFacilitiesFromSupabase(supabase, onlyEmergency);
+        if (cancelled) return;
+        const withCoords = mapped.filter((f) => f.latitude !== 0 && f.longitude !== 0);
+        setFacilities(
+          withCoords.length > 0
+            ? withCoords
+            : FALLBACK_FACILITIES.filter((f) => !onlyEmergency || f.is_emergency),
+        );
       } catch {
-        setFacilities([]);
+        if (!cancelled) {
+          setFacilities(FALLBACK_FACILITIES.filter((f) => !onlyEmergency || f.is_emergency));
+        }
       } finally {
-        setLoading(false);
+        if (!cancelled) setLoading(false);
       }
     }
 
     loadFacilities();
+    return () => {
+      cancelled = true;
+    };
   }, [onlyEmergency, campus]);
 
-  // Sort and select the Top 5 Closest Facilities
+  // Sort against the full loaded directory, then show the Top 5 closest
   const region = campus.trim().toLowerCase();
-  const regional = region ? facilities.filter((f) => `${f.campus} ${f.district}`.toLowerCase().includes(region)) : [];
+  const regional = region
+    ? facilities.filter((f) => `${f.campus} ${f.district}`.toLowerCase().includes(region))
+    : [];
   const regionFacilities = !userCoords && regional.length ? regional : facilities;
   const sortedFacilities = regionFacilities
     .map((fac) => {
@@ -68,15 +83,20 @@ export const NearbyFacilities: React.FC<NearbyFacilitiesProps> = ({ campus = "",
       return { ...fac, distanceKm: distance };
     })
     .sort((a, b) => (a.distanceKm ?? 9999) - (b.distanceKm ?? 9999))
-    .slice(0, 5); // TOP 5 CLOSEST
+    .slice(0, 5); // TOP 5 CLOSEST from the full 1,438+ set
 
   return (
     <div className="space-y-3 rounded-xl border border-border bg-card p-4 text-card-foreground">
-      <div className="flex items-center justify-between">
+      <div className="flex items-center justify-between gap-2">
         <h3 className="flex items-center gap-2 font-semibold text-base">
           <MapPin className="h-5 w-5 text-primary" />
           {onlyEmergency ? "Top 5 Nearest Emergency Hospitals" : "Top 5 Nearest Health Facilities"}
         </h3>
+        {!loading && facilities.length > 0 && (
+          <span className="text-[10px] text-muted-foreground shrink-0">
+            from {facilities.length.toLocaleString()}+ directory
+          </span>
+        )}
       </div>
 
       {locationError && (
@@ -89,7 +109,7 @@ export const NearbyFacilities: React.FC<NearbyFacilitiesProps> = ({ campus = "",
       {loading ? (
         <div className="flex items-center justify-center py-6 text-muted-foreground">
           <Loader2 className="h-5 w-5 animate-spin mr-2" />
-          Calculating nearest facilities from 4,800+ Kenyan hospital database...
+          Calculating nearest facilities from 1,438+ Kenyan hospital directory…
         </div>
       ) : (
         <div className="space-y-2">

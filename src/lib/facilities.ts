@@ -1,189 +1,66 @@
+import { KENYA_HOSPITALS, type HospitalFacility } from "@/data/hospitals-data";
+
 export interface Facility {
-  id?: string | undefined;
+  id: string;
   name: string;
-  campus?: string | undefined;
-  district?: string | undefined;
+  /** Legacy alias — mirrors `county` (kept for backward compatibility). */
+  campus?: string;
+  district: string;
+  county: string;
   facility_type: string;
   latitude: number;
   longitude: number;
-  phone?: string | undefined;
-  is_emergency: boolean;
-  agency?: string | undefined;
-  level?: string | undefined;
-  ownership?: string | undefined;
-  distanceKm?: number | undefined;
-}
-
-export interface RawKMHFLFacility {
-  id?: string;
-  "Facility Name"?: string;
-  name?: string;
-  facility_name?: string;
-  "Facility Type"?: string;
-  facility_type?: string;
-  type?: string;
-  District?: string;
-  district?: string;
-  Province?: string;
-  LOCATION?: string;
-  location?: string;
-  campus?: string;
-  Campus?: string;
-  County?: string;
-  county?: string;
-  Latitude?: number | string;
-  latitude?: number | string;
-  lat?: number | string;
-  Longitude?: number | string;
-  longitude?: number | string;
-  lng?: number | string;
-  lon?: number | string;
-  Agency?: string;
-  agency?: string;
-  Phone?: string;
   phone?: string;
-  telephone?: string;
-  is_emergency?: boolean;
-  emergency?: boolean;
-  Level?: string;
-  level?: string;
-  facility_level?: string;
-  Ownership?: string;
+  is_emergency: boolean;
+  agency: string;
+  level: string;
   ownership?: string;
-  owner?: string;
+  distanceKm?: number;
 }
 
-/** One page of rows resolved from a PostgREST query. */
-type SupabasePage = {
-  data: unknown[] | null;
-  error: { message?: string } | null;
-};
-
-/** Chainable builder shape: `.from(t).select(cols).eq(...).range(...)`. */
-type SupabaseQueryLike = {
-  eq(column: string, value: unknown): SupabaseQueryLike;
-  range(from: number, to: number): PromiseLike<SupabasePage>;
-};
-
 /**
- * Structural stand-in for a SupabaseClient covering only what we call.
- * `select` deliberately returns `unknown` (cast to SupabaseQueryLike by the
- * caller): the real PostgrestFilterBuilder chain is heavily generic, and
- * checking it structurally triggers TS2345/TS2589 ("excessively deep") errors.
+ * Static, in-bundle facility directory — no Supabase, no REST, no network.
+ * This is the ONLY data source for facility search and proximity sorting, so
+ * the UI gets 0% network latency, 0 permissions errors, and 100% offline
+ * availability (and no PGRST205 "table not in schema cache" failures).
  */
-type SupabaseLike = {
-  from(table: string): { select(columns: string): unknown };
-};
-
-const PAGE_SIZE = 1000;
-// Query `campus_facilities` DIRECTLY. Legacy table names (`hospitals`, `facilities`)
-// do not exist in the hosted Supabase schema — probing them makes PostgREST throw
-// PGRST205 ("Could not find the table public.facilities in the schema cache"),
-// which surfaced as facility-loading failures on Vercel.
-const FACILITY_TABLE = "campus_facilities";
-
-/** Normalize the different column names used by the facility uploads. */
-export function normalizeFacility(row: RawKMHFLFacility): Facility {
-  const record = row as Record<string, unknown>;
-  const value = (keys: string[]) =>
-    keys.map((key) => record[key]).find((v) => v !== null && v !== undefined && v !== "");
-
-  const toNumber = (raw: unknown): number => {
-    if (typeof raw === "number" && Number.isFinite(raw)) return raw;
-    if (typeof raw === "string" && raw.trim() !== "") {
-      const n = Number(raw);
-      return Number.isFinite(n) ? n : 0;
-    }
-    return 0;
-  };
-
+function toFacility(h: HospitalFacility): Facility {
   return {
-    id: String(value(["id"]) || ""),
-    name: String(value(["Facility Name", "facility_name", "name", "Name"]) || "Medical Facility"),
-    campus: String(value(["campus", "Campus", "county", "County"]) || ""),
-    district: String(
-      value(["District", "district", "LOCATION", "location", "County", "county", "Province"]) ||
-        "Kenya",
-    ),
-    facility_type: String(value(["Facility Type", "facility_type", "type", "Type"]) || "Hospital"),
-    latitude: toNumber(value(["Latitude", "latitude", "lat", "LATITUDE"])),
-    longitude: toNumber(value(["Longitude", "longitude", "lng", "lon", "LONGITUDE"])),
-    phone: String(value(["Phone", "phone", "telephone"]) || ""),
-    agency: String(
-      value(["Agency", "agency", "owner", "ownership", "Ownership"]) || "Health Provider",
-    ),
-    level: String(value(["Level", "level", "facility_level"]) || ""),
-    ownership: String(value(["Ownership", "ownership"]) || ""),
-    is_emergency: Boolean(value(["is_emergency", "emergency"]) || false),
+    id: h.id,
+    name: h.name,
+    campus: h.county,
+    district: h.district,
+    county: h.county,
+    facility_type: h.facility_type,
+    latitude: h.latitude,
+    longitude: h.longitude,
+    is_emergency: h.is_emergency,
+    agency: h.agency,
+    level: h.level,
   };
 }
 
 /**
- * Page through a single Supabase table until all rows are loaded.
- * Supabase defaults to a max of ~1000 rows per request; campus_facilities has 1,438+.
+ * Load the full Kenyan facility directory (1,438+ facilities) synchronously
+ * from the static local dataset in `src/data/hospitals-data.ts`.
+ *
+ * Synchronous on purpose: there is nothing to fetch, so callers get the whole
+ * directory instantly and can filter/sort on every keystroke or GPS update.
+ *
+ * @param onlyEmergency When true, only facilities flagged as emergency are returned.
  */
-async function fetchAllRows(
-  supabaseClient: SupabaseLike,
-  table: string,
-  onlyEmergency = false,
-): Promise<RawKMHFLFacility[] | null> {
-  const all: RawKMHFLFacility[] = [];
-  let from = 0;
-
-  for (;;) {
-    const base = supabaseClient.from(table).select("*") as SupabaseQueryLike;
-    const query = onlyEmergency ? base.eq("is_emergency", true) : base;
-    const { data, error } = await query.range(from, from + PAGE_SIZE - 1);
-
-    if (error) {
-      // Schema mismatch / RLS / network problem — log it and let the caller fall
-      // back to the static directory. Never probe other table names: querying
-      // tables missing from the schema cache triggers Supabase PGRST205 errors.
-      console.warn(`[facilities] Failed to load "${table}":`, error.message ?? error);
-      return null;
-    }
-    if (!data?.length) {
-      break;
-    }
-
-    all.push(...(data as RawKMHFLFacility[]));
-    if (data.length < PAGE_SIZE) {
-      break;
-    }
-    from += PAGE_SIZE;
-  }
-
-  return all;
+export function getLocalFacilities(onlyEmergency = false): Facility[] {
+  const source = onlyEmergency ? KENYA_HOSPITALS.filter((h) => h.is_emergency) : KENYA_HOSPITALS;
+  return source.map(toFacility);
 }
 
-/**
- * Load the full Kenyan facility directory by querying the Supabase
- * `campus_facilities` table directly (pages through all 1,438+ rows).
- * Legacy table names are intentionally NOT probed to avoid PostgREST
- * PGRST205 "Could not find the table in the schema cache" errors on Vercel.
- * Normalizes capitalized KMHFL columns: "Facility Name", "Facility Type",
- * "District", "LOCATION", "Latitude", "Longitude".
- */
-export async function loadFacilitiesFromSupabase(
-  supabaseClient: SupabaseLike,
-  onlyEmergency = false,
-): Promise<Facility[]> {
-  const rows = await fetchAllRows(supabaseClient, FACILITY_TABLE, onlyEmergency);
-  return rows ? rows.map(normalizeFacility) : [];
-}
-
-/** @deprecated Prefer loadFacilitiesFromSupabase — kept as a thin alias. */
-export async function fetchFacilities(
-  supabaseClient: SupabaseLike,
-  onlyEmergency = false,
-): Promise<Facility[]> {
-  return loadFacilitiesFromSupabase(supabaseClient, onlyEmergency);
-}
-
+/** Major referral hospitals (used as quick-pick options for lab orders). */
 export const FALLBACK_FACILITIES: Facility[] = [
   {
+    id: "fallback-knh",
     name: "Kenyatta National Hospital (KNH)",
     district: "Nairobi",
+    county: "Nairobi",
     facility_type: "National Referral Hospital",
     latitude: -1.3015,
     longitude: 36.8066,
@@ -194,8 +71,10 @@ export const FALLBACK_FACILITIES: Facility[] = [
     ownership: "public",
   },
   {
+    id: "fallback-mtrh",
     name: "Moi Teaching and Referral Hospital (MTRH)",
-    district: "Uasin Gishu",
+    district: "Eldoret",
+    county: "Uasin Gishu",
     facility_type: "National Referral Hospital",
     latitude: 0.5143,
     longitude: 35.2797,
@@ -206,11 +85,13 @@ export const FALLBACK_FACILITIES: Facility[] = [
     ownership: "public",
   },
   {
+    id: "fallback-cgth",
     name: "Coast General Teaching & Referral Hospital",
-    district: "Mombasa",
+    district: "Changamwe",
+    county: "Kilifi",
     facility_type: "County Referral Hospital",
-    latitude: -4.0478,
-    longitude: 39.6802,
+    latitude: -3.9886,
+    longitude: 39.9406,
     phone: "+254 41 231 4204",
     is_emergency: true,
     agency: "Ministry of Health",
@@ -218,8 +99,10 @@ export const FALLBACK_FACILITIES: Facility[] = [
     ownership: "public",
   },
   {
+    id: "fallback-joothr",
     name: "Jaramogi Oginga Odinga Teaching & Referral Hospital",
     district: "Kisumu",
+    county: "Kisumu",
     facility_type: "County Referral Hospital",
     latitude: -0.0917,
     longitude: 34.7679,
@@ -230,8 +113,10 @@ export const FALLBACK_FACILITIES: Facility[] = [
     ownership: "public",
   },
   {
+    id: "fallback-nakuru",
     name: "Nakuru Level 5 Teaching & Referral Hospital",
     district: "Nakuru",
+    county: "Nakuru",
     facility_type: "County Referral Hospital",
     latitude: -0.2858,
     longitude: 36.0664,

@@ -1,13 +1,10 @@
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useMemo, useState } from "react";
 import {
-  Facility,
-  FALLBACK_FACILITIES,
-  loadFacilitiesFromSupabase,
   calculateDistanceKm,
   getGoogleMapsDirectionsUrl,
+  getLocalFacilities,
 } from "../../lib/facilities";
-import { supabase } from "../../lib/supabase";
-import { MapPin, Navigation, AlertCircle, Loader2 } from "lucide-react";
+import { MapPin, Navigation, AlertCircle } from "lucide-react";
 import { Button } from "../ui/button";
 
 interface NearbyFacilitiesProps {
@@ -23,12 +20,18 @@ export const NearbyFacilities: React.FC<NearbyFacilitiesProps> = ({
     lat: number;
     lng: number;
   } | null>(null);
-  const [facilities, setFacilities] = useState<Facility[]>([]);
-  const [loading, setLoading] = useState<boolean>(true);
   const [locationError, setLocationError] = useState<string | null>(null);
 
+  // Full Kenyan facility directory (1,438+ rows) from the static local dataset
+  // (src/data/hospitals-data.ts). Synchronous — zero network calls, zero
+  // Supabase queries, so proximity ranking works instantly and fully offline.
+  const facilities = useMemo(
+    () => getLocalFacilities(onlyEmergency).filter((f) => f.latitude !== 0 && f.longitude !== 0),
+    [onlyEmergency],
+  );
+
+  // 1. Get GPS coordinates for Haversine proximity ranking
   useEffect(() => {
-    // 1. Get GPS coordinates
     if (typeof window !== "undefined" && navigator.geolocation) {
       navigator.geolocation.getCurrentPosition(
         (pos) => {
@@ -43,39 +46,12 @@ export const NearbyFacilities: React.FC<NearbyFacilitiesProps> = ({
         { enableHighAccuracy: true, timeout: 10000 },
       );
     }
+  }, []);
 
-    // 2. Fetch full campus_facilities directory from Supabase (1,438+ rows)
-    let cancelled = false;
-    async function loadFacilities() {
-      setLoading(true);
-      try {
-        const mapped = await loadFacilitiesFromSupabase(supabase, onlyEmergency);
-        if (cancelled) return;
-        const withCoords = mapped.filter((f) => f.latitude !== 0 && f.longitude !== 0);
-        setFacilities(
-          withCoords.length > 0
-            ? withCoords
-            : FALLBACK_FACILITIES.filter((f) => !onlyEmergency || f.is_emergency),
-        );
-      } catch {
-        if (!cancelled) {
-          setFacilities(FALLBACK_FACILITIES.filter((f) => !onlyEmergency || f.is_emergency));
-        }
-      } finally {
-        if (!cancelled) setLoading(false);
-      }
-    }
-
-    loadFacilities();
-    return () => {
-      cancelled = true;
-    };
-  }, [onlyEmergency, campus]);
-
-  // Sort against the full loaded directory, then show the Top 5 closest
+  // 2. Rank the local directory: Top 5 nearest by Haversine distance
   const region = campus.trim().toLowerCase();
   const regional = region
-    ? facilities.filter((f) => `${f.campus} ${f.district}`.toLowerCase().includes(region))
+    ? facilities.filter((f) => `${f.county} ${f.district}`.toLowerCase().includes(region))
     : [];
   const regionFacilities = !userCoords && regional.length ? regional : facilities;
   const sortedFacilities = regionFacilities
@@ -95,11 +71,9 @@ export const NearbyFacilities: React.FC<NearbyFacilitiesProps> = ({
           <MapPin className="h-5 w-5 text-primary" />
           {onlyEmergency ? "Top 5 Nearest Emergency Hospitals" : "Top 5 Nearest Health Facilities"}
         </h3>
-        {!loading && facilities.length > 0 && (
-          <span className="text-[10px] text-muted-foreground shrink-0">
-            from {facilities.length.toLocaleString()}+ directory
-          </span>
-        )}
+        <span className="text-[10px] text-muted-foreground shrink-0">
+          from {facilities.length.toLocaleString()}+ directory
+        </span>
       </div>
 
       {locationError && (
@@ -109,57 +83,50 @@ export const NearbyFacilities: React.FC<NearbyFacilitiesProps> = ({
         </p>
       )}
 
-      {loading ? (
-        <div className="flex items-center justify-center py-6 text-muted-foreground">
-          <Loader2 className="h-5 w-5 animate-spin mr-2" />
-          Calculating nearest facilities from 1,438+ Kenyan hospital directory…
-        </div>
-      ) : (
-        <div className="space-y-2">
-          {sortedFacilities.map((fac, idx) => {
-            const mapsUrl = getGoogleMapsDirectionsUrl(
-              fac.latitude,
-              fac.longitude,
-              userCoords?.lat,
-              userCoords?.lng,
-            );
+      <div className="space-y-2">
+        {sortedFacilities.map((fac, idx) => {
+          const mapsUrl = getGoogleMapsDirectionsUrl(
+            fac.latitude,
+            fac.longitude,
+            userCoords?.lat,
+            userCoords?.lng,
+          );
 
-            return (
-              <div
-                key={idx}
-                className="flex items-center justify-between p-3 rounded-lg border border-border/60 bg-muted/30 hover:bg-muted/60 transition-colors"
-              >
-                <div className="space-y-1 pr-2">
-                  <div className="flex items-center gap-2 flex-wrap">
-                    <span className="font-semibold text-sm text-foreground">{fac.name}</span>
-                    <span className="text-[10px] uppercase font-bold bg-primary/10 text-primary px-1.5 py-0.5 rounded">
-                      {fac.facility_type}
-                    </span>
-                  </div>
-                  <div className="flex items-center gap-3 text-xs text-muted-foreground">
-                    <span>
-                      {fac.district} ({fac.agency})
-                    </span>
-                    {fac.distanceKm !== undefined && (
-                      <span className="font-bold text-success">~{fac.distanceKm} km away</span>
-                    )}
-                  </div>
+          return (
+            <div
+              key={idx}
+              className="flex items-center justify-between p-3 rounded-lg border border-border/60 bg-muted/30 hover:bg-muted/60 transition-colors"
+            >
+              <div className="space-y-1 pr-2">
+                <div className="flex items-center gap-2 flex-wrap">
+                  <span className="font-semibold text-sm text-foreground">{fac.name}</span>
+                  <span className="text-[10px] uppercase font-bold bg-primary/10 text-primary px-1.5 py-0.5 rounded">
+                    {fac.facility_type}
+                  </span>
                 </div>
-
-                <Button
-                  size="sm"
-                  variant="outline"
-                  className="gap-1.5 text-xs h-8 shrink-0"
-                  onClick={() => window.open(mapsUrl, "_blank")}
-                >
-                  <Navigation className="h-3.5 w-3.5 text-primary" />
-                  Directions
-                </Button>
+                <div className="flex items-center gap-3 text-xs text-muted-foreground">
+                  <span>
+                    {fac.district} ({fac.agency})
+                  </span>
+                  {fac.distanceKm !== undefined && (
+                    <span className="font-bold text-success">~{fac.distanceKm} km away</span>
+                  )}
+                </div>
               </div>
-            );
-          })}
-        </div>
-      )}
+
+              <Button
+                size="sm"
+                variant="outline"
+                className="gap-1.5 text-xs h-8 shrink-0"
+                onClick={() => window.open(mapsUrl, "_blank")}
+              >
+                <Navigation className="h-3.5 w-3.5 text-primary" />
+                Directions
+              </Button>
+            </div>
+          );
+        })}
+      </div>
     </div>
   );
 };

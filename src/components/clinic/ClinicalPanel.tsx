@@ -14,7 +14,7 @@ import {
   Sparkles,
   Trash2,
 } from "lucide-react";
-import { useEffect, useState } from "react";
+import { useMemo, useState } from "react";
 
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -40,8 +40,7 @@ import {
   type LabResultFlag,
   type LabResultStage,
 } from "@/lib/clinic-types";
-import { FALLBACK_FACILITIES, loadFacilitiesFromSupabase, type Facility } from "@/lib/facilities";
-import { supabase } from "@/lib/supabase";
+import { getLocalFacilities, type Facility } from "@/lib/facilities";
 import { sendVisitReportFn } from "@/lib/send-visit-report";
 import { symptomLabel, triage } from "@/lib/triage";
 import { cn } from "@/lib/utils";
@@ -470,46 +469,45 @@ export function ClinicalPanel({ session }: { session: ConsultSession }) {
 
   const [rx, setRx] = useState({ medication: "", dosage: "", duration: "" });
   const [referral, setReferral] = useState({ destination: "", reason: "" });
-  const [facilities, setFacilities] = useState<Facility[]>([]);
-  const [facilitiesLoading, setFacilitiesLoading] = useState(true);
   const [facilitySearch, setFacilitySearch] = useState("");
   const ended = session.status === "completed";
-  useEffect(() => {
-    let cancelled = false;
-    setFacilitiesLoading(true);
-    loadFacilitiesFromSupabase(supabase)
-      .then((rows) => {
-        if (cancelled) return;
-        setFacilities(rows.length > 0 ? rows : FALLBACK_FACILITIES);
-      })
-      .catch(() => {
-        if (!cancelled) setFacilities(FALLBACK_FACILITIES);
-      })
-      .finally(() => {
-        if (!cancelled) setFacilitiesLoading(false);
-      });
-    return () => {
-      cancelled = true;
-    };
-  }, []);
+
+  // Full Kenyan facility directory — a static local dataset
+  // (src/data/hospitals-data.ts). Synchronous: zero network calls, so referral
+  // search is instant and works fully offline.
+  const facilities = useMemo(() => getLocalFacilities(), []);
+
+  // Pre-computed lowercase search + region text for each facility so the
+  // doctor's search runs a single pass over all 1,438+ facilities per keystroke
+  // (name, county, district, level, type, agency).
+  const facilityIndex = useMemo(
+    () =>
+      facilities.map((f) => ({
+        fac: f,
+        haystack:
+          `${f.name} ${f.county} ${f.district} ${f.level} ${f.facility_type} ${f.agency}`.toLowerCase(),
+        regionText: `${f.county} ${f.district}`.toLowerCase(),
+      })),
+    [facilities],
+  );
+
   const search = facilitySearch.trim().toLowerCase();
-  // Full 1,438+ directory is loaded; filter by search, prefer patient's campus/region.
-  // Cap rendered rows so the referral panel stays responsive while still searchable.
-  const matchingFacilities = facilities
-    .filter((f) => {
-      const text =
-        `${f.name} ${f.level} ${f.facility_type} ${f.district} ${f.campus} ${f.agency}`.toLowerCase();
-      return !search || text.includes(search);
-    })
+  const region = (session.campus || "").toLowerCase();
+  // Filter by search, then prioritize facilities in the patient's campus/county
+  // (alphabetical within each group). Cap rendered rows so the referral panel
+  // stays responsive while the full directory remains searchable.
+  const matchingFacilities = facilityIndex
+    .filter((entry) => !search || entry.haystack.includes(search))
     .sort((a, b) => {
-      const region = (session.campus || "").toLowerCase();
-      if (!region) return a.name.localeCompare(b.name);
-      return (
-        Number(`${b.campus} ${b.district}`.toLowerCase().includes(region)) -
-        Number(`${a.campus} ${a.district}`.toLowerCase().includes(region))
-      );
+      if (region) {
+        const aInRegion = a.regionText.includes(region) ? 1 : 0;
+        const bInRegion = b.regionText.includes(region) ? 1 : 0;
+        if (aInRegion !== bInRegion) return bInRegion - aInRegion;
+      }
+      return a.fac.name.localeCompare(b.fac.name);
     })
-    .slice(0, search ? 250 : 150);
+    .slice(0, search ? 250 : 150)
+    .map((entry) => entry.fac);
   const assessment = triage(session.symptom_codes);
 
   return (
@@ -799,9 +797,7 @@ export function ClinicalPanel({ session }: { session: ConsultSession }) {
                   Nearby Facilities to {session.campus || "Patient"}
                 </Label>
                 <span className="text-[10px] text-muted-foreground">
-                  {facilitiesLoading
-                    ? "Loading directory…"
-                    : `${facilities.length.toLocaleString()} facilities · 1-Click Select`}
+                  {`${facilities.length.toLocaleString()} facilities · 1-Click Select`}
                 </span>
               </div>
 
@@ -809,10 +805,10 @@ export function ClinicalPanel({ session }: { session: ConsultSession }) {
                 <Input
                   value={facilitySearch}
                   onChange={(e) => setFacilitySearch(e.target.value)}
-                  placeholder="Search all 1,400+ hospitals by name, level, county or location…"
-                  disabled={ended || facilitiesLoading}
+                  placeholder="Search all 1,438+ hospitals by name, county, district, level or type…"
+                  disabled={ended}
                 />
-                {!facilitiesLoading && matchingFacilities.length === 0 && (
+                {matchingFacilities.length === 0 && (
                   <p className="text-[11px] text-muted-foreground px-1 py-2">
                     No facilities match “{facilitySearch}”. Try a county, level, or hospital name.
                   </p>
@@ -843,7 +839,7 @@ export function ClinicalPanel({ session }: { session: ConsultSession }) {
                         <p className="font-semibold text-foreground truncate">{fac.name}</p>
                         <p className="text-[10px] text-muted-foreground">
                           {fac.level || "Hospital"} · {fac.facility_type} (
-                          {fac.ownership || "Public"})
+                          {fac.agency || "Health Provider"})
                         </p>
                       </div>
                       <div className="flex items-center gap-1.5 shrink-0">

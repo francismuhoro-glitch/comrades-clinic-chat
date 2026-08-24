@@ -10,7 +10,8 @@
     "build:dev": "vite build --mode development",
     "preview": "vite preview",
     "lint": "eslint .",
-    "format": "prettier --write ."
+    "format": "prettier --write .",
+    "import:facilities": "node scripts/import-facilities.mjs"
   },
   "overrides": {
     "rolldown": "1.2.1"

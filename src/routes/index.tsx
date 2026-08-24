@@ -175,15 +175,9 @@ function PatientRouteComponent() {
     labResultsFor,
   } = useClinic();
 
-  const [hasAcceptedTerms, setHasAcceptedTerms] = useState<boolean>(() => {
-    if (typeof window !== "undefined") {
-      return localStorage.getItem("comrades_terms_accepted") === "true";
-    }
-    return false;
-  });
+  const [view, setView] = useState<"landing" | "intake" | "resume">("landing");
 
   const [resumePhone, setResumePhone] = useState("");
-  const [showResume, setShowResume] = useState(false);
   const [resumeError, setResumeError] = useState<string | null>(null);
   const [resuming, setResuming] = useState(false);
 
@@ -212,13 +206,6 @@ function PatientRouteComponent() {
     }
   }, [session?.id, labResultsFor]);
 
-  const handleAcceptTerms = () => {
-    if (typeof window !== "undefined") {
-      localStorage.setItem("comrades_terms_accepted", "true");
-    }
-    setHasAcceptedTerms(true);
-  };
-
   const handleResumeSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setResumeError(null);
@@ -232,64 +219,11 @@ function PatientRouteComponent() {
     }
   };
 
-  // Case 1: No active session -> First time show Landing Page; accepted show Intake Form
+  // Case 1: No active session -> Landing Page by default, or Intake Form / Resume by phone
   if (!session) {
-    if (!hasAcceptedTerms) {
+    if (view === "resume") {
       return (
         <StudentLayout subtitle="Affordable care for comrades across Kenyan campuses">
-          <LandingPage onAcceptTerms={handleAcceptTerms} />
-          <div className="mt-4 border-t pt-3 text-center space-y-2">
-            <button
-              type="button"
-              onClick={() => {
-                handleAcceptTerms();
-                setShowResume(true);
-              }}
-              className="text-xs font-medium text-primary hover:underline inline-flex items-center gap-1"
-            >
-              <History className="size-3.5" />
-              Already have an ongoing consultation? Resume here
-            </button>
-            <div>
-              <Link
-                to="/visits"
-                className="text-xs font-medium text-primary hover:underline inline-flex items-center gap-1"
-              >
-                <UserRound className="size-3.5" />
-                Sign in to view your past visits
-              </Link>
-            </div>
-          </div>
-        </StudentLayout>
-      );
-    }
-
-    return (
-      <StudentLayout subtitle="Affordable care for comrades across Kenyan campuses">
-        {!showResume ? (
-          <div className="space-y-4">
-            <IntakeForm onSubmit={(input) => createSession(input)} />
-            <div className="border-t pt-3 text-center space-y-2">
-              <button
-                type="button"
-                onClick={() => setShowResume(true)}
-                className="text-xs font-medium text-primary hover:underline inline-flex items-center gap-1"
-              >
-                <History className="size-3.5" />
-                Already have an ongoing consultation? Resume here
-              </button>
-              <div>
-                <Link
-                  to="/visits"
-                  className="text-xs font-medium text-primary hover:underline inline-flex items-center gap-1"
-                >
-                  <UserRound className="size-3.5" />
-                  Sign in to view your past visits
-                </Link>
-              </div>
-            </div>
-          </div>
-        ) : (
           <form
             onSubmit={handleResumeSubmit}
             className="space-y-4 rounded-2xl border bg-card p-5 shadow-card"
@@ -318,7 +252,7 @@ function PatientRouteComponent() {
                 type="button"
                 variant="outline"
                 className="flex-1 text-xs"
-                onClick={() => setShowResume(false)}
+                onClick={() => setView("intake")}
               >
                 Back to Intake
               </Button>
@@ -327,7 +261,71 @@ function PatientRouteComponent() {
               </Button>
             </div>
           </form>
-        )}
+        </StudentLayout>
+      );
+    }
+
+    if (view === "intake") {
+      return (
+        <StudentLayout subtitle="Affordable care for comrades across Kenyan campuses">
+          <div className="space-y-4">
+            <IntakeForm onSubmit={(input) => createSession(input)} />
+            <div className="border-t pt-3 text-center space-y-2">
+              <button
+                type="button"
+                onClick={() => setView("resume")}
+                className="text-xs font-medium text-primary hover:underline inline-flex items-center gap-1"
+              >
+                <History className="size-3.5" />
+                Already have an ongoing consultation? Resume here
+              </button>
+              <div>
+                <Link
+                  to="/visits"
+                  className="text-xs font-medium text-primary hover:underline inline-flex items-center gap-1"
+                >
+                  <UserRound className="size-3.5" />
+                  Sign in to view your past visits
+                </Link>
+              </div>
+              <div>
+                <button
+                  type="button"
+                  onClick={() => setView("landing")}
+                  className="text-xs font-medium text-primary hover:underline inline-flex items-center gap-1"
+                >
+                  <RotateCcw className="size-3.5" />
+                  Back to home
+                </button>
+              </div>
+            </div>
+          </div>
+        </StudentLayout>
+      );
+    }
+
+    return (
+      <StudentLayout subtitle="Affordable care for comrades across Kenyan campuses">
+        <LandingPage onAcceptTerms={() => setView("intake")} />
+        <div className="mt-4 border-t pt-3 text-center space-y-2">
+          <button
+            type="button"
+            onClick={() => setView("resume")}
+            className="text-xs font-medium text-primary hover:underline inline-flex items-center gap-1"
+          >
+            <History className="size-3.5" />
+            Already have an ongoing consultation? Resume here
+          </button>
+          <div>
+            <Link
+              to="/visits"
+              className="text-xs font-medium text-primary hover:underline inline-flex items-center gap-1"
+            >
+              <UserRound className="size-3.5" />
+              Sign in to view your past visits
+            </Link>
+          </div>
+        </div>
       </StudentLayout>
     );
   }

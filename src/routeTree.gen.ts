@@ -15,6 +15,7 @@ import { Route as DoctorRouteImport } from './routes/doctor'
 import { Route as PrivacyRouteImport } from './routes/privacy'
 import { Route as TermsRouteImport } from './routes/terms'
 import { Route as VisitsRouteImport } from './routes/visits'
+import { Route as WellnessRouteImport } from './routes/wellness'
 
 const IndexRoute = IndexRouteImport.update({
   id: '/',
@@ -46,6 +47,11 @@ const VisitsRoute = VisitsRouteImport.update({
   path: '/visits',
   getParentRoute: () => rootRouteImport,
 } as any)
+const WellnessRoute = WellnessRouteImport.update({
+  id: '/wellness',
+  path: '/wellness',
+  getParentRoute: () => rootRouteImport,
+} as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
@@ -54,6 +60,7 @@ export interface FileRoutesByFullPath {
   '/privacy': typeof PrivacyRoute
   '/terms': typeof TermsRoute
   '/visits': typeof VisitsRoute
+  '/wellness': typeof WellnessRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
@@ -62,6 +69,7 @@ export interface FileRoutesByTo {
   '/privacy': typeof PrivacyRoute
   '/terms': typeof TermsRoute
   '/visits': typeof VisitsRoute
+  '/wellness': typeof WellnessRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
@@ -71,14 +79,24 @@ export interface FileRoutesById {
   '/privacy': typeof PrivacyRoute
   '/terms': typeof TermsRoute
   '/visits': typeof VisitsRoute
+  '/wellness': typeof WellnessRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
-  fullPaths: '/' | '/admin' | '/doctor' | '/privacy' | '/terms' | '/visits'
+  fullPaths:
+    '/' | '/admin' | '/doctor' | '/privacy' | '/terms' | '/visits' | '/wellness'
   fileRoutesByTo: FileRoutesByTo
-  to: '/' | '/admin' | '/doctor' | '/privacy' | '/terms' | '/visits'
+  to:
+    '/' | '/admin' | '/doctor' | '/privacy' | '/terms' | '/visits' | '/wellness'
   id:
-    '__root__' | '/' | '/admin' | '/doctor' | '/privacy' | '/terms' | '/visits'
+    | '__root__'
+    | '/'
+    | '/admin'
+    | '/doctor'
+    | '/privacy'
+    | '/terms'
+    | '/visits'
+    | '/wellness'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
@@ -88,6 +106,7 @@ export interface RootRouteChildren {
   PrivacyRoute: typeof PrivacyRoute
   TermsRoute: typeof TermsRoute
   VisitsRoute: typeof VisitsRoute
+  WellnessRoute: typeof WellnessRoute
 }
 
 declare module '@tanstack/react-router' {
@@ -134,6 +153,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof VisitsRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/wellness': {
+      id: '/wellness'
+      path: '/wellness'
+      fullPath: '/wellness'
+      preLoaderRoute: typeof WellnessRouteImport
+      parentRoute: typeof rootRouteImport
+    }
   }
 }
 
@@ -144,6 +170,7 @@ const rootRouteChildren: RootRouteChildren = {
   PrivacyRoute: PrivacyRoute,
   TermsRoute: TermsRoute,
   VisitsRoute: VisitsRoute,
+  WellnessRoute: WellnessRoute,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)

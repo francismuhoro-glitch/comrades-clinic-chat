@@ -60,6 +60,12 @@ export function PatientQueue({
               </p>
             )}
 
+            {s.symptom_codes.includes("mental") && (
+              <p className="mt-2 flex items-center gap-1.5 rounded-lg bg-primary/10 px-2 py-1 text-[11px] font-semibold text-primary">
+                🧠 Mental wellness file — lead gently
+              </p>
+            )}
+
             {s.symptom_codes.length > 0 && (
               <p className="mt-2 text-[11px] font-medium text-muted-foreground">
                 {s.symptom_codes.map(symptomLabel).join(" · ")}

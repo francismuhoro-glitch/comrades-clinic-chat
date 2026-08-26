@@ -1,10 +1,11 @@
 import { Link } from "@tanstack/react-router";
-import { Stethoscope, UserRound } from "lucide-react";
+import { Smartphone, Stethoscope, UserRound } from "lucide-react";
 import type { ReactNode } from "react";
 
 import { NotificationBell } from "@/components/clinic/NotificationBell";
 import { useClinic } from "@/lib/clinic-store";
 import type { SessionStatus } from "@/lib/clinic-types";
+import { useInstallPrompt } from "@/lib/push-client";
 
 export function StatusBadge({ status, paid }: { status: SessionStatus; paid: boolean }) {
   if (!paid || status === "awaiting_payment") {
@@ -41,6 +42,7 @@ export function StudentLayout({
   compact?: boolean;
 }) {
   const { doctorOnline, studentSessionId } = useClinic();
+  const { canInstall, installed, promptInstall } = useInstallPrompt();
 
   return (
     <div className="min-h-screen bg-background text-foreground flex flex-col justify-between">
@@ -61,6 +63,17 @@ export function StudentLayout({
             </Link>
 
             <div className="flex items-center gap-2">
+              {canInstall && !installed && (
+                <button
+                  type="button"
+                  onClick={() => void promptInstall()}
+                  aria-label="Install the COMRACARE app"
+                  title="Install the COMRACARE app"
+                  className="inline-flex size-9 items-center justify-center rounded-full bg-primary text-primary-foreground shadow-sm transition-colors hover:bg-primary/90"
+                >
+                  <Smartphone className="size-4" />
+                </button>
+              )}
               <NotificationBell audience="patient" consultationId={studentSessionId} />
               <Link
                 to="/visits"

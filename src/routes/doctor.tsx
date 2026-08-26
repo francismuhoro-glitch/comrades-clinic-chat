@@ -353,12 +353,21 @@ function DoctorPortal({ authenticatedDoctor }: { authenticatedDoctor: Authentica
                   {selectedSession.status === "active" && (
                     <Button
                       size="sm"
-                      variant={selectedSession.video_room_name ? "default" : "outline"}
+                      variant={
+                        selectedSession.video_room_name ||
+                        selectedSession.consultation_mode === "video"
+                          ? "default"
+                          : "outline"
+                      }
                       className="h-7 shrink-0 gap-1.5 text-[11px]"
                       onClick={() => setVideoCallOpen(true)}
                     >
                       <Video className="size-3" />
-                      {selectedSession.video_room_name ? "Join call" : "Start call"}
+                      {selectedSession.video_room_name
+                        ? "Join call"
+                        : selectedSession.consultation_mode === "video"
+                          ? "Start video call"
+                          : "Start call"}
                     </Button>
                   )}
                 </div>

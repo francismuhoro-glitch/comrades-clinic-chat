@@ -31,6 +31,7 @@ export interface ConsultationRow {
   lab_order?: LabOrder | null;
   patient_id?: string | null;
   video_room_name?: string | null;
+  consultation_mode?: string | null;
   created_at?: string | null;
   ended_at?: string | null;
 }
@@ -57,6 +58,7 @@ export function mapConsultationRow(row: ConsultationRow): ConsultSession {
     emergency_flag: row.triage_level === "emergency",
     suggested_labs: [],
     status: mappedStatus,
+    consultation_mode: row.consultation_mode === "video" ? "video" : "chat",
     paid:
       Boolean(row.paid) ||
       row.payment_status === "confirmed" ||

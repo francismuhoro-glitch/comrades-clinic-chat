@@ -145,7 +145,9 @@ export async function sendWebPushMessage(options: {
         "Content-Encoding": "aes128gcm",
         "Content-Type": "application/octet-stream",
         TTL: String(options.ttlSeconds ?? 24 * 60 * 60),
-        Urgency: "normal",
+        // Clinic alerts are time-sensitive — ask the push service for the
+        // highest delivery priority so devices wake and alert promptly.
+        Urgency: "high",
       },
       body: new Uint8Array(body),
     });

@@ -30,6 +30,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { NotificationBell } from "@/components/clinic/NotificationBell";
 import { useClinic } from "@/lib/clinic-store";
 import { DOCTOR } from "@/lib/clinic-types";
 import { getCurrentDoctor, logoutDoctor, type AuthenticatedDoctor } from "@/lib/doctor-auth";
@@ -174,6 +175,9 @@ function DoctorPortal({ authenticatedDoctor }: { authenticatedDoctor: Authentica
           </div>
 
           <div className="flex items-center gap-3">
+            {/* Notification bell — live clinic alerts */}
+            <NotificationBell audience="doctor" />
+
             {/* Admin console (admins only) */}
             {authenticatedDoctor.role === "admin" && (
               <Link

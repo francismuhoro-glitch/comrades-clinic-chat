@@ -9,6 +9,7 @@ import {
   type ReactNode,
 } from "react";
 import { decryptMessage, encryptMessage } from "./crypto";
+import { sendNotification } from "./notifications";
 import { supabase } from "./supabase";
 import { mapConsultationRow, type ConsultationRow } from "./consultation-mapper";
 
@@ -746,7 +747,20 @@ export function ClinicProvider({ children }: { children: ReactNode }) {
               consultation_mode: input.consultation_mode,
               ...(patientId ? { patient_id: patientId } : {}),
             });
-            if (error) console.error("Supabase consultation insert failed:", error.message);
+            if (error) {
+              console.error("Supabase consultation insert failed:", error.message);
+            } else {
+              // Tell the clinic a new file just landed in the queue.
+              void sendNotification({
+                audience: "doctor",
+                consultationId: session.id,
+                type: "queue.new",
+                title: `New patient: ${input.full_name}`,
+                body: `${input.campus} · triage: ${t.level}${
+                  input.consultation_mode === "video" ? " · wants voice/video" : ""
+                }`,
+              });
+            }
           } catch (err) {
             console.warn("Supabase session sync notice:", err);
           }
@@ -755,6 +769,14 @@ export function ClinicProvider({ children }: { children: ReactNode }) {
         return session.id;
       },
       submitPaymentClaim: async (id, mpesaCode, paymentPhone) => {
+        const claimed = state.sessions.find((x) => x.id === id);
+        void sendNotification({
+          audience: "doctor",
+          consultationId: id,
+          type: "payment.pending",
+          title: "Payment to verify",
+          body: `${claimed?.full_name ?? "A patient"} submitted ${mpesaCode} (KSh ${CONSULT_FEE_KES}).`,
+        });
         dispatch({
           type: "patch_session",
           id,
@@ -787,6 +809,14 @@ export function ClinicProvider({ children }: { children: ReactNode }) {
           patch: { payment_status: "confirmed", status: "waiting", paid: true },
         });
         system(id, `Payment confirmed by clinician. Consultation queued.`);
+        void sendNotification({
+          audience: "patient",
+          recipientId: s?.patient_id ?? null,
+          consultationId: id,
+          type: "payment.confirmed",
+          title: "Payment confirmed ✅",
+          body: "You're in the queue — we'll alert you the moment the doctor joins.",
+        });
         try {
           await supabase
             .from("consultations")
@@ -800,6 +830,15 @@ export function ClinicProvider({ children }: { children: ReactNode }) {
         }
       },
       rejectPayment: async (id) => {
+        const rejected = state.sessions.find((x) => x.id === id);
+        void sendNotification({
+          audience: "patient",
+          recipientId: rejected?.patient_id ?? null,
+          consultationId: id,
+          type: "payment.rejected",
+          title: "Payment not verified",
+          body: "We couldn't match your M-Pesa code. Please check it and resubmit.",
+        });
         dispatch({
           type: "patch_session",
           id,
@@ -865,6 +904,14 @@ export function ClinicProvider({ children }: { children: ReactNode }) {
         if (!target || target.status !== "waiting") return;
         dispatch({ type: "activate", id });
         system(id, "Consultation started — the doctor is ready for you.");
+        void sendNotification({
+          audience: "patient",
+          recipientId: target.patient_id ?? null,
+          consultationId: id,
+          type: "doctor.ready",
+          title: "Your doctor is ready 🩺",
+          body: "Open My Visits to join the consultation now.",
+        });
         (async () => {
           try {
             await supabase.from("consultations").update({ status: "active" }).eq("id", id);
@@ -970,6 +1017,14 @@ export function ClinicProvider({ children }: { children: ReactNode }) {
         const order: LabOrder = { ...s.lab_order, status };
         dispatch({ type: "patch_session", id, patch: { lab_order: order } });
         system(id, `Lab order update: ${LAB_ORDER_STATUS_LABELS[status]}.`);
+        void sendNotification({
+          audience: "patient",
+          recipientId: s?.patient_id ?? null,
+          consultationId: id,
+          type: "lab.update",
+          title: "Lab update",
+          body: `${s.lab_order.panels[0] ?? "Your test"}: ${LAB_ORDER_STATUS_LABELS[status]}.`,
+        });
         try {
           await supabase
             .from("consultations")
@@ -991,6 +1046,14 @@ export function ClinicProvider({ children }: { children: ReactNode }) {
           },
         });
         system(id, "Consultation completed. A digital prescription has been signed and issued.");
+        void sendNotification({
+          audience: "patient",
+          recipientId: state.sessions.find((x) => x.id === id)?.patient_id ?? null,
+          consultationId: id,
+          type: "prescription.ready",
+          title: "Prescription ready 💊",
+          body: "Your signed prescription is available in My Visits.",
+        });
         (async () => {
           try {
             await supabase
@@ -1022,6 +1085,14 @@ export function ClinicProvider({ children }: { children: ReactNode }) {
           id,
           "Consultation completed. An official referral letter has been signed and issued.",
         );
+        void sendNotification({
+          audience: "patient",
+          recipientId: state.sessions.find((x) => x.id === id)?.patient_id ?? null,
+          consultationId: id,
+          type: "referral.ready",
+          title: "Referral letter ready 🏥",
+          body: `Referral to ${referral.destination} is ready in My Visits.`,
+        });
         (async () => {
           try {
             await supabase
@@ -1057,6 +1128,13 @@ export function ClinicProvider({ children }: { children: ReactNode }) {
           input.consultation_id,
           `New lab test entry added: ${input.panel} (${input.loinc_code || "Manual"}). Stage: ${LAB_RESULT_STAGE_LABELS[input.stage]}.`,
         );
+        void sendNotification({
+          audience: "patient",
+          consultationId: input.consultation_id,
+          type: "lab.update",
+          title: "Lab results update",
+          body: `${input.panel}: ${LAB_RESULT_STAGE_LABELS[input.stage]}.`,
+        });
         try {
           await supabase.from("lab_results").insert({
             id: newId,

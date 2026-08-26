@@ -133,6 +133,14 @@ Becoming an admin:
    accounts (the last one requires the optional `SUPABASE_SERVICE_ROLE_KEY`
    server env var).
 
+## 7. Notification bell
+
+Run [`supabase/migrations/20260827120000_notifications.sql`](../supabase/migrations/20260827120000_notifications.sql)
+in the SQL editor to create the `notifications` table (with realtime enabled).
+The 🔔 bells in the student header and doctor portal then deliver live alerts —
+new patient in queue, payment to verify, doctor is ready, prescription/lab/referral
+updates. No extra API keys required.
+
 ## Security roadmap
 
 The migration ships transitional permissive policies so the current

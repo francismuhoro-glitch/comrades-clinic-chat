@@ -4,6 +4,8 @@
 // Permission is ONLY requested from an explicit user action (the "Turn on
 // background alerts" button in the notification bell) — never on page load.
 
+import { useEffect, useState } from "react";
+
 import { supabase } from "./supabase";
 
 /**
@@ -109,4 +111,69 @@ export async function subscribeToPush(
   );
   if (error) return { ok: false, error: error.message };
   return { ok: true };
+}
+
+// ---------------------------------------------------------------------------
+// Install prompt (PWA "Add to Home screen")
+// ---------------------------------------------------------------------------
+
+interface BeforeInstallPromptEvent extends Event {
+  prompt: () => Promise<void>;
+  userChoice: Promise<{ outcome: "accepted" | "dismissed" }>;
+}
+
+let deferredInstallEvent: BeforeInstallPromptEvent | null = null;
+const installListeners = new Set<() => void>();
+
+function notifyInstallListeners() {
+  for (const listener of installListeners) listener();
+}
+
+if (typeof window !== "undefined") {
+  window.addEventListener("beforeinstallprompt", (event) => {
+    // Stop Chrome's mini-banner — we offer our own button instead.
+    event.preventDefault();
+    deferredInstallEvent = event as BeforeInstallPromptEvent;
+    notifyInstallListeners();
+  });
+  window.addEventListener("appinstalled", () => {
+    deferredInstallEvent = null;
+    notifyInstallListeners();
+  });
+}
+
+export function isStandaloneDisplay(): boolean {
+  if (typeof window === "undefined") return false;
+  return (
+    window.matchMedia("(display-mode: standalone)").matches ||
+    (window.navigator as unknown as { standalone?: boolean }).standalone === true
+  );
+}
+
+export function useInstallPrompt() {
+  const [canInstall, setCanInstall] = useState(() => deferredInstallEvent !== null);
+  const [installed, setInstalled] = useState(() => isStandaloneDisplay());
+
+  useEffect(() => {
+    const listener = () => {
+      setCanInstall(deferredInstallEvent !== null);
+      setInstalled(isStandaloneDisplay());
+    };
+    installListeners.add(listener);
+    listener();
+    return () => {
+      installListeners.delete(listener);
+    };
+  }, []);
+
+  const promptInstall = async (): Promise<boolean> => {
+    if (!deferredInstallEvent) return false;
+    await deferredInstallEvent.prompt();
+    const choice = await deferredInstallEvent.userChoice;
+    deferredInstallEvent = null;
+    notifyInstallListeners();
+    return choice.outcome === "accepted";
+  };
+
+  return { canInstall, installed, promptInstall };
 }

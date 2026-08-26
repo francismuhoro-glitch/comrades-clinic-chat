@@ -6,6 +6,7 @@ import {
   LogOut,
   Settings,
   ShieldCheck,
+  Smartphone,
   Stethoscope,
   Video,
   X,
@@ -41,6 +42,7 @@ import {
 import { useClinic } from "@/lib/clinic-store";
 import { DOCTOR } from "@/lib/clinic-types";
 import { getCurrentDoctor, logoutDoctor, type AuthenticatedDoctor } from "@/lib/doctor-auth";
+import { useInstallPrompt } from "@/lib/push-client";
 import { cn } from "@/lib/utils";
 
 type QueueRange = "today" | "7d" | "30d" | "all";
@@ -111,6 +113,7 @@ function DoctorPortal({ authenticatedDoctor }: { authenticatedDoctor: Authentica
   const [savingSettings, setSavingSettings] = useState(false);
   const [videoCallOpen, setVideoCallOpen] = useState(false);
   const [queueRange, setQueueRange] = useState<QueueRange>("today");
+  const { canInstall, installed, promptInstall } = useInstallPrompt();
 
   // Scheduled appointment requests (live).
   const { appointments: appointmentList, loading: appointmentsLoading } = useAppointments();
@@ -186,6 +189,17 @@ function DoctorPortal({ authenticatedDoctor }: { authenticatedDoctor: Authentica
           </div>
 
           <div className="flex items-center gap-3">
+            {canInstall && !installed && (
+              <button
+                type="button"
+                onClick={() => void promptInstall()}
+                aria-label="Install the COMRACARE portal app"
+                title="Install the COMRACARE portal app"
+                className="inline-flex size-9 items-center justify-center rounded-full bg-primary text-primary-foreground shadow-sm transition-colors hover:bg-primary/90"
+              >
+                <Smartphone className="size-4" />
+              </button>
+            )}
             {/* Notification bell — live clinic alerts */}
             <NotificationBell audience="doctor" />
 

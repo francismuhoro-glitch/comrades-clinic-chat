@@ -535,6 +535,7 @@ export function ClinicProvider({ children }: { children: ReactNode }) {
             payment_status?: "pending" | "confirmed" | "rejected";
             lab_test_requested?: boolean;
             patient_email?: string | null;
+            video_room_name?: string | null;
           };
           if (!row || !row.id) return;
 
@@ -575,6 +576,9 @@ export function ClinicProvider({ children }: { children: ReactNode }) {
           }
           if (row.patient_email !== undefined) {
             patch.patient_email = row.patient_email;
+          }
+          if (row.video_room_name !== undefined) {
+            patch.video_room_name = row.video_room_name;
           }
 
           dispatch({

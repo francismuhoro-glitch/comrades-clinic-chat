@@ -30,6 +30,7 @@ export interface ConsultationRow {
   referral?: Referral | null;
   lab_order?: LabOrder | null;
   patient_id?: string | null;
+  video_room_name?: string | null;
   created_at?: string | null;
   ended_at?: string | null;
 }
@@ -72,6 +73,7 @@ export function mapConsultationRow(row: ConsultationRow): ConsultSession {
     referral: row.referral || null,
     lab_order: row.lab_order || null,
     patient_id: row.patient_id ?? null,
+    video_room_name: row.video_room_name ?? null,
     created_at: row.created_at || new Date().toISOString(),
     ended_at: row.ended_at ?? null,
   };

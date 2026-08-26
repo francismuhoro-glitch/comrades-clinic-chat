@@ -55,6 +55,41 @@ With Supabase configured you additionally get:
 - Chat history restored after refresh (messages are stored AES-encrypted).
 - Patient sign-in (email OTP) and the **My Visits** page (`/visits`), including
   linking pre-account visits by phone number.
+- On-request voice/video calls (Jitsi) during active consultations — see
+  section 5 below.
+
+## 5. Voice & video calls (Jitsi)
+
+During an active consultation, either side can start an on-request
+voice/video call. Calls ride on the **public meet.jit.si instance** — there is
+no API key, no JWT, and **no environment variable to configure**. Chat is
+unaffected: calls are offered alongside, never instead of, the encrypted text
+chat, and if video can't be opened the UI falls back to
+"video unavailable — continue via chat".
+
+How rooms work:
+
+- Room names are generated **server-side** (a TanStack server function), are
+  unguessable, and are assigned **exactly once per consultation**, stored in
+  `consultations.video_room_name`. Clients never choose room names.
+- Access is enforced two ways: the doctor is authorised by their session
+  cookie (server function), and a signed-in patient may only fetch the room of
+  their **own** consultation — the `get_video_room_name()` RPC enforces
+  `consultations.patient_id = auth.uid()` inside Postgres.
+- Calls start **audio-first** with an explicit "Enable video" toggle, and the
+  call is hung up + unmounted as soon as the consultation completes.
+
+To enable calls, run
+[`supabase/migrations/20260825120000_video_call_jitsi_rooms.sql`](../supabase/migrations/20260825120000_video_call_jitsi_rooms.sql)
+in your Supabase project → **SQL Editor**. This migration must be **applied
+manually — it is not part of the app deploy**. It is idempotent and:
+
+- adds the `consultations.video_room_name` column,
+- creates the ownership-enforcing `get_video_room_name(p_consultation_id)` RPC
+  (executable by authenticated users only).
+
+Until the migration is applied the app keeps working; starting a call simply
+ends in the chat fallback.
 
 ## Security roadmap
 

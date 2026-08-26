@@ -224,6 +224,11 @@ export interface ConsultSession {
   patient_email?: string | null | undefined;
   /** Supabase auth user id when the patient created/claimed this visit while logged in. */
   patient_id?: string | null | undefined;
+  /**
+   * Unguessable Jitsi room for the on-request voice/video call. Assigned once
+   * per consultation server-side; null until somebody starts a call.
+   */
+  video_room_name?: string | null | undefined;
   created_at: string;
   ended_at: string | null;
 }

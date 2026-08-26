@@ -96,6 +96,12 @@ export function StudentLayout({
             >
               Terms &amp; Disclaimer
             </a>
+            <a
+              href="/wellness"
+              className="hover:text-primary transition-colors underline-offset-4 hover:underline"
+            >
+              Wellness Hub
+            </a>
             <span>·</span>
             <a
               href="/privacy"

@@ -28,6 +28,7 @@ import { IntakeForm } from "@/components/clinic/IntakeForm";
 import { LabOrderChoice } from "@/components/clinic/LabOrderChoice";
 import { LabResultsTracker } from "@/components/clinic/LabResultsTracker";
 import { MpesaProcessing } from "@/components/clinic/MpesaProcessing";
+import { MoodCheckIn } from "@/components/clinic/MoodCheckIn";
 import { StatusBadge, StudentLayout } from "@/components/clinic/StudentLayout";
 import { VideoCall } from "@/components/clinic/VideoCall";
 import { Button } from "@/components/ui/button";
@@ -146,6 +147,8 @@ function LandingPage({ onAcceptTerms }: { onAcceptTerms: () => void }) {
         </div>
       </div>
 
+      <MoodCheckIn />
+
       {/* What you get */}
       <section className="space-y-2">
         <h2 className="text-sm font-bold">Everything in one place</h2>
@@ -187,7 +190,10 @@ function LandingPage({ onAcceptTerms }: { onAcceptTerms: () => void }) {
       </section>
 
       {/* Terms & Privacy Policy Confirmation Gate */}
-      <div className="space-y-4 rounded-2xl border bg-card p-5 shadow-card">
+      <div
+        id="start-consult"
+        className="space-y-4 rounded-2xl border bg-card p-5 shadow-card scroll-mt-24"
+      >
         <label className="flex cursor-pointer items-start gap-3 rounded-xl border bg-secondary/40 p-3.5">
           <Checkbox
             checked={agreed}

@@ -35,6 +35,7 @@ import { CONSULT_FEE_KES } from "@/lib/clinic-types";
 import { usePatientAuth } from "@/lib/patient-auth";
 import { EMERGENCY_NOTICE, SYMPTOM_OPTIONS, symptomLabel, triage } from "@/lib/triage";
 import { cn } from "@/lib/utils";
+import { consumeIntakeSymptoms } from "@/lib/wellness";
 import type { LucideIcon } from "lucide-react";
 
 /** Numbered, carded step that gives the form a clear visual rhythm. */
@@ -92,6 +93,17 @@ export function IntakeForm({ onSubmit }: { onSubmit: (input: IntakeInput) => voi
       setForm((f) => ({ ...f, patient_email: patient.email ?? "" }));
     }
   }, [patient, form.patient_email]);
+
+  // Preselect symptoms handed over by the mood check-in / Wellness Hub.
+  useEffect(() => {
+    const preselect = consumeIntakeSymptoms();
+    if (preselect.length > 0) {
+      setForm((f) => ({
+        ...f,
+        symptom_codes: [...new Set([...f.symptom_codes, ...preselect])],
+      }));
+    }
+  }, []);
 
   const set = <K extends keyof IntakeInput>(key: K, value: IntakeInput[K]) =>
     setForm((f) => ({ ...f, [key]: value }));

@@ -5,6 +5,13 @@ export type SessionStatus = "awaiting_payment" | "waiting" | "active" | "complet
 
 export type Sender = "student" | "doctor" | "system";
 
+/**
+ * How the patient prefers to consult, chosen while registering (intake).
+ * "video" means an on-request Jitsi voice/video call; chat remains available
+ * to everyone regardless of the choice.
+ */
+export type ConsultationMode = "chat" | "video";
+
 export interface ChatMessage {
   id: string;
   session_id: string;
@@ -209,6 +216,8 @@ export interface ConsultSession {
   /** Lab panels auto-suggested by the triage rules. */
   suggested_labs: string[];
   status: SessionStatus;
+  /** Consultation preference the patient selected at intake. */
+  consultation_mode: ConsultationMode;
   paid: boolean;
   fee_kes: number;
   mpesa_receipt: string | null;

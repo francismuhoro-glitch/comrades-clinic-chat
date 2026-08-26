@@ -1,4 +1,12 @@
-import { AlertTriangle, FlaskConical, Mail, ShieldCheck, Siren } from "lucide-react";
+import {
+  AlertTriangle,
+  FlaskConical,
+  Mail,
+  MessageSquare,
+  ShieldCheck,
+  Siren,
+  Video,
+} from "lucide-react";
 import { useEffect, useState } from "react";
 import { KENYAN_INSTITUTIONS } from "@/lib/kenya-institutions";
 import { NearbyFacilities } from "./NearbyFacilities";
@@ -32,6 +40,7 @@ export function IntakeForm({ onSubmit }: { onSubmit: (input: IntakeInput) => voi
     campus: "",
     symptoms: "",
     symptom_codes: [],
+    consultation_mode: "chat",
   });
   const [agreed, setAgreed] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -242,6 +251,74 @@ export function IntakeForm({ onSubmit }: { onSubmit: (input: IntakeInput) => voi
           placeholder="Tell the doctor what you are feeling, for how long, and any medication you have taken."
           required
         />
+      </div>
+
+      {/* Consultation mode: chat vs voice/video call (chosen at registration) */}
+      <div className="space-y-1.5">
+        <Label>How would you like to consult?</Label>
+        <div className="grid grid-cols-2 gap-2">
+          <button
+            type="button"
+            aria-pressed={form.consultation_mode === "chat"}
+            onClick={() => set("consultation_mode", "chat")}
+            className={cn(
+              "space-y-1 rounded-xl border p-3 text-left transition-colors",
+              form.consultation_mode === "chat"
+                ? "border-primary bg-primary/10"
+                : "bg-card text-muted-foreground hover:border-primary/40",
+            )}
+          >
+            <MessageSquare
+              className={cn(
+                "size-4",
+                form.consultation_mode === "chat" ? "text-primary" : "text-muted-foreground",
+              )}
+            />
+            <span
+              className={cn(
+                "block text-xs font-semibold",
+                form.consultation_mode === "chat" && "text-primary",
+              )}
+            >
+              Text chat
+            </span>
+            <span className="block text-[10px] leading-relaxed">
+              Encrypted in-app messaging with the doctor.
+            </span>
+          </button>
+          <button
+            type="button"
+            aria-pressed={form.consultation_mode === "video"}
+            onClick={() => set("consultation_mode", "video")}
+            className={cn(
+              "space-y-1 rounded-xl border p-3 text-left transition-colors",
+              form.consultation_mode === "video"
+                ? "border-primary bg-primary/10"
+                : "bg-card text-muted-foreground hover:border-primary/40",
+            )}
+          >
+            <Video
+              className={cn(
+                "size-4",
+                form.consultation_mode === "video" ? "text-primary" : "text-muted-foreground",
+              )}
+            />
+            <span
+              className={cn(
+                "block text-xs font-semibold",
+                form.consultation_mode === "video" && "text-primary",
+              )}
+            >
+              Voice/video call
+            </span>
+            <span className="block text-[10px] leading-relaxed">
+              Audio-first call — camera stays off until you turn it on.
+            </span>
+          </button>
+        </div>
+        <p className="text-[10px] text-muted-foreground">
+          You can still use chat either way — this tells the doctor how you'd prefer to talk.
+        </p>
       </div>
 
       <label className="flex cursor-pointer items-start gap-3 rounded-xl border bg-secondary/50 p-3">

@@ -35,6 +35,7 @@ import { useClinic } from "@/lib/clinic-store";
 import { CONSULT_FEE_KES, LAB_ORDER_STATUS_LABELS, type LabResult } from "@/lib/clinic-types";
 import { supabase } from "@/lib/supabase";
 import { EMERGENCY_NOTICE, triage } from "@/lib/triage";
+import { cn } from "@/lib/utils";
 
 export const Route = createFileRoute("/")({
   head: () => ({
@@ -387,16 +388,29 @@ function PatientRouteComponent() {
                 ? "The doctor will accept your consultation shortly. Please keep this screen open."
                 : "The doctor is currently offline. You will be attended as soon as clinic hours resume."}
             </p>
+            {session.consultation_mode === "video" && (
+              <p className="mt-2 inline-flex items-center gap-1.5 rounded-full bg-primary/10 px-3 py-1 text-[11px] font-semibold text-primary">
+                <Video className="size-3" />
+                You requested a voice/video call — the doctor will call you once accepted
+              </p>
+            )}
           </div>
         )}
 
         {/* On-request voice/video call (active consultations only) */}
         {session.status === "active" && (
-          <div className="flex items-center justify-between gap-2 rounded-xl border bg-card px-3.5 py-2.5 shadow-card">
+          <div
+            className={cn(
+              "flex items-center justify-between gap-2 rounded-xl border px-3.5 py-2.5 shadow-card",
+              session.consultation_mode === "video" ? "border-primary/40 bg-primary/5" : "bg-card",
+            )}
+          >
             <p className="text-xs text-muted-foreground">
               {session.video_room_name
                 ? "The doctor opened a voice/video call — you can join now."
-                : "Prefer to talk it through? Start an on-request voice/video call."}
+                : session.consultation_mode === "video"
+                  ? "You registered for a voice/video call — start it whenever you're ready."
+                  : "Prefer to talk it through? Start an on-request voice/video call."}
             </p>
             <Button
               size="sm"

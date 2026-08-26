@@ -20,6 +20,7 @@ import {
   LAB_RESULT_STAGE_LABELS,
   type ChatMessage,
   type ClinicSettings,
+  type ConsultationMode,
   type ConsultSession,
   type LabOrder,
   type LabOrderStatus,
@@ -80,6 +81,7 @@ function seed(): State {
     emergency_flag: false,
     suggested_labs: ["Malaria smear + full blood count"],
     status: "waiting",
+    consultation_mode: "chat",
     paid: true,
     fee_kes: CONSULT_FEE_KES,
     mpesa_receipt: "QJT4RS9LMN",
@@ -101,6 +103,7 @@ function seed(): State {
     emergency_flag: false,
     suggested_labs: [],
     status: "active",
+    consultation_mode: "chat",
     paid: true,
     fee_kes: CONSULT_FEE_KES,
     mpesa_receipt: "QAA8811KLL",
@@ -122,6 +125,7 @@ function seed(): State {
     emergency_flag: false,
     suggested_labs: ["Stool analysis + H. pylori test"],
     status: "completed",
+    consultation_mode: "chat",
     paid: true,
     fee_kes: CONSULT_FEE_KES,
     mpesa_receipt: "QPP0099ZZA",
@@ -246,6 +250,8 @@ export interface IntakeInput {
   campus: string;
   symptoms: string;
   symptom_codes: string[];
+  /** Consultation preference picked at registration: text chat or voice/video call. */
+  consultation_mode: ConsultationMode;
 }
 
 interface ClinicApi {
@@ -536,6 +542,7 @@ export function ClinicProvider({ children }: { children: ReactNode }) {
             lab_test_requested?: boolean;
             patient_email?: string | null;
             video_room_name?: string | null;
+            consultation_mode?: string | null;
           };
           if (!row || !row.id) return;
 
@@ -579,6 +586,9 @@ export function ClinicProvider({ children }: { children: ReactNode }) {
           }
           if (row.video_room_name !== undefined) {
             patch.video_room_name = row.video_room_name;
+          }
+          if (row.consultation_mode !== undefined) {
+            patch.consultation_mode = row.consultation_mode === "video" ? "video" : "chat";
           }
 
           dispatch({
@@ -693,6 +703,7 @@ export function ClinicProvider({ children }: { children: ReactNode }) {
           emergency_flag: t.emergency,
           suggested_labs: t.labPanels,
           status: "awaiting_payment",
+          consultation_mode: input.consultation_mode,
           paid: false,
           fee_kes: CONSULT_FEE_KES,
           mpesa_receipt: null,
@@ -732,6 +743,7 @@ export function ClinicProvider({ children }: { children: ReactNode }) {
               symptoms_selected: input.symptom_codes,
               triage_level: t.level,
               status: "payment_pending",
+              consultation_mode: input.consultation_mode,
               ...(patientId ? { patient_id: patientId } : {}),
             });
             if (error) console.error("Supabase consultation insert failed:", error.message);

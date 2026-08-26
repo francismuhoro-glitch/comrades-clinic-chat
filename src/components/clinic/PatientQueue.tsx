@@ -1,4 +1,4 @@
-import { Clock, FlaskConical, MessageSquare, Siren, Stethoscope } from "lucide-react";
+import { Clock, FlaskConical, MessageSquare, Siren, Stethoscope, Video } from "lucide-react";
 
 import { cn } from "@/lib/utils";
 import type { ConsultSession } from "@/lib/clinic-types";
@@ -72,6 +72,11 @@ export function PatientQueue({
               <span className="rounded-full bg-success/15 px-2 py-0.5 text-[10px] font-semibold text-success">
                 Paid KSh {s.fee_kes}
               </span>
+              {s.consultation_mode === "video" && (
+                <span className="flex items-center gap-1 rounded-full bg-primary/10 px-2 py-0.5 text-[10px] font-semibold text-primary">
+                  <Video className="size-2.5" /> Wants voice/video
+                </span>
+              )}
               {s.mpesa_receipt && (
                 <span className="rounded-full bg-muted px-2 py-0.5 text-[10px] font-medium text-muted-foreground">
                   {s.mpesa_receipt}

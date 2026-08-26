@@ -88,7 +88,14 @@ manually — it is not part of the app deploy**. It is idempotent and:
 - creates the ownership-enforcing `get_video_room_name(p_consultation_id)` RPC
   (executable by authenticated users only).
 
-Until the migration is applied the app keeps working; starting a call simply
+Patients can also **choose their consultation preference while registering**
+(intake): "Text chat" or "Voice/video call". The choice is stored in
+`consultations.consultation_mode`, shown as a "Wants voice/video" badge in the
+doctor's queue, and pre-highlights the call affordances for the patient. To
+store it, also run
+[`supabase/migrations/20260826090000_consultation_mode.sql`](../supabase/migrations/20260826090000_consultation_mode.sql)
+in the SQL editor (idempotent, applied manually like the one above). Until
+these migrations are applied the app keeps working; starting a call simply
 ends in the chat fallback.
 
 ## Security roadmap

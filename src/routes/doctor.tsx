@@ -1,5 +1,6 @@
 import { createFileRoute, Link, useRouter } from "@tanstack/react-router";
 import {
+  CalendarCheck,
   Check,
   CreditCard,
   LogOut,
@@ -31,6 +32,12 @@ import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { NotificationBell } from "@/components/clinic/NotificationBell";
+import {
+  appointmentWhen,
+  setAppointmentStatus,
+  useAppointments,
+  type Appointment,
+} from "@/lib/appointments";
 import { useClinic } from "@/lib/clinic-store";
 import { DOCTOR } from "@/lib/clinic-types";
 import { getCurrentDoctor, logoutDoctor, type AuthenticatedDoctor } from "@/lib/doctor-auth";
@@ -104,6 +111,10 @@ function DoctorPortal({ authenticatedDoctor }: { authenticatedDoctor: Authentica
   const [savingSettings, setSavingSettings] = useState(false);
   const [videoCallOpen, setVideoCallOpen] = useState(false);
   const [queueRange, setQueueRange] = useState<QueueRange>("today");
+
+  // Scheduled appointment requests (live).
+  const { appointments: appointmentList, loading: appointmentsLoading } = useAppointments();
+  const pendingBookings = appointmentList.filter((a) => a.status === "pending");
 
   const selectedSession = getSession(selectedId);
 
@@ -314,8 +325,17 @@ function DoctorPortal({ authenticatedDoctor }: { authenticatedDoctor: Authentica
               <TabsTrigger className="flex-1" value="active">
                 Active
               </TabsTrigger>
-              <TabsTrigger className="flex-1" value="completed">
+              <TabsTrigger className="flex-1 relative" value="completed">
                 Done
+              </TabsTrigger>
+              <TabsTrigger className="flex-1 relative" value="bookings">
+                <CalendarCheck className="size-3.5 mr-1" />
+                Bookings
+                {pendingBookings.length > 0 && (
+                  <span className="ml-1.5 rounded-full bg-warning px-1.5 py-0.2 text-[10px] font-bold text-warning-foreground">
+                    {pendingBookings.length}
+                  </span>
+                )}
               </TabsTrigger>
             </TabsList>
 
@@ -414,6 +434,15 @@ function DoctorPortal({ authenticatedDoctor }: { authenticatedDoctor: Authentica
                 actionLabel="View record"
               />
             </TabsContent>
+
+            {/* Scheduled Appointments Tab Content */}
+            <TabsContent value="bookings" className="mt-3">
+              <BookingsTab
+                appointments={appointmentList}
+                loading={appointmentsLoading}
+                pendingCount={pendingBookings.length}
+              />
+            </TabsContent>
           </Tabs>
         </section>
 
@@ -499,5 +528,141 @@ function DoctorPortal({ authenticatedDoctor }: { authenticatedDoctor: Authentica
         />
       )}
     </main>
+  );
+}
+
+/** Doctor-side scheduled appointment manager (Bookings tab). */
+function BookingsTab({
+  appointments,
+  loading,
+  pendingCount,
+}: {
+  appointments: Appointment[];
+  loading: boolean;
+  pendingCount: number;
+}) {
+  const [busyId, setBusyId] = useState<string | null>(null);
+  const [actionError, setActionError] = useState<string | null>(null);
+
+  const pending = appointments.filter((a) => a.status === "pending");
+  const confirmed = appointments.filter((a) => a.status === "confirmed");
+  const settled = appointments.filter((a) => a.status === "completed" || a.status === "declined");
+
+  const act = async (appointment: Appointment, status: "confirmed" | "declined" | "completed") => {
+    setBusyId(appointment.id);
+    setActionError(null);
+    const result = await setAppointmentStatus(appointment, status);
+    setBusyId(null);
+    if (!result.ok) setActionError(result.error);
+  };
+
+  const row = (a: Appointment, actions: React.ReactNode) => (
+    <div key={a.id} className="rounded-xl border bg-card p-3">
+      <div className="flex flex-wrap items-center justify-between gap-2">
+        <div className="min-w-0">
+          <p className="text-xs font-bold">
+            {a.patient_name}
+            <span className="ml-1.5 font-medium text-primary">{appointmentWhen(a)}</span>
+          </p>
+          <p className="text-[11px] text-muted-foreground">
+            {a.campus || "Campus not set"} · {a.patient_phone}
+          </p>
+          {a.reason && (
+            <p className="mt-1 line-clamp-2 text-[11px] leading-snug text-foreground/80">
+              {a.reason}
+            </p>
+          )}
+        </div>
+        <div className="flex shrink-0 items-center gap-1.5">{actions}</div>
+      </div>
+    </div>
+  );
+
+  const btn = (label: string, status: "confirmed" | "declined" | "completed", a: Appointment) => (
+    <button
+      type="button"
+      disabled={busyId === a.id}
+      onClick={() => void act(a, status)}
+      className={cn(
+        "rounded-lg px-2.5 py-1 text-[11px] font-bold transition-colors disabled:opacity-50",
+        status === "declined"
+          ? "border border-destructive/40 text-destructive hover:bg-destructive/10"
+          : "bg-primary text-primary-foreground hover:bg-primary/90",
+      )}
+    >
+      {busyId === a.id ? "…" : label}
+    </button>
+  );
+
+  if (loading) {
+    return <p className="py-6 text-center text-xs text-muted-foreground">Loading bookings…</p>;
+  }
+
+  return (
+    <div className="space-y-3">
+      {actionError && (
+        <p className="rounded-xl border border-destructive/40 bg-destructive/10 px-3 py-2 text-xs font-medium text-destructive">
+          {actionError}
+        </p>
+      )}
+
+      <div className="space-y-2">
+        <p className="text-[11px] font-bold uppercase tracking-wide text-muted-foreground">
+          Requests ({pendingCount})
+        </p>
+        {pending.length === 0 ? (
+          <p className="rounded-xl border border-dashed bg-card px-4 py-6 text-center text-xs text-muted-foreground">
+            No new appointment requests.
+          </p>
+        ) : (
+          pending.map((a) =>
+            row(
+              a,
+              <>
+                {btn("Confirm", "confirmed", a)}
+                {btn("Decline", "declined", a)}
+              </>,
+            ),
+          )
+        )}
+      </div>
+
+      {confirmed.length > 0 && (
+        <div className="space-y-2">
+          <p className="text-[11px] font-bold uppercase tracking-wide text-muted-foreground">
+            Confirmed upcoming
+          </p>
+          {confirmed.map((a) =>
+            row(
+              a,
+              <>
+                <span className="rounded-full bg-primary/10 px-2 py-0.5 text-[10px] font-bold text-primary">
+                  Confirmed
+                </span>
+                {btn("Done", "completed", a)}
+              </>,
+            ),
+          )}
+        </div>
+      )}
+
+      {settled.length > 0 && (
+        <details className="rounded-xl border bg-card p-3">
+          <summary className="cursor-pointer text-[11px] font-bold text-muted-foreground">
+            Past bookings ({settled.length})
+          </summary>
+          <div className="mt-2 space-y-2">
+            {settled.map((a) =>
+              row(
+                a,
+                <span className="rounded-full bg-muted px-2 py-0.5 text-[10px] font-bold text-muted-foreground">
+                  {a.status}
+                </span>,
+              ),
+            )}
+          </div>
+        </details>
+      )}
+    </div>
   );
 }

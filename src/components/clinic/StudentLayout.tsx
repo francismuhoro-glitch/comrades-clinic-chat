@@ -102,6 +102,12 @@ export function StudentLayout({
             >
               Wellness Hub
             </a>
+            <a
+              href="/book"
+              className="hover:text-primary transition-colors underline-offset-4 hover:underline"
+            >
+              Book
+            </a>
             <span>·</span>
             <a
               href="/privacy"

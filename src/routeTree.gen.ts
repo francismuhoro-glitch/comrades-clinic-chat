@@ -11,6 +11,7 @@
 import { Route as rootRouteImport } from './routes/__root'
 import { Route as IndexRouteImport } from './routes/index'
 import { Route as AdminRouteImport } from './routes/admin'
+import { Route as BookRouteImport } from './routes/book'
 import { Route as DoctorRouteImport } from './routes/doctor'
 import { Route as PrivacyRouteImport } from './routes/privacy'
 import { Route as TermsRouteImport } from './routes/terms'
@@ -25,6 +26,11 @@ const IndexRoute = IndexRouteImport.update({
 const AdminRoute = AdminRouteImport.update({
   id: '/admin',
   path: '/admin',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const BookRoute = BookRouteImport.update({
+  id: '/book',
+  path: '/book',
   getParentRoute: () => rootRouteImport,
 } as any)
 const DoctorRoute = DoctorRouteImport.update({
@@ -56,6 +62,7 @@ const WellnessRoute = WellnessRouteImport.update({
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
   '/admin': typeof AdminRoute
+  '/book': typeof BookRoute
   '/doctor': typeof DoctorRoute
   '/privacy': typeof PrivacyRoute
   '/terms': typeof TermsRoute
@@ -65,6 +72,7 @@ export interface FileRoutesByFullPath {
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
   '/admin': typeof AdminRoute
+  '/book': typeof BookRoute
   '/doctor': typeof DoctorRoute
   '/privacy': typeof PrivacyRoute
   '/terms': typeof TermsRoute
@@ -75,6 +83,7 @@ export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/': typeof IndexRoute
   '/admin': typeof AdminRoute
+  '/book': typeof BookRoute
   '/doctor': typeof DoctorRoute
   '/privacy': typeof PrivacyRoute
   '/terms': typeof TermsRoute
@@ -84,14 +93,29 @@ export interface FileRoutesById {
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
   fullPaths:
-    '/' | '/admin' | '/doctor' | '/privacy' | '/terms' | '/visits' | '/wellness'
+    | '/'
+    | '/admin'
+    | '/book'
+    | '/doctor'
+    | '/privacy'
+    | '/terms'
+    | '/visits'
+    | '/wellness'
   fileRoutesByTo: FileRoutesByTo
   to:
-    '/' | '/admin' | '/doctor' | '/privacy' | '/terms' | '/visits' | '/wellness'
+    | '/'
+    | '/admin'
+    | '/book'
+    | '/doctor'
+    | '/privacy'
+    | '/terms'
+    | '/visits'
+    | '/wellness'
   id:
     | '__root__'
     | '/'
     | '/admin'
+    | '/book'
     | '/doctor'
     | '/privacy'
     | '/terms'
@@ -102,6 +126,7 @@ export interface FileRouteTypes {
 export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
   AdminRoute: typeof AdminRoute
+  BookRoute: typeof BookRoute
   DoctorRoute: typeof DoctorRoute
   PrivacyRoute: typeof PrivacyRoute
   TermsRoute: typeof TermsRoute
@@ -123,6 +148,13 @@ declare module '@tanstack/react-router' {
       path: '/admin'
       fullPath: '/admin'
       preLoaderRoute: typeof AdminRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/book': {
+      id: '/book'
+      path: '/book'
+      fullPath: '/book'
+      preLoaderRoute: typeof BookRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/doctor': {
@@ -166,6 +198,7 @@ declare module '@tanstack/react-router' {
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
   AdminRoute: AdminRoute,
+  BookRoute: BookRoute,
   DoctorRoute: DoctorRoute,
   PrivacyRoute: PrivacyRoute,
   TermsRoute: TermsRoute,

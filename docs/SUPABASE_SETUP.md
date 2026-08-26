@@ -141,6 +141,17 @@ The 🔔 bells in the student header and doctor portal then deliver live alerts 
 new patient in queue, payment to verify, doctor is ready, prescription/lab/referral
 updates. No extra API keys required.
 
+## 8. PWA & background push
+
+The app is an installable PWA (manifest, icons, offline fallback, service
+worker). To deliver **background push** ("doctor is ready!" with all tabs
+closed), run
+[`supabase/migrations/20260827150000_push_subscriptions.sql`](../supabase/migrations/20260827150000_push_subscriptions.sql)
+in the SQL editor, then set `VAPID_PRIVATE_KEY` (+ optionally
+`VITE_VAPID_PUBLIC_KEY`, `VAPID_SUBJECT`) on the server — generation
+instructions are in `.env.example`. Without the private key the in-app bell
+still works; pushes are simply skipped.
+
 ## Security roadmap
 
 The migration ships transitional permissive policies so the current

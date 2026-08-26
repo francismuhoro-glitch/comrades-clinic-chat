@@ -1,9 +1,11 @@
 import { Link } from "@tanstack/react-router";
-import { Bell, BellRing, CheckCheck } from "lucide-react";
-import { useState } from "react";
+import { Bell, BellPlus, BellRing, CheckCheck } from "lucide-react";
+import { useEffect, useState } from "react";
 
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { useNotifications, type NotificationAudience } from "@/lib/notifications";
+import { isPushSubscribed, subscribeToPush } from "@/lib/push-client";
+import { supabase } from "@/lib/supabase";
 
 function timeAgo(iso: string): string {
   const seconds = Math.floor((Date.now() - new Date(iso).getTime()) / 1000);
@@ -37,6 +39,35 @@ export function NotificationBell({
     consultationId,
   });
   const [open, setOpen] = useState(false);
+  const [pushState, setPushState] = useState<"off" | "on" | "busy">("off");
+
+  // Refresh push state whenever the popover opens.
+  useEffect(() => {
+    if (!open) return;
+    void (async () => {
+      const subscribed = await isPushSubscribed();
+      setPushState(subscribed ? "on" : "off");
+    })();
+  }, [open]);
+
+  const enablePush = async () => {
+    setPushState("busy");
+    try {
+      let recipient: string | null = null;
+      if (audience === "patient") {
+        try {
+          const { data } = await supabase.auth.getUser();
+          recipient = data.user?.id ?? null;
+        } catch {
+          recipient = null;
+        }
+      }
+      const result = await subscribeToPush(audience, recipient);
+      setPushState(result.ok ? "on" : "off");
+    } catch {
+      setPushState("off");
+    }
+  };
 
   return (
     <Popover open={open} onOpenChange={setOpen}>
@@ -114,6 +145,20 @@ export function NotificationBell({
               </li>
             ))}
           </ul>
+        )}
+
+        {pushState === "off" && (
+          <div className="border-t px-3 py-2">
+            <button
+              type="button"
+              onClick={() => void enablePush()}
+              className="flex w-full items-center gap-2 rounded-lg px-1 py-1 text-left text-[11px] font-bold text-primary hover:underline"
+            >
+              <BellPlus className="size-3.5" />
+              Turn on background alerts
+              <span className="ml-auto font-medium text-muted-foreground">even offline</span>
+            </button>
+          </div>
         )}
 
         {audience === "patient" && (

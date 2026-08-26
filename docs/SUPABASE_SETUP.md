@@ -98,6 +98,14 @@ in the SQL editor (idempotent, applied manually like the one above). Until
 these migrations are applied the app keeps working; starting a call simply
 ends in the chat fallback.
 
+**If calls report "the call room did not respond in time":** your network or
+browser is blocking the embedded meet.jit.si room (some networks, Safari
+private mode, and strict ad-blockers do). Options: use the **"Open in new
+tab"** button shown in the call window — it opens the same room directly —
+or point the whole app at a different Jitsi instance by setting the optional
+`VITE_JITSI_DOMAIN` variable (e.g. your own self-hosted Jitsi) and
+redeploying. No keys are required either way.
+
 ## Security roadmap
 
 The migration ships transitional permissive policies so the current

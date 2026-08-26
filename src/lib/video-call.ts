@@ -16,10 +16,15 @@ import { createServerFn } from "@tanstack/react-start";
 import { z } from "zod";
 
 import { getCurrentDoctor } from "./doctor-auth";
-import { isSupabaseConfigured, supabase, getVideoRoomName } from "./supabase";
+import {
+  configuredJitsiDomain,
+  isSupabaseConfigured,
+  supabase,
+  getVideoRoomName,
+} from "./supabase";
 
-/** Public Jitsi instance — no credentials needed. */
-export const JITSI_DOMAIN = "meet.jit.si";
+/** Public Jitsi instance — no credentials needed. Overridable via VITE_JITSI_DOMAIN. */
+export const JITSI_DOMAIN = configuredJitsiDomain || "meet.jit.si";
 
 // ---------------------------------------------------------------------------
 // Server function: authorise + assign the one-time room name

@@ -23,6 +23,13 @@ const supabaseAnonKey = getEnv("VITE_SUPABASE_ANON_KEY") || "placeholder-anon-ke
 export const isSupabaseConfigured =
   Boolean(getEnv("VITE_SUPABASE_URL")) && Boolean(getEnv("VITE_SUPABASE_ANON_KEY"));
 
+/**
+ * Optional Jitsi domain override for deployments whose network blocks
+ * meet.jit.si. No keys — point VITE_JITSI_DOMAIN at any public/self-hosted
+ * Jitsi instance that allows iframe embedding. Defaults to meet.jit.si.
+ */
+export const configuredJitsiDomain = getEnv("VITE_JITSI_DOMAIN").trim();
+
 export const supabase = createClient(supabaseUrl, supabaseAnonKey);
 
 /**

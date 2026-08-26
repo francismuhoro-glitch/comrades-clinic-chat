@@ -62,6 +62,11 @@ self.addEventListener("push", (event) => {
       badge: "/icons/icon-192.png",
       tag: payload.tag || "comracare",
       data: { url: payload.url || "/visits" },
+      // Ask the device to buzz and re-alert on repeat notifications (some
+      // Android channels start silent — the OS setting can override this).
+      silent: false,
+      renotify: true,
+      vibrate: [300, 120, 300],
     }),
   );
 });

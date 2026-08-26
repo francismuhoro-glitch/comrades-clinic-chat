@@ -61,6 +61,10 @@ export function VideoCall({ consultation, viewer, displayName, onClose }: VideoC
   const [videoEnabled, setVideoEnabled] = useState(false);
   const [failReason, setFailReason] = useState<string>("");
   const [roomUrl, setRoomUrl] = useState<string | null>(null);
+  // True once the Jitsi iframe exists. From that point the frame must stay
+  // visible and clickable: meet.jit.si can render a CAPTCHA or consent prompt
+  // that only the user can interact with, and covering it stalls the join.
+  const [apiReady, setApiReady] = useState(false);
 
   // Resolved once per open call — realtime store patches must not re-create it.
   const consultationId = consultation.id;
@@ -110,7 +114,7 @@ export function VideoCall({ consultation, viewer, displayName, onClose }: VideoC
       if (!cancelled && !joined) {
         hangUp();
         setFailReason(
-          "The call room did not respond in time — your network may be blocking meet.jit.si.",
+          `The call room did not respond within ${JOIN_TIMEOUT_MS / 1000}s. ${JITSI_DOMAIN} may be asking for a CAPTCHA, or your network/browser (especially Safari private mode) is blocking the embedded room — try “Open in new tab”.`,
         );
         setPhase("unavailable");
       }
@@ -157,6 +161,7 @@ export function VideoCall({ consultation, viewer, displayName, onClose }: VideoC
           },
         });
         apiRef.current = api;
+        setApiReady(true);
 
         api.addEventListeners({
           videoConferenceJoined: () => {
@@ -240,48 +245,58 @@ export function VideoCall({ consultation, viewer, displayName, onClose }: VideoC
           </Button>
         </div>
 
-        {/* Jitsi iframe mounts here; status / fallback layers sit on top. */}
+        {/* Jitsi iframe mounts here. While the API loads a status card covers
+            it; once the iframe exists it stays visible AND clickable — Jitsi
+            may need the user to solve a CAPTCHA or consent prompt. */}
         <div ref={containerRef} className="relative min-h-0 flex-1 bg-black">
-          {phase !== "in_call" && (
+          {phase === "connecting" && !apiReady && (
             <div className="absolute inset-0 flex flex-col items-center justify-center gap-3 bg-card p-6 text-center">
-              {phase === "connecting" ? (
-                <>
-                  <Loader2 className="size-6 animate-spin text-primary" />
-                  <p className="text-xs font-medium text-muted-foreground">
-                    Opening a private call room…
-                  </p>
-                  <p className="max-w-xs text-[11px] leading-relaxed text-muted-foreground">
-                    If your browser asks for microphone access, choose Allow — the call starts
-                    audio-first with the camera off.
-                  </p>
-                </>
-              ) : (
-                <div className="space-y-3">
-                  <p className="max-w-xs text-xs font-semibold">Video isn't available right now.</p>
-                  {failReason && (
-                    <p className="max-w-xs text-[11px] leading-relaxed text-muted-foreground">
-                      {failReason}
-                    </p>
-                  )}
-                  <div className="flex flex-wrap items-center justify-center gap-2">
-                    {roomUrl && (
-                      <Button
-                        size="sm"
-                        variant="outline"
-                        className="gap-1.5 text-xs font-bold"
-                        onClick={() => window.open(roomUrl, "_blank", "noopener")}
-                      >
-                        <ExternalLink className="size-3.5" />
-                        Open in new tab
-                      </Button>
-                    )}
-                    <Button size="sm" className="gap-1.5 text-xs font-bold" onClick={leaveCall}>
-                      <MessageSquare className="size-3.5" />
-                      Continue via chat
-                    </Button>
-                  </div>
-                </div>
+              <Loader2 className="size-6 animate-spin text-primary" />
+              <p className="text-xs font-medium text-muted-foreground">
+                Opening a private call room…
+              </p>
+              <p className="max-w-xs text-[11px] leading-relaxed text-muted-foreground">
+                If your browser asks for microphone access, choose Allow — the call starts
+                audio-first with the camera off.
+              </p>
+            </div>
+          )}
+          {phase === "connecting" && roomUrl && (
+            <Button
+              size="sm"
+              variant="outline"
+              className="absolute right-3 top-3 z-10 gap-1.5 bg-card/90 text-[11px] font-bold shadow-card backdrop-blur"
+              onClick={() => window.open(roomUrl, "_blank", "noopener")}
+            >
+              <ExternalLink className="size-3" />
+              Open in new tab
+            </Button>
+          )}
+          {phase === "unavailable" && (
+            <div className="absolute inset-0 z-10 flex flex-col items-center justify-center gap-3 bg-card p-6 text-center">
+              <p className="max-w-xs text-xs font-semibold">Video isn't available right now.</p>
+              {failReason && (
+                <p className="max-w-xs text-[11px] leading-relaxed text-muted-foreground">
+                  {failReason}
+                </p>
               )}
+              <div className="flex flex-wrap items-center justify-center gap-2">
+                {roomUrl && (
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    className="gap-1.5 text-xs font-bold"
+                    onClick={() => window.open(roomUrl, "_blank", "noopener")}
+                  >
+                    <ExternalLink className="size-3.5" />
+                    Open in new tab
+                  </Button>
+                )}
+                <Button size="sm" className="gap-1.5 text-xs font-bold" onClick={leaveCall}>
+                  <MessageSquare className="size-3.5" />
+                  Continue via chat
+                </Button>
+              </div>
             </div>
           )}
         </div>

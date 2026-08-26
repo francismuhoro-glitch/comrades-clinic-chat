@@ -1,6 +1,8 @@
 // Domain types for the clinic. Kept framework-agnostic so they can be reused
 // verbatim as Supabase row types later.
 
+import type { SmartTriageAnswers } from "./smart-triage";
+
 export type SessionStatus = "awaiting_payment" | "waiting" | "active" | "completed";
 
 export type Sender = "student" | "doctor" | "system";
@@ -218,6 +220,8 @@ export interface ConsultSession {
   status: SessionStatus;
   /** Consultation preference the patient selected at intake. */
   consultation_mode: ConsultationMode;
+  /** Smart-triage follow-up answers (duration, severity, red-flag screeners). */
+  triage_answers?: SmartTriageAnswers | null | undefined;
   paid: boolean;
   fee_kes: number;
   mpesa_receipt: string | null;

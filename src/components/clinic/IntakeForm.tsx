@@ -33,6 +33,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { useClinic, type IntakeInput } from "@/lib/clinic-store";
 import { CONSULT_FEE_KES } from "@/lib/clinic-types";
 import { usePatientAuth } from "@/lib/patient-auth";
+import { questionsFor, summarizeSmartTriage, type SmartTriageAnswers } from "@/lib/smart-triage";
 import { EMERGENCY_NOTICE, SYMPTOM_OPTIONS, symptomLabel, triage } from "@/lib/triage";
 import { cn } from "@/lib/utils";
 import { consumeIntakeSymptoms } from "@/lib/wellness";
@@ -86,6 +87,7 @@ export function IntakeForm({ onSubmit }: { onSubmit: (input: IntakeInput) => voi
   });
   const [agreed, setAgreed] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [smartAnswers, setSmartAnswers] = useState<SmartTriageAnswers>({});
 
   // Auto-prefill email if patient is signed in
   useEffect(() => {
@@ -118,6 +120,18 @@ export function IntakeForm({ onSubmit }: { onSubmit: (input: IntakeInput) => voi
         : [...f.symptom_codes, code],
     }));
 
+  // Drop answers for questions that no longer apply (symptom deselected).
+  useEffect(() => {
+    setSmartAnswers((prev) => {
+      const applicable = new Set(questionsFor(form.symptom_codes).map((q) => q.id));
+      const next = Object.fromEntries(Object.entries(prev).filter(([id]) => applicable.has(id)));
+      return Object.keys(next).length === Object.keys(prev).length ? prev : next;
+    });
+  }, [form.symptom_codes]);
+
+  const smartQuestions = questionsFor(form.symptom_codes);
+  const smartSummary = summarizeSmartTriage(form.symptom_codes, smartAnswers);
+
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     if (!form.full_name.trim() || !form.phone.trim() || !form.campus || !form.symptoms.trim()) {
@@ -139,12 +153,19 @@ export function IntakeForm({ onSubmit }: { onSubmit: (input: IntakeInput) => voi
       setError("Select at least one symptom so we can triage your case.");
       return;
     }
+    if (smartQuestions.some((q) => !smartAnswers[q.id])) {
+      setError("Please answer the quick questions so the doctor gets the full picture.");
+      return;
+    }
     if (!agreed) {
       setError("Please accept the medical disclaimer to continue.");
       return;
     }
     setError(null);
-    onSubmit(form);
+    onSubmit({
+      ...form,
+      ...(Object.keys(smartAnswers).length > 0 ? { triage_answers: smartAnswers } : {}),
+    });
   };
 
   const commonSymptoms = SYMPTOM_OPTIONS.filter((s) => s.level !== "emergency");
@@ -385,9 +406,59 @@ export function IntakeForm({ onSubmit }: { onSubmit: (input: IntakeInput) => voi
         </div>
       </Section>
 
-      {/* ── Step 3 · How would you like to consult? ─────────────────────── */}
+      {/* ── Step 4 · How would you like to consult? ─────────────────────── */}
+      {/* ── Step 3 · Quick questions (smart triage) ─────────────────────── */}
+      {smartQuestions.length > 0 && (
+        <Section
+          step={3}
+          icon={Siren}
+          title="A few quick questions"
+          hint="30 seconds — this tells the doctor how urgent things are before the chat even starts."
+        >
+          {smartSummary.redFlags.length > 0 && (
+            <p className="mb-3 flex items-start gap-2 rounded-lg border border-destructive bg-destructive/10 p-2.5 text-[11px] font-semibold text-destructive">
+              <Siren className="mt-0.5 size-3.5 shrink-0" />
+              One of your answers is an emergency sign. The doctor will prioritise you — but if
+              things are severe right now, go to the nearest hospital or call 999 / 112.
+            </p>
+          )}
+          <div className="space-y-3.5">
+            {smartQuestions.map((q) => (
+              <div key={q.id} className="space-y-1.5">
+                <p className="text-xs font-bold leading-snug">{q.question}</p>
+                {q.hint && <p className="text-[10px] text-muted-foreground">{q.hint}</p>}
+                <div className="grid grid-cols-1 gap-1.5 sm:grid-cols-2">
+                  {q.options.map((option) => {
+                    const active = smartAnswers[q.id] === option.label;
+                    return (
+                      <button
+                        key={option.label}
+                        type="button"
+                        onClick={() =>
+                          setSmartAnswers((prev) => ({ ...prev, [q.id]: option.label }))
+                        }
+                        className={cn(
+                          "rounded-xl border px-2.5 py-1.5 text-left text-[11px] font-semibold transition-colors",
+                          active
+                            ? option.redFlag
+                              ? "border-destructive bg-destructive text-white shadow-sm"
+                              : "border-primary bg-primary text-primary-foreground shadow-sm"
+                            : "bg-card text-muted-foreground hover:border-primary/40 hover:text-foreground",
+                        )}
+                      >
+                        {option.label}
+                      </button>
+                    );
+                  })}
+                </div>
+              </div>
+            ))}
+          </div>
+        </Section>
+      )}
+
       <Section
-        step={3}
+        step={4}
         icon={Video}
         title="How would you like to consult?"
         hint="Chat is always available either way — this tells the doctor your preference."

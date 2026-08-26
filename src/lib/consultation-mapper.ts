@@ -2,6 +2,7 @@
 // Kept in its own module so both the clinic store and the visits page share
 // one source of truth for the mapping.
 
+import type { SmartTriageAnswers } from "./smart-triage";
 import {
   CONSULT_FEE_KES,
   type ConsultSession,
@@ -32,6 +33,7 @@ export interface ConsultationRow {
   patient_id?: string | null;
   video_room_name?: string | null;
   consultation_mode?: string | null;
+  triage_answers?: SmartTriageAnswers | null;
   created_at?: string | null;
   ended_at?: string | null;
 }
@@ -59,6 +61,7 @@ export function mapConsultationRow(row: ConsultationRow): ConsultSession {
     suggested_labs: [],
     status: mappedStatus,
     consultation_mode: row.consultation_mode === "video" ? "video" : "chat",
+    triage_answers: row.triage_answers ?? null,
     paid:
       Boolean(row.paid) ||
       row.payment_status === "confirmed" ||

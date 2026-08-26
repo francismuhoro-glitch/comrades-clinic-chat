@@ -10,6 +10,7 @@ import {
 } from "react";
 import { decryptMessage, encryptMessage } from "./crypto";
 import { sendNotification } from "./notifications";
+import { finalTriageLevel, summarizeSmartTriage, type SmartTriageAnswers } from "./smart-triage";
 import { supabase } from "./supabase";
 import { mapConsultationRow, type ConsultationRow } from "./consultation-mapper";
 
@@ -253,6 +254,8 @@ export interface IntakeInput {
   symptom_codes: string[];
   /** Consultation preference picked at registration: text chat or voice/video call. */
   consultation_mode: ConsultationMode;
+  /** Smart-triage follow-up answers from the intake's quick questions. */
+  triage_answers?: SmartTriageAnswers | null | undefined;
 }
 
 interface ClinicApi {
@@ -692,6 +695,8 @@ export function ClinicProvider({ children }: { children: ReactNode }) {
       },
       createSession: (input) => {
         const t = triage(input.symptom_codes);
+        const smart = summarizeSmartTriage(input.symptom_codes, input.triage_answers);
+        const level = finalTriageLevel(t.level, smart);
         const session: ConsultSession = {
           id: uid(),
           full_name: input.full_name,
@@ -700,8 +705,8 @@ export function ClinicProvider({ children }: { children: ReactNode }) {
           campus: input.campus,
           symptoms: input.symptoms,
           symptom_codes: input.symptom_codes,
-          triage_level: t.level,
-          emergency_flag: t.emergency,
+          triage_level: level,
+          emergency_flag: level === "emergency",
           suggested_labs: t.labPanels,
           status: "awaiting_payment",
           consultation_mode: input.consultation_mode,
@@ -742,9 +747,10 @@ export function ClinicProvider({ children }: { children: ReactNode }) {
               campus: input.campus,
               symptoms_description: input.symptoms,
               symptoms_selected: input.symptom_codes,
-              triage_level: t.level,
+              triage_level: level,
               status: "payment_pending",
               consultation_mode: input.consultation_mode,
+              ...(input.triage_answers ? { triage_answers: input.triage_answers } : {}),
               ...(patientId ? { patient_id: patientId } : {}),
             });
             if (error) {

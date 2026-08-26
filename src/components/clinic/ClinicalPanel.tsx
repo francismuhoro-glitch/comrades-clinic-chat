@@ -43,6 +43,7 @@ import {
 import { FALLBACK_FACILITIES, loadFacilitiesFromSupabase, type Facility } from "@/lib/facilities";
 import { supabase } from "@/lib/supabase";
 import { sendVisitReportFn } from "@/lib/send-visit-report";
+import { summarizeSmartTriage } from "@/lib/smart-triage";
 import { symptomLabel, triage } from "@/lib/triage";
 import { cn } from "@/lib/utils";
 
@@ -553,6 +554,53 @@ export function ClinicalPanel({ session }: { session: ConsultSession }) {
             care and consider a referral.
           </p>
         )}
+
+        {session.triage_answers &&
+          (() => {
+            const smart = summarizeSmartTriage(session.symptom_codes, session.triage_answers);
+            return (
+              <div className="mt-3 space-y-2 rounded-xl border bg-primary/5 p-3">
+                <p className="flex items-center gap-1.5 text-[11px] font-extrabold text-primary">
+                  <Sparkles className="size-3.5" />
+                  Pre-consult summary (patient intake)
+                </p>
+                <div className="flex flex-wrap gap-1.5">
+                  {smart.duration && (
+                    <span className="rounded-full bg-primary/10 px-2 py-0.5 text-[10px] font-bold text-primary">
+                      Duration: {smart.duration}
+                    </span>
+                  )}
+                  {smart.severity && (
+                    <span className="rounded-full bg-primary/10 px-2 py-0.5 text-[10px] font-bold text-primary">
+                      Impact: {smart.severity}
+                    </span>
+                  )}
+                </div>
+                {smart.redFlags.length > 0 && (
+                  <ul className="space-y-1 rounded-lg border border-destructive/40 bg-destructive/10 p-2">
+                    {smart.redFlags.map((flag) => (
+                      <li
+                        key={flag}
+                        className="flex items-start gap-1.5 text-[11px] font-semibold text-destructive"
+                      >
+                        <ShieldAlert className="mt-0.5 size-3 shrink-0" />
+                        {flag}
+                      </li>
+                    ))}
+                  </ul>
+                )}
+                {smart.detail.length > 0 && (
+                  <ul className="space-y-0.5">
+                    {smart.detail.map((line) => (
+                      <li key={line} className="text-[11px] leading-snug text-muted-foreground">
+                        · {line}
+                      </li>
+                    ))}
+                  </ul>
+                )}
+              </div>
+            );
+          })()}
 
         {assessment.labRecommended && (
           <p className="mt-3 flex items-start gap-2 rounded-lg border border-warning bg-warning/12 p-2.5 text-xs text-warning-foreground">

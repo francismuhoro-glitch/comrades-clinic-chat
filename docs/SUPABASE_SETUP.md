@@ -106,6 +106,14 @@ or point the whole app at a different Jitsi instance by setting the optional
 `VITE_JITSI_DOMAIN` variable (e.g. your own self-hosted Jitsi) and
 redeploying. No keys are required either way.
 
+**How the call opens, by domain:** on the default **meet.jit.si** the room
+opens in its **own browser tab** — meet.jit.si disconnects rooms _embedded_
+in an iframe after ~5 minutes ("demo purposes"), while tab-based rooms have
+no such limit, and a new tab works on every host and browser. If you set
+`VITE_JITSI_DOMAIN` to your own self-hosted instance (or a JAAS app), calls
+**embed inside the app** instead — self-hosted instances have no 5-minute
+embedding restriction.
+
 ## Security roadmap
 
 The migration ships transitional permissive policies so the current

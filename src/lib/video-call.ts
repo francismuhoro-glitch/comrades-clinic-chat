@@ -26,6 +26,16 @@ import {
 /** Public Jitsi instance — no credentials needed. Overridable via VITE_JITSI_DOMAIN. */
 export const JITSI_DOMAIN = configuredJitsiDomain || "meet.jit.si";
 
+/**
+ * meet.jit.si disconnects calls embedded in an iframe after ~5 minutes
+ * ("demo purposes only — use Jitsi as a Service for production embedding").
+ * Rooms opened as a normal browser tab are NOT limited, so on the default
+ * domain the call overlay hands off to a new tab. Instances configured via
+ * VITE_JITSI_DOMAIN (self-hosted / JAAS) have no such limit — embedding is
+ * fine there.
+ */
+export const JITSI_EMBEDS_LIMITED = (configuredJitsiDomain || "meet.jit.si") === "meet.jit.si";
+
 // ---------------------------------------------------------------------------
 // Server function: authorise + assign the one-time room name
 // ---------------------------------------------------------------------------

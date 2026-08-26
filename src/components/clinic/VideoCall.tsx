@@ -1,4 +1,4 @@
-import { Loader2, MessageSquare, PhoneOff, Video, VideoOff, X } from "lucide-react";
+import { ExternalLink, Loader2, MessageSquare, PhoneOff, Video, VideoOff, X } from "lucide-react";
 import { useCallback, useEffect, useRef, useState } from "react";
 
 import { Button } from "@/components/ui/button";
@@ -15,6 +15,9 @@ interface VideoCallProps {
 }
 
 type CallPhase = "connecting" | "in_call" | "unavailable";
+
+/** How long to wait for Jitsi to report a joined conference before giving up. */
+const JOIN_TIMEOUT_MS = 30_000;
 
 let jitsiScriptPromise: Promise<typeof JitsiMeetExternalAPI | null> | null = null;
 
@@ -42,11 +45,12 @@ function loadJitsiScript(): Promise<typeof JitsiMeetExternalAPI | null> {
 /**
  * On-request voice/video call overlay riding on public meet.jit.si.
  *
- * Audio-first: the room is joined with the camera off and an explicit
- * "Enable video" toggle turns it on. Leaving (or the consultation completing)
- * hangs up and disposes the Jitsi iframe. If the room or the Jitsi script
- * cannot be reached, a fallback invites the patient to continue via the
- * encrypted chat, which is untouched by this feature.
+ * Audio-first: the room joins immediately (prejoin screen disabled) with the
+ * camera off and mic on; an explicit "Enable video" toggle turns the camera
+ * on. Leaving — or the consultation completing — hangs up and disposes the
+ * Jitsi iframe. If the room or the Jitsi script cannot be reached within the
+ * join timeout, a fallback explains why and offers "open in a new tab" plus
+ * "continue via chat" (chat itself is untouched by this feature).
  */
 export function VideoCall({ consultation, viewer, displayName, onClose }: VideoCallProps) {
   const containerRef = useRef<HTMLDivElement | null>(null);
@@ -55,6 +59,8 @@ export function VideoCall({ consultation, viewer, displayName, onClose }: VideoC
 
   const [phase, setPhase] = useState<CallPhase>("connecting");
   const [videoEnabled, setVideoEnabled] = useState(false);
+  const [failReason, setFailReason] = useState<string>("");
+  const [roomUrl, setRoomUrl] = useState<string | null>(null);
 
   // Resolved once per open call — realtime store patches must not re-create it.
   const consultationId = consultation.id;
@@ -99,33 +105,51 @@ export function VideoCall({ consultation, viewer, displayName, onClose }: VideoC
   // Join once on mount; unmount always hangs up + disposes.
   useEffect(() => {
     let cancelled = false;
+    let joined = false;
+    const watchdog = window.setTimeout(() => {
+      if (!cancelled && !joined) {
+        hangUp();
+        setFailReason(
+          "The call room did not respond in time — your network may be blocking meet.jit.si.",
+        );
+        setPhase("unavailable");
+      }
+    }, JOIN_TIMEOUT_MS);
 
     (async () => {
       try {
-        const roomName = await resolveVideoRoomName(consultationId, viewer, roomHint);
+        const resolved = await resolveVideoRoomName(consultationId, viewer, roomHint);
         if (cancelled) return;
-        if (!roomName) {
+        if (!resolved.ok || !resolved.roomName) {
+          setFailReason(resolved.reason ?? "The call could not be opened.");
           setPhase("unavailable");
           return;
         }
+        setRoomUrl(`https://${JITSI_DOMAIN}/${resolved.roomName}`);
 
         const JitsiApi = await loadJitsiScript();
         if (cancelled) return;
         if (!JitsiApi || !containerRef.current) {
+          setFailReason(
+            "The meet.jit.si service could not be loaded — check your internet connection.",
+          );
           setPhase("unavailable");
           return;
         }
 
         const api = new JitsiApi(JITSI_DOMAIN, {
-          roomName,
+          roomName: resolved.roomName,
           parentNode: containerRef.current,
           userInfo: { displayName },
           configOverwrite: {
-            // Audio-first: mic open, camera off until explicitly enabled.
+            // Audio-first: mic on, camera off until explicitly enabled.
             startWithAudioMuted: false,
             startWithVideoMuted: true,
             startScreenSharing: false,
             disableDeepLinking: true,
+            // Join straight away — the prejoin screen would sit invisibly
+            // behind the connecting overlay and block videoConferenceJoined.
+            prejoinConfig: { enabled: false },
           },
           interfaceConfigOverwrite: {
             SHOW_JITSI_WATERMARK: false,
@@ -136,6 +160,8 @@ export function VideoCall({ consultation, viewer, displayName, onClose }: VideoC
 
         api.addEventListeners({
           videoConferenceJoined: () => {
+            joined = true;
+            window.clearTimeout(watchdog);
             if (!cancelled) setPhase("in_call");
           },
           // Fires after hangup (ours or theirs) once teardown completes.
@@ -145,15 +171,27 @@ export function VideoCall({ consultation, viewer, displayName, onClose }: VideoC
               onCloseRef.current();
             }
           },
+          connectionFailed: () => {
+            window.clearTimeout(watchdog);
+            if (!cancelled) {
+              hangUp();
+              setFailReason("The connection to the call server failed. Please try again.");
+              setPhase("unavailable");
+            }
+          },
         });
       } catch (err) {
         console.error("Video call failed:", err);
-        if (!cancelled) setPhase("unavailable");
+        if (!cancelled) {
+          setFailReason("Something went wrong while opening the call. Please try again.");
+          setPhase("unavailable");
+        }
       }
     })();
 
     return () => {
       cancelled = true;
+      window.clearTimeout(watchdog);
       hangUp();
     };
   }, [consultationId, roomHint, viewer, displayName, hangUp]);
@@ -185,7 +223,9 @@ export function VideoCall({ consultation, viewer, displayName, onClose }: VideoC
               <p className="text-[10px] text-muted-foreground">
                 {phase === "in_call"
                   ? "Connected — audio first, video off by default"
-                  : "Opening private call room…"}
+                  : phase === "unavailable"
+                    ? "Call unavailable"
+                    : "Connecting — allow microphone access if your browser asks"}
               </p>
             </div>
           </div>
@@ -210,18 +250,36 @@ export function VideoCall({ consultation, viewer, displayName, onClose }: VideoC
                   <p className="text-xs font-medium text-muted-foreground">
                     Opening a private call room…
                   </p>
+                  <p className="max-w-xs text-[11px] leading-relaxed text-muted-foreground">
+                    If your browser asks for microphone access, choose Allow — the call starts
+                    audio-first with the camera off.
+                  </p>
                 </>
               ) : (
                 <div className="space-y-3">
                   <p className="max-w-xs text-xs font-semibold">Video isn't available right now.</p>
-                  <p className="max-w-xs text-[11px] leading-relaxed text-muted-foreground">
-                    The call couldn't be opened — your network may block meet.jit.si or the video
-                    rooms migration hasn't been applied yet. Your encrypted chat is unaffected.
-                  </p>
-                  <Button size="sm" className="gap-1.5 text-xs" onClick={leaveCall}>
-                    <MessageSquare className="size-3.5" />
-                    Continue via chat
-                  </Button>
+                  {failReason && (
+                    <p className="max-w-xs text-[11px] leading-relaxed text-muted-foreground">
+                      {failReason}
+                    </p>
+                  )}
+                  <div className="flex flex-wrap items-center justify-center gap-2">
+                    {roomUrl && (
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        className="gap-1.5 text-xs font-bold"
+                        onClick={() => window.open(roomUrl, "_blank", "noopener")}
+                      >
+                        <ExternalLink className="size-3.5" />
+                        Open in new tab
+                      </Button>
+                    )}
+                    <Button size="sm" className="gap-1.5 text-xs font-bold" onClick={leaveCall}>
+                      <MessageSquare className="size-3.5" />
+                      Continue via chat
+                    </Button>
+                  </div>
                 </div>
               )}
             </div>

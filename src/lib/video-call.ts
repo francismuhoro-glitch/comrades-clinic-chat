@@ -139,37 +139,52 @@ export async function getPatientAccessToken(): Promise<string | null> {
  * - Patient: ownership-enforcing `get_video_room_name()` RPC first, then the
  *   server function with their access token (starts a call on request).
  *
- * Returns null when no room can be resolved — the UI then shows the
- * "video unavailable, continue via chat" fallback.
+ * Resolves `{ ok: false, reason }` when no room can be resolved — the call
+ * overlay then shows the reason with the "continue via chat" fallback.
  */
+export interface ResolvedVideoRoom {
+  ok: boolean;
+  roomName?: string;
+  reason?: string;
+}
+
 export async function resolveVideoRoomName(
   consultationId: string,
   viewer: "doctor" | "patient",
   syncedRoomName?: string | null,
-): Promise<string | null> {
+): Promise<ResolvedVideoRoom> {
   // Demo mode (no Supabase configured): everything lives in this browser, so
   // a deterministic per-consultation room keeps the RoleSwitcher demo working.
   // Real (Supabase-backed) rooms are always assigned by the server function.
-  if (!isSupabaseConfigured) return `comracare-demo-${consultationId}`;
+  if (!isSupabaseConfigured) return { ok: true, roomName: `comracare-demo-${consultationId}` };
 
   if (viewer === "doctor") {
     const result = await ensureVideoRoom({ data: { consultationId } });
-    if (result.ok && result.roomName) return result.roomName;
+    if (result.ok && result.roomName) return { ok: true, roomName: result.roomName };
     console.warn("ensureVideoRoom notice:", result.error);
-    return syncedRoomName || null;
+    if (syncedRoomName) return { ok: true, roomName: syncedRoomName };
+    return { ok: false, reason: result.error ?? "The call room could not be opened." };
   }
 
   // Patient: prefer the RPC — Postgres itself enforces ownership.
   const rpcRoom = await getVideoRoomName(consultationId);
-  if (rpcRoom) return rpcRoom;
+  if (rpcRoom) return { ok: true, roomName: rpcRoom };
 
   const token = await getPatientAccessToken();
-  if (!token) return syncedRoomName || null;
+  if (!token) {
+    if (syncedRoomName) return { ok: true, roomName: syncedRoomName };
+    return {
+      ok: false,
+      reason:
+        "You're not signed in. Sign in from “My Visits” and reopen the call, or ask the doctor to start it.",
+    };
+  }
 
   const result = await ensureVideoRoom({
     data: { consultationId, patientAccessToken: token },
   });
-  if (result.ok && result.roomName) return result.roomName;
+  if (result.ok && result.roomName) return { ok: true, roomName: result.roomName };
   console.warn("ensureVideoRoom notice:", result.error);
-  return syncedRoomName || null;
+  if (syncedRoomName) return { ok: true, roomName: syncedRoomName };
+  return { ok: false, reason: result.error ?? "The call room could not be opened." };
 }

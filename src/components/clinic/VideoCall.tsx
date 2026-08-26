@@ -3,7 +3,7 @@ import { useCallback, useEffect, useRef, useState } from "react";
 
 import { Button } from "@/components/ui/button";
 import type { ConsultSession } from "@/lib/clinic-types";
-import { JITSI_DOMAIN, resolveVideoRoomName } from "@/lib/video-call";
+import { JITSI_DOMAIN, JITSI_EMBEDS_LIMITED, resolveVideoRoomName } from "@/lib/video-call";
 
 interface VideoCallProps {
   consultation: ConsultSession;
@@ -14,7 +14,7 @@ interface VideoCallProps {
   onClose: () => void;
 }
 
-type CallPhase = "connecting" | "in_call" | "unavailable";
+type CallPhase = "connecting" | "handoff" | "in_call" | "unavailable";
 
 /** How long to wait for Jitsi to report a joined conference before giving up. */
 const JOIN_TIMEOUT_MS = 30_000;
@@ -109,6 +109,28 @@ export function VideoCall({ consultation, viewer, displayName, onClose }: VideoC
   // Join once on mount; unmount always hangs up + disposes.
   useEffect(() => {
     let cancelled = false;
+
+    // meet.jit.si disconnects *embedded* rooms after ~5 minutes, so on the
+    // default domain we hand off to a normal browser tab instead (no limit,
+    // works on every host and browser). Custom VITE_JITSI_DOMAIN instances
+    // have no such policy and use the in-app embedded room below.
+    if (JITSI_EMBEDS_LIMITED) {
+      (async () => {
+        const resolved = await resolveVideoRoomName(consultationId, viewer, roomHint);
+        if (cancelled) return;
+        if (!resolved.ok || !resolved.roomName) {
+          setFailReason(resolved.reason ?? "The call could not be opened.");
+          setPhase("unavailable");
+          return;
+        }
+        setRoomUrl(`https://${JITSI_DOMAIN}/${resolved.roomName}`);
+        setPhase("handoff");
+      })();
+      return () => {
+        cancelled = true;
+      };
+    }
+
     let joined = false;
     const watchdog = window.setTimeout(() => {
       if (!cancelled && !joined) {
@@ -230,7 +252,9 @@ export function VideoCall({ consultation, viewer, displayName, onClose }: VideoC
                   ? "Connected — audio first, video off by default"
                   : phase === "unavailable"
                     ? "Call unavailable"
-                    : "Connecting — allow microphone access if your browser asks"}
+                    : phase === "handoff"
+                      ? "Call room ready — it opens in its own tab"
+                      : "Connecting — allow microphone access if your browser asks"}
               </p>
             </div>
           </div>
@@ -272,6 +296,41 @@ export function VideoCall({ consultation, viewer, displayName, onClose }: VideoC
               Open in new tab
             </Button>
           )}
+          {phase === "handoff" && roomUrl && (
+            <div className="absolute inset-0 z-10 flex flex-col items-center justify-center gap-4 bg-card p-6 text-center">
+              <span className="flex size-12 items-center justify-center rounded-2xl bg-primary/10 text-primary">
+                <Video className="size-6" />
+              </span>
+              <div className="space-y-1">
+                <p className="text-sm font-bold">Your call room is ready</p>
+                <p className="mx-auto max-w-sm text-[11px] leading-relaxed text-muted-foreground">
+                  meet.jit.si limits embedded calls to 5 minutes, so the room opens in its own
+                  browser tab — no time limit and best quality. Keep this window open; leave the
+                  call from the tab itself.
+                </p>
+              </div>
+              <div className="flex flex-wrap items-center justify-center gap-2">
+                <Button
+                  size="lg"
+                  className="gap-2 rounded-xl text-sm font-bold"
+                  onClick={() => window.open(roomUrl, "_blank", "noopener")}
+                >
+                  <ExternalLink className="size-4" />
+                  Join call in new tab
+                </Button>
+                <Button
+                  size="sm"
+                  variant="outline"
+                  className="gap-1.5 text-xs font-bold"
+                  onClick={leaveCall}
+                >
+                  <MessageSquare className="size-3.5" />
+                  Continue via chat
+                </Button>
+              </div>
+            </div>
+          )}
+
           {phase === "unavailable" && (
             <div className="absolute inset-0 z-10 flex flex-col items-center justify-center gap-3 bg-card p-6 text-center">
               <p className="max-w-xs text-xs font-semibold">Video isn't available right now.</p>

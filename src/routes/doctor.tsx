@@ -1,6 +1,15 @@
-import { createFileRoute, useRouter } from "@tanstack/react-router";
-import { Check, CreditCard, LogOut, Settings, Stethoscope, Video, X } from "lucide-react";
-import { useEffect, useState } from "react";
+import { createFileRoute, Link, useRouter } from "@tanstack/react-router";
+import {
+  Check,
+  CreditCard,
+  LogOut,
+  Settings,
+  ShieldCheck,
+  Stethoscope,
+  Video,
+  X,
+} from "lucide-react";
+import { useCallback, useEffect, useState } from "react";
 
 import { ChatWindow } from "@/components/clinic/ChatWindow";
 import { ClinicalPanel } from "@/components/clinic/ClinicalPanel";
@@ -24,6 +33,16 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useClinic } from "@/lib/clinic-store";
 import { DOCTOR } from "@/lib/clinic-types";
 import { getCurrentDoctor, logoutDoctor, type AuthenticatedDoctor } from "@/lib/doctor-auth";
+import { cn } from "@/lib/utils";
+
+type QueueRange = "today" | "7d" | "30d" | "all";
+
+const QUEUE_RANGES: readonly { value: QueueRange; label: string }[] = [
+  { value: "today", label: "Today" },
+  { value: "7d", label: "7 days" },
+  { value: "30d", label: "30 days" },
+  { value: "all", label: "All time" },
+];
 
 export const Route = createFileRoute("/doctor")({
   head: () => ({
@@ -83,8 +102,25 @@ function DoctorPortal({ authenticatedDoctor }: { authenticatedDoctor: Authentica
   const [settingsOpen, setSettingsOpen] = useState(false);
   const [savingSettings, setSavingSettings] = useState(false);
   const [videoCallOpen, setVideoCallOpen] = useState(false);
+  const [queueRange, setQueueRange] = useState<QueueRange>("today");
 
   const selectedSession = getSession(selectedId);
+
+  // Queue date filter — keeps long patient lists manageable.
+  const inRange = useCallback(
+    (iso: string) => {
+      if (queueRange === "all") return true;
+      const created = new Date(iso).getTime();
+      if (queueRange === "today") {
+        const startOfToday = new Date();
+        startOfToday.setHours(0, 0, 0, 0);
+        return created >= startOfToday.getTime();
+      }
+      const days = queueRange === "7d" ? 7 : 30;
+      return Date.now() - created < days * 86_400_000;
+    },
+    [queueRange],
+  );
 
   // Switching patients always leaves the previous patient's call.
   useEffect(() => {
@@ -138,6 +174,17 @@ function DoctorPortal({ authenticatedDoctor }: { authenticatedDoctor: Authentica
           </div>
 
           <div className="flex items-center gap-3">
+            {/* Admin console (admins only) */}
+            {authenticatedDoctor.role === "admin" && (
+              <Link
+                to="/admin"
+                className="inline-flex items-center gap-1.5 rounded-lg border bg-card px-2.5 py-1.5 text-xs font-bold text-foreground hover:bg-muted/50"
+              >
+                <ShieldCheck className="size-3.5 text-primary" />
+                Admin
+              </Link>
+            )}
+
             {/* Availability Toggle */}
             <div className="flex items-center gap-2 rounded-full border bg-muted/50 px-3 py-1.5 text-xs">
               <span
@@ -224,6 +271,28 @@ function DoctorPortal({ authenticatedDoctor }: { authenticatedDoctor: Authentica
       <div className="mx-auto grid max-w-7xl gap-4 p-4 lg:grid-cols-[340px_1fr]">
         {/* Left Column: Patient Queues & Payment Verifications */}
         <section className="space-y-4">
+          {/* Date filter — keeps the queue uncluttered */}
+          <div className="flex flex-wrap items-center gap-1.5 rounded-xl border bg-card px-3 py-2 shadow-card">
+            <span className="text-[11px] font-bold uppercase tracking-wide text-muted-foreground">
+              Show
+            </span>
+            {QUEUE_RANGES.map(({ value, label }) => (
+              <button
+                key={value}
+                type="button"
+                onClick={() => setQueueRange(value)}
+                className={cn(
+                  "rounded-full px-2.5 py-1 text-[11px] font-bold transition-colors",
+                  queueRange === value
+                    ? "bg-primary text-primary-foreground shadow-sm"
+                    : "bg-muted/60 text-muted-foreground hover:text-foreground",
+                )}
+              >
+                {label}
+              </button>
+            ))}
+          </div>
+
           <Tabs defaultValue={pendingPayments.length > 0 ? "payments" : "waiting"}>
             <TabsList className="w-full">
               <TabsTrigger className="flex-1 relative" value="payments">
@@ -312,7 +381,7 @@ function DoctorPortal({ authenticatedDoctor }: { authenticatedDoctor: Authentica
             {/* Waiting Queue Tab Content */}
             <TabsContent value="waiting" className="mt-3">
               <PatientQueue
-                sessions={sessionsByStatus("waiting")}
+                sessions={sessionsByStatus("waiting").filter((s) => inRange(s.created_at))}
                 selectedId={selectedId}
                 onSelect={(id) => setSelectedId(id)}
                 emptyLabel="No comrades waiting in queue right now."
@@ -323,7 +392,7 @@ function DoctorPortal({ authenticatedDoctor }: { authenticatedDoctor: Authentica
             {/* Active Consultations Tab Content */}
             <TabsContent value="active" className="mt-3">
               <PatientQueue
-                sessions={sessionsByStatus("active")}
+                sessions={sessionsByStatus("active").filter((s) => inRange(s.created_at))}
                 selectedId={selectedId}
                 onSelect={(id) => setSelectedId(id)}
                 emptyLabel="No active consultations in progress."
@@ -334,7 +403,7 @@ function DoctorPortal({ authenticatedDoctor }: { authenticatedDoctor: Authentica
             {/* Completed Consultations Tab Content */}
             <TabsContent value="completed" className="mt-3">
               <PatientQueue
-                sessions={sessionsByStatus("completed")}
+                sessions={sessionsByStatus("completed").filter((s) => inRange(s.created_at))}
                 selectedId={selectedId}
                 onSelect={(id) => setSelectedId(id)}
                 emptyLabel="No completed records yet."

@@ -15,6 +15,9 @@ function getEnv(key: string): string {
 const supabaseUrl = getEnv("VITE_SUPABASE_URL") || "https://placeholder-project.supabase.co";
 const supabaseAnonKey = getEnv("VITE_SUPABASE_ANON_KEY") || "placeholder-anon-key";
 
+/** Project URL — reused by server-side admin clients (e.g. user creation). */
+export const supabaseProjectUrl = supabaseUrl;
+
 /**
  * True when real Supabase credentials are configured. When false the app keeps
  * working locally (in-memory state) but nothing syncs between devices and

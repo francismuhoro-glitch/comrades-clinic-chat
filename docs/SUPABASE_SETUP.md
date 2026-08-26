@@ -114,6 +114,25 @@ no such limit, and a new tab works on every host and browser. If you set
 **embed inside the app** instead — self-hosted instances have no 5-minute
 embedding restriction.
 
+## 6. User profiles & admin console
+
+Doctor logins check a `profiles` table (`full_name`, `role`, `kmpdc_license`).
+To define it properly and unlock the admin console at **/admin**, run
+[`supabase/migrations/20260827090000_profiles_and_admin.sql`](../supabase/migrations/20260827090000_profiles_and_admin.sql)
+in the SQL editor. It creates (or upgrades) `profiles`, auto-creates a profile
+for every new account, and adds an **admin** role.
+
+Becoming an admin:
+
+1. Sign up once via **My Visits** with your email (or use your existing doctor
+   account).
+2. In Supabase → SQL editor, run:
+   `update public.profiles set role = 'admin' where email = 'you@clinic.ac.ke';`
+3. Sign in on **/doctor** — an **Admin** button now opens the console, where
+   you can list users, change roles, edit names/licenses, and create doctor
+   accounts (the last one requires the optional `SUPABASE_SERVICE_ROLE_KEY`
+   server env var).
+
 ## Security roadmap
 
 The migration ships transitional permissive policies so the current

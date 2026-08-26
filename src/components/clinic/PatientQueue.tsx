@@ -97,7 +97,7 @@ export function PatientQueue({
                   Referred
                 </span>
               )}
-              <span className="ml-auto flex items-center gap-1 text-[11px] font-semibold text-primary">
+              <span className="ml-auto flex items-center gap-1 rounded-lg bg-primary px-2.5 py-1 text-[10px] font-bold text-primary-foreground shadow-sm">
                 {s.status === "completed" ? (
                   <Stethoscope className="size-3" />
                 ) : (

@@ -401,20 +401,26 @@ function PatientRouteComponent() {
         {session.status === "active" && (
           <div
             className={cn(
-              "flex items-center justify-between gap-2 rounded-xl border px-3.5 py-2.5 shadow-card",
+              "flex items-center gap-3 rounded-2xl border p-4 shadow-card",
               session.consultation_mode === "video" ? "border-primary/40 bg-primary/5" : "bg-card",
             )}
           >
-            <p className="text-xs text-muted-foreground">
-              {session.video_room_name
-                ? "The doctor opened a voice/video call — you can join now."
-                : session.consultation_mode === "video"
-                  ? "You registered for a voice/video call — start it whenever you're ready."
-                  : "Prefer to talk it through? Start an on-request voice/video call."}
-            </p>
+            <span className="flex size-10 shrink-0 items-center justify-center rounded-xl bg-primary/10 text-primary">
+              <Video className="size-5" />
+            </span>
+            <div className="min-w-0 flex-1">
+              <p className="text-sm font-bold">Voice / video call</p>
+              <p className="text-xs leading-relaxed text-muted-foreground">
+                {session.video_room_name
+                  ? "Call in progress — tap join to enter the room."
+                  : session.consultation_mode === "video"
+                    ? "You registered for a call. Start whenever you're ready — audio first."
+                    : "Optional: talk to the doctor by voice, add video if needed."}
+              </p>
+            </div>
             <Button
               size="sm"
-              className="shrink-0 gap-1.5 text-xs"
+              className="shrink-0 gap-1.5 text-xs font-bold"
               onClick={() => setVideoCallOpen(true)}
             >
               <Video className="size-3.5" />

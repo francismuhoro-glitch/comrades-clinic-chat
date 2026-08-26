@@ -73,6 +73,7 @@ function DoctorPortal({ authenticatedDoctor }: { authenticatedDoctor: Authentica
     getSession,
     messagesFor,
     sendMessage,
+    activateSession,
   } = useClinic();
 
   const [selectedId, setSelectedId] = useState<string | null>(null);
@@ -349,27 +350,47 @@ function DoctorPortal({ authenticatedDoctor }: { authenticatedDoctor: Authentica
             <div className="grid gap-4 lg:grid-cols-2">
               <div className="flex h-[650px] flex-col overflow-hidden rounded-xl border bg-card shadow-card">
                 <div className="flex items-center justify-between gap-2 border-b px-3.5 py-2">
-                  <p className="truncate text-xs font-bold">{selectedSession.full_name}</p>
-                  {selectedSession.status === "active" && (
-                    <Button
-                      size="sm"
-                      variant={
-                        selectedSession.video_room_name ||
-                        selectedSession.consultation_mode === "video"
-                          ? "default"
-                          : "outline"
-                      }
-                      className="h-7 shrink-0 gap-1.5 text-[11px]"
-                      onClick={() => setVideoCallOpen(true)}
-                    >
-                      <Video className="size-3" />
-                      {selectedSession.video_room_name
-                        ? "Join call"
-                        : selectedSession.consultation_mode === "video"
-                          ? "Start video call"
-                          : "Start call"}
-                    </Button>
-                  )}
+                  <div className="flex min-w-0 items-center gap-2">
+                    <p className="truncate text-xs font-bold">{selectedSession.full_name}</p>
+                    {selectedSession.consultation_mode === "video" && (
+                      <span className="flex shrink-0 items-center gap-1 rounded-full bg-primary/10 px-2 py-0.5 text-[10px] font-bold text-primary">
+                        <Video className="size-2.5" /> wants voice/video
+                      </span>
+                    )}
+                  </div>
+                  <div className="flex shrink-0 items-center gap-1.5">
+                    {selectedSession.status === "waiting" && (
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        className="h-8 gap-1.5 border-primary/50 px-3 text-xs font-bold text-primary hover:bg-primary/10"
+                        onClick={() => activateSession(selectedSession.id)}
+                      >
+                        <Stethoscope className="size-3.5" />
+                        Start consultation
+                      </Button>
+                    )}
+                    {(selectedSession.status === "active" ||
+                      selectedSession.status === "waiting") && (
+                      <Button
+                        size="sm"
+                        className="h-8 gap-1.5 px-3 text-xs font-bold"
+                        onClick={() => {
+                          if (selectedSession.status === "waiting") {
+                            activateSession(selectedSession.id);
+                          }
+                          setVideoCallOpen(true);
+                        }}
+                      >
+                        <Video className="size-3.5" />
+                        {selectedSession.video_room_name
+                          ? "Join call"
+                          : selectedSession.consultation_mode === "video"
+                            ? "Start video call"
+                            : "Start call"}
+                      </Button>
+                    )}
+                  </div>
                 </div>
                 <ChatWindow
                   className="min-h-0 flex-1"

@@ -860,7 +860,19 @@ export function ClinicProvider({ children }: { children: ReactNode }) {
           });
         }
       },
-      activateSession: (id) => dispatch({ type: "activate", id }),
+      activateSession: (id) => {
+        const target = state.sessions.find((s) => s.id === id);
+        if (!target || target.status !== "waiting") return;
+        dispatch({ type: "activate", id });
+        system(id, "Consultation started — the doctor is ready for you.");
+        (async () => {
+          try {
+            await supabase.from("consultations").update({ status: "active" }).eq("id", id);
+          } catch (err) {
+            console.error("Failed to activate consultation in Supabase:", err);
+          }
+        })();
+      },
       sendMessage,
       setDiagnosisNotes: (id, notes) =>
         dispatch({

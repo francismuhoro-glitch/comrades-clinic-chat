@@ -10,6 +10,7 @@ import {
   RotateCcw,
   ShieldCheck,
   UserRound,
+  Video,
   Wallet,
   XCircle,
 } from "lucide-react";
@@ -26,6 +27,7 @@ import { LabOrderChoice } from "@/components/clinic/LabOrderChoice";
 import { LabResultsTracker } from "@/components/clinic/LabResultsTracker";
 import { MpesaProcessing } from "@/components/clinic/MpesaProcessing";
 import { StatusBadge, StudentLayout } from "@/components/clinic/StudentLayout";
+import { VideoCall } from "@/components/clinic/VideoCall";
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Input } from "@/components/ui/input";
@@ -183,7 +185,16 @@ function PatientRouteComponent() {
 
   const [activeLabResults, setActiveLabResults] = useState<LabResult[]>([]);
 
+  const [videoCallOpen, setVideoCallOpen] = useState(false);
+
   const session = getSession(studentSessionId);
+
+  // Ending the consultation always tears down an open video call.
+  useEffect(() => {
+    if (session?.status === "completed") {
+      setVideoCallOpen(false);
+    }
+  }, [session?.status]);
 
   // Sync lab results for active session
   useEffect(() => {
@@ -379,6 +390,25 @@ function PatientRouteComponent() {
           </div>
         )}
 
+        {/* On-request voice/video call (active consultations only) */}
+        {session.status === "active" && (
+          <div className="flex items-center justify-between gap-2 rounded-xl border bg-card px-3.5 py-2.5 shadow-card">
+            <p className="text-xs text-muted-foreground">
+              {session.video_room_name
+                ? "The doctor opened a voice/video call — you can join now."
+                : "Prefer to talk it through? Start an on-request voice/video call."}
+            </p>
+            <Button
+              size="sm"
+              className="shrink-0 gap-1.5 text-xs"
+              onClick={() => setVideoCallOpen(true)}
+            >
+              <Video className="size-3.5" />
+              {session.video_room_name ? "Join call" : "Start call"}
+            </Button>
+          </div>
+        )}
+
         {/* Live / Historic Consultation Chat */}
         <div className="h-[460px] overflow-hidden rounded-2xl border bg-card shadow-card">
           <ChatWindow
@@ -466,6 +496,16 @@ function PatientRouteComponent() {
           </div>
         )}
       </div>
+
+      {/* Voice/video call overlay (auto-closed once the consultation completes) */}
+      {!isCompleted && videoCallOpen && (
+        <VideoCall
+          consultation={session}
+          viewer="patient"
+          displayName={session.full_name}
+          onClose={() => setVideoCallOpen(false)}
+        />
+      )}
     </StudentLayout>
   );
 }

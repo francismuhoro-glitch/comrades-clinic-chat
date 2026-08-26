@@ -1,11 +1,12 @@
 import { createFileRoute, useRouter } from "@tanstack/react-router";
-import { Check, CreditCard, LogOut, Settings, Stethoscope, X } from "lucide-react";
-import { useState } from "react";
+import { Check, CreditCard, LogOut, Settings, Stethoscope, Video, X } from "lucide-react";
+import { useEffect, useState } from "react";
 
 import { ChatWindow } from "@/components/clinic/ChatWindow";
 import { ClinicalPanel } from "@/components/clinic/ClinicalPanel";
 import { DoctorLogin } from "@/components/clinic/DoctorLogin";
 import { PatientQueue } from "@/components/clinic/PatientQueue";
+import { VideoCall } from "@/components/clinic/VideoCall";
 import { Button } from "@/components/ui/button";
 import {
   Dialog,
@@ -80,8 +81,21 @@ function DoctorPortal({ authenticatedDoctor }: { authenticatedDoctor: Authentica
   const [helpline, setHelpline] = useState(settings.helpline_phone);
   const [settingsOpen, setSettingsOpen] = useState(false);
   const [savingSettings, setSavingSettings] = useState(false);
+  const [videoCallOpen, setVideoCallOpen] = useState(false);
 
   const selectedSession = getSession(selectedId);
+
+  // Switching patients always leaves the previous patient's call.
+  useEffect(() => {
+    setVideoCallOpen(false);
+  }, [selectedId]);
+
+  // Ending the consultation always tears down an open video call.
+  useEffect(() => {
+    if (selectedSession?.status === "completed") {
+      setVideoCallOpen(false);
+    }
+  }, [selectedSession?.status]);
 
   const signOut = async () => {
     setSigningOut(true);
@@ -333,8 +347,23 @@ function DoctorPortal({ authenticatedDoctor }: { authenticatedDoctor: Authentica
         <section>
           {selectedSession ? (
             <div className="grid gap-4 lg:grid-cols-2">
-              <div className="h-[650px] overflow-hidden rounded-xl border bg-card shadow-card">
+              <div className="flex h-[650px] flex-col overflow-hidden rounded-xl border bg-card shadow-card">
+                <div className="flex items-center justify-between gap-2 border-b px-3.5 py-2">
+                  <p className="truncate text-xs font-bold">{selectedSession.full_name}</p>
+                  {selectedSession.status === "active" && (
+                    <Button
+                      size="sm"
+                      variant={selectedSession.video_room_name ? "default" : "outline"}
+                      className="h-7 shrink-0 gap-1.5 text-[11px]"
+                      onClick={() => setVideoCallOpen(true)}
+                    >
+                      <Video className="size-3" />
+                      {selectedSession.video_room_name ? "Join call" : "Start call"}
+                    </Button>
+                  )}
+                </div>
                 <ChatWindow
+                  className="min-h-0 flex-1"
                   messages={messagesFor(selectedSession.id)}
                   viewer="doctor"
                   onSend={(body) => sendMessage(selectedSession.id, "doctor", body)}
@@ -356,6 +385,16 @@ function DoctorPortal({ authenticatedDoctor }: { authenticatedDoctor: Authentica
           )}
         </section>
       </div>
+
+      {/* Voice/video call overlay (auto-closed when the consultation completes) */}
+      {videoCallOpen && selectedSession && selectedSession.status !== "completed" && (
+        <VideoCall
+          consultation={selectedSession}
+          viewer="doctor"
+          displayName={authenticatedDoctor.name}
+          onClose={() => setVideoCallOpen(false)}
+        />
+      )}
     </main>
   );
 }

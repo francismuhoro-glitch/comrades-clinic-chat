@@ -24,3 +24,28 @@ export const isSupabaseConfigured =
   Boolean(getEnv("VITE_SUPABASE_URL")) && Boolean(getEnv("VITE_SUPABASE_ANON_KEY"));
 
 export const supabase = createClient(supabaseUrl, supabaseAnonKey);
+
+/**
+ * Fetch the Jitsi video-call room for a consultation via the
+ * `get_video_room_name` RPC. Postgres enforces
+ * `consultations.patient_id = auth.uid()` inside the function, so a room name
+ * is only ever returned to the signed-in patient whose consultation it is.
+ * Returns null when unauthorised, the room is not open yet, or Supabase is
+ * unavailable — callers show the "continue via chat" fallback.
+ */
+export async function getVideoRoomName(consultationId: string): Promise<string | null> {
+  if (!isSupabaseConfigured) return null;
+  try {
+    const { data, error } = await supabase.rpc("get_video_room_name", {
+      p_consultation_id: consultationId,
+    });
+    if (error) {
+      console.warn("get_video_room_name notice:", error.message);
+      return null;
+    }
+    return typeof data === "string" && data.length > 0 ? data : null;
+  } catch (err) {
+    console.warn("get_video_room_name notice:", err);
+    return null;
+  }
+}

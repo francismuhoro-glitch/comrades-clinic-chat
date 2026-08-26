@@ -222,6 +222,13 @@ function LandingPage({ onAcceptTerms }: { onAcceptTerms: () => void }) {
           Continue to Consultation Intake
           <ArrowRight className="size-4" />
         </Button>
+
+        <p className="text-center text-[11px] text-muted-foreground">
+          Prefer a set time?{" "}
+          <Link to="/book" className="font-bold text-primary hover:underline">
+            Book a scheduled appointment →
+          </Link>
+        </p>
       </div>
     </div>
   );

@@ -51,7 +51,28 @@ export async function sendNotification(input: SendNotificationInput): Promise<vo
       title: input.title,
       body: input.body ?? "",
     });
-    if (error) console.warn("Notification insert notice:", error.message);
+    if (error) {
+      console.warn("Notification insert notice:", error.message);
+      return;
+    }
+
+    // Fan out to background web push (server-side VAPID; no-op when the
+    // private key isn't configured). Never blocks or breaks the caller.
+    void (async () => {
+      try {
+        const { dispatchWebPush } = await import("./push-server");
+        await dispatchWebPush({
+          data: {
+            audience: input.audience,
+            recipientId: input.recipientId ?? null,
+            title: input.title,
+            body: input.body ?? "",
+          },
+        });
+      } catch (pushErr) {
+        console.warn("Web push fanout notice:", pushErr);
+      }
+    })();
   } catch (err) {
     console.warn("Notification dispatch notice:", err);
   }

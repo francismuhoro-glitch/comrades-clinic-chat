@@ -5,8 +5,10 @@ import {
   Clock,
   FileText,
   FlaskConical,
+  Ambulance,
   History,
   MessageSquare,
+  Stethoscope,
   RotateCcw,
   ShieldCheck,
   UserRound,
@@ -32,7 +34,12 @@ import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Input } from "@/components/ui/input";
 import { useClinic } from "@/lib/clinic-store";
-import { CONSULT_FEE_KES, LAB_ORDER_STATUS_LABELS, type LabResult } from "@/lib/clinic-types";
+import {
+  CONSULT_FEE_KES,
+  DOCTOR,
+  LAB_ORDER_STATUS_LABELS,
+  type LabResult,
+} from "@/lib/clinic-types";
 import { supabase } from "@/lib/supabase";
 import { EMERGENCY_NOTICE, triage } from "@/lib/triage";
 import { cn } from "@/lib/utils";
@@ -54,82 +61,133 @@ export const Route = createFileRoute("/")({
 function LandingPage({ onAcceptTerms }: { onAcceptTerms: () => void }) {
   const [agreed, setAgreed] = useState(false);
 
+  const trustChips = [
+    "KMPDC-licensed doctor",
+    "KSh 150 flat — no hidden costs",
+    "Encrypted & confidential",
+  ];
+
+  const services = [
+    {
+      icon: MessageSquare,
+      title: "Live text chat",
+      text: "Encrypted, real-time messaging with the doctor.",
+    },
+    {
+      icon: Video,
+      title: "Voice & video calls",
+      text: "Audio-first calls when typing isn't enough.",
+    },
+    {
+      icon: FileText,
+      title: "Digital prescriptions",
+      text: "Signed prescriptions sent straight to your phone.",
+    },
+    {
+      icon: FlaskConical,
+      title: "Doorstep lab tests",
+      text: "Sample collection at your hostel or a partner lab.",
+    },
+    {
+      icon: Ambulance,
+      title: "Hospital referrals",
+      text: "Official referral letters when you need a hospital.",
+    },
+  ];
+
+  const steps = [
+    {
+      icon: Wallet,
+      title: `Pay KSh ${CONSULT_FEE_KES} via M-Pesa`,
+      text: "One flat fee via Pochi la Biashara. No queues, no registration lines.",
+    },
+    {
+      icon: Stethoscope,
+      title: "Talk to the doctor",
+      text: "Start in encrypted chat — switch to a voice or video call any time.",
+    },
+    {
+      icon: FileText,
+      title: "Get your documents",
+      text: "Prescription, lab order or referral letter — signed and delivered digitally.",
+    },
+  ];
+
   return (
-    <div className="space-y-5">
-      {/* Hero Welcome Banner */}
-      <div className="rounded-2xl border bg-card p-5 shadow-card space-y-3">
-        <div className="inline-flex items-center gap-1.5 rounded-full bg-primary/10 px-3 py-1 text-xs font-semibold text-primary">
-          <ShieldCheck className="size-3.5" />
-          KMPDC-Licensed Telemedicine for Comrades
-        </div>
-        <h1 className="text-xl font-extrabold sm:text-2xl leading-tight">
-          Affordable, Confidential Healthcare for Kenyan Students
-        </h1>
-        <p className="text-xs text-muted-foreground leading-relaxed">
-          Get fast, professional medical advice without leaving your campus. Speak with registered
-          doctors, receive verified digital prescriptions, and order doorstep lab tests.
-        </p>
-      </div>
-
-      {/* How It Works Steps */}
-      <div className="rounded-2xl border bg-card p-5 shadow-card space-y-4">
-        <h2 className="text-sm font-bold flex items-center gap-2">
-          <Clock className="size-4 text-primary" />
-          How It Works in 3 Simple Steps
-        </h2>
-
-        <div className="grid gap-3 text-xs">
-          <div className="flex gap-3 rounded-xl border bg-muted/30 p-3 items-start">
-            <span className="flex size-7 shrink-0 items-center justify-center rounded-lg bg-primary text-xs font-bold text-primary-foreground">
-              1
-            </span>
-            <div className="space-y-0.5 min-w-0">
-              <p className="font-semibold text-foreground flex items-center gap-1.5">
-                <Wallet className="size-3.5 text-primary" />
-                Pay KSh {CONSULT_FEE_KES} via Pochi la Biashara
-              </p>
-              <p className="text-muted-foreground leading-relaxed">
-                Fill in basic intake symptoms and pay the affordable consultation fee via M-Pesa.
-              </p>
-            </div>
+    <div className="space-y-4">
+      {/* Hero */}
+      <div className="relative overflow-hidden rounded-3xl bg-gradient-to-br from-primary via-primary to-success p-6 text-primary-foreground shadow-card">
+        <div className="pointer-events-none absolute -right-10 -top-10 size-44 rounded-full bg-white/10" />
+        <div className="pointer-events-none absolute -bottom-12 -left-8 size-40 rounded-full bg-white/10" />
+        <div className="relative space-y-4">
+          <div className="flex flex-wrap gap-1.5">
+            {trustChips.map((chip) => (
+              <span
+                key={chip}
+                className="rounded-full bg-white/15 px-2.5 py-1 text-[10px] font-bold backdrop-blur-sm"
+              >
+                {chip}
+              </span>
+            ))}
           </div>
-
-          <div className="flex gap-3 rounded-xl border bg-muted/30 p-3 items-start">
-            <span className="flex size-7 shrink-0 items-center justify-center rounded-lg bg-primary text-xs font-bold text-primary-foreground">
-              2
-            </span>
-            <div className="space-y-0.5 min-w-0">
-              <p className="font-semibold text-foreground flex items-center gap-1.5">
-                <MessageSquare className="size-3.5 text-primary" />
-                Chat Live with a Licensed Doctor
-              </p>
-              <p className="text-muted-foreground leading-relaxed">
-                Connect in real-time encrypted chat. Discuss your symptoms and receive clinical
-                guidance.
-              </p>
-            </div>
+          <div className="space-y-2">
+            <h1 className="text-2xl font-extrabold leading-tight sm:text-3xl">
+              Talk to a real doctor in minutes — right from your hostel.
+            </h1>
+            <p className="max-w-md text-xs leading-relaxed text-primary-foreground/85 sm:text-sm">
+              COMRACARE connects university students with licensed clinicians: encrypted chat, voice
+              &amp; video calls, digital prescriptions, doorstep labs and hospital referrals.
+            </p>
           </div>
-
-          <div className="flex gap-3 rounded-xl border bg-muted/30 p-3 items-start">
-            <span className="flex size-7 shrink-0 items-center justify-center rounded-lg bg-primary text-xs font-bold text-primary-foreground">
-              3
-            </span>
-            <div className="space-y-0.5 min-w-0">
-              <p className="font-semibold text-foreground flex items-center gap-1.5">
-                <FileText className="size-3.5 text-primary" />
-                Prescriptions, Lab Tests &amp; Referrals
-              </p>
-              <p className="text-muted-foreground leading-relaxed">
-                Receive signed digital prescriptions, doorstep lab sample collection, or hospital
-                referral letters.
-              </p>
-            </div>
-          </div>
+          <p className="flex items-center gap-1.5 text-[11px] font-semibold text-primary-foreground/90">
+            <ShieldCheck className="size-3.5" />
+            Registered clinician · KMPDC {DOCTOR.kmpdc_license}
+          </p>
         </div>
       </div>
+
+      {/* What you get */}
+      <section className="space-y-2">
+        <h2 className="text-sm font-bold">Everything in one place</h2>
+        <div className="grid grid-cols-2 gap-2.5 sm:grid-cols-3">
+          {services.map(({ icon: Icon, title, text }) => (
+            <div
+              key={title}
+              className="space-y-1.5 rounded-2xl border bg-card p-3.5 shadow-card transition-colors hover:border-primary/40"
+            >
+              <span className="flex size-8 items-center justify-center rounded-lg bg-primary/10 text-primary">
+                <Icon className="size-4" />
+              </span>
+              <p className="text-xs font-bold leading-tight">{title}</p>
+              <p className="text-[11px] leading-snug text-muted-foreground">{text}</p>
+            </div>
+          ))}
+        </div>
+      </section>
+
+      {/* How it works */}
+      <section className="space-y-2.5 rounded-2xl border bg-card p-5 shadow-card">
+        <h2 className="text-sm font-bold">How it works</h2>
+        <ol className="space-y-3">
+          {steps.map(({ icon: Icon, title, text }, i) => (
+            <li key={title} className="flex items-start gap-3">
+              <span className="flex size-7 shrink-0 items-center justify-center rounded-lg bg-primary text-xs font-bold text-primary-foreground">
+                {i + 1}
+              </span>
+              <div className="min-w-0 space-y-0.5">
+                <p className="flex items-center gap-1.5 text-xs font-bold">
+                  <Icon className="size-3.5 text-primary" />
+                  {title}
+                </p>
+                <p className="text-[11px] leading-snug text-muted-foreground">{text}</p>
+              </div>
+            </li>
+          ))}
+        </ol>
+      </section>
 
       {/* Terms & Privacy Policy Confirmation Gate */}
-      <div className="rounded-2xl border bg-card p-5 shadow-card space-y-4">
+      <div className="space-y-4 rounded-2xl border bg-card p-5 shadow-card">
         <label className="flex cursor-pointer items-start gap-3 rounded-xl border bg-secondary/40 p-3.5">
           <Checkbox
             checked={agreed}
@@ -153,7 +211,7 @@ function LandingPage({ onAcceptTerms }: { onAcceptTerms: () => void }) {
           onClick={onAcceptTerms}
           disabled={!agreed}
           size="lg"
-          className="w-full rounded-xl gap-2 text-sm font-semibold"
+          className="h-13 w-full rounded-xl gap-2 text-sm font-bold"
         >
           Continue to Consultation Intake
           <ArrowRight className="size-4" />

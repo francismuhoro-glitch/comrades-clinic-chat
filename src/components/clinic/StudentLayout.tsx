@@ -2,6 +2,7 @@ import { Link } from "@tanstack/react-router";
 import { Stethoscope, UserRound } from "lucide-react";
 import type { ReactNode } from "react";
 
+import { NotificationBell } from "@/components/clinic/NotificationBell";
 import { useClinic } from "@/lib/clinic-store";
 import type { SessionStatus } from "@/lib/clinic-types";
 
@@ -39,7 +40,7 @@ export function StudentLayout({
   subtitle?: string;
   compact?: boolean;
 }) {
-  const { doctorOnline } = useClinic();
+  const { doctorOnline, studentSessionId } = useClinic();
 
   return (
     <div className="min-h-screen bg-background text-foreground flex flex-col justify-between">
@@ -60,6 +61,7 @@ export function StudentLayout({
             </Link>
 
             <div className="flex items-center gap-2">
+              <NotificationBell audience="patient" consultationId={studentSessionId} />
               <Link
                 to="/visits"
                 className="inline-flex items-center gap-1 rounded-full border bg-muted/60 px-2.5 py-1 text-[11px] font-medium text-primary transition-colors hover:bg-primary/10"

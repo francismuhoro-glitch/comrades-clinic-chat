@@ -39,7 +39,6 @@ const uid = () =>
     ? globalThis.crypto.randomUUID()
     : `${Date.now().toString(16)}-${Math.random().toString(16).slice(2, 10)}-4000-8000-${Math.random().toString(16).slice(2, 14)}`;
 const now = () => new Date().toISOString();
-const minutesAgo = (m: number) => new Date(Date.now() - m * 60_000).toISOString();
 
 const DEFAULT_SETTINGS: ClinicSettings = {
   pochi_phone: "0712345678",
@@ -72,112 +71,13 @@ type Action =
   | { type: "delete_lab_result"; id: string };
 
 function seed(): State {
-  const s1: ConsultSession = {
-    id: "seed-1",
-    full_name: "Brian Otieno",
-    phone: "0712 345 678",
-    campus: "Kenyatta University",
-    symptoms: "Sore throat and mild fever for two days. Hard to swallow.",
-    symptom_codes: ["fever", "cough"],
-    triage_level: "urgent",
-    emergency_flag: false,
-    suggested_labs: ["Malaria smear + full blood count"],
-    status: "waiting",
-    consultation_mode: "chat",
-    paid: true,
-    fee_kes: CONSULT_FEE_KES,
-    mpesa_receipt: "QJT4RS9LMN",
-    lab_test_requested: false,
-    diagnosis_notes: "",
-    prescription: null,
-    referral: null,
-    created_at: minutesAgo(6),
-    ended_at: null,
-  };
-  const s2: ConsultSession = {
-    id: "seed-2",
-    full_name: "Mercy Kamau",
-    phone: "0798 111 222",
-    campus: "University of Nairobi",
-    symptoms: "Recurring migraines during exam week, plus blurred vision.",
-    symptom_codes: ["headache"],
-    triage_level: "routine",
-    emergency_flag: false,
-    suggested_labs: [],
-    status: "active",
-    consultation_mode: "chat",
-    paid: true,
-    fee_kes: CONSULT_FEE_KES,
-    mpesa_receipt: "QAA8811KLL",
-    lab_test_requested: false,
-    diagnosis_notes: "Tension headache secondary to stress. Advised sleep + hydration.",
-    prescription: null,
-    referral: null,
-    created_at: minutesAgo(24),
-    ended_at: null,
-  };
-  const s3: ConsultSession = {
-    id: "seed-3",
-    full_name: "Kelvin Kiprop",
-    phone: "0701 999 888",
-    campus: "Strathmore University",
-    symptoms: "Abdominal cramps and diarrhoea after eating at the mess.",
-    symptom_codes: ["stomach", "diarrhoea"],
-    triage_level: "urgent",
-    emergency_flag: false,
-    suggested_labs: ["Stool analysis + H. pylori test"],
-    status: "completed",
-    consultation_mode: "chat",
-    paid: true,
-    fee_kes: CONSULT_FEE_KES,
-    mpesa_receipt: "QPP0099ZZA",
-    lab_test_requested: false,
-    diagnosis_notes: "Acute gastroenteritis. Prescribed oral rehydration salts and Zinc.",
-    prescription: {
-      medication: "Oral Rehydration Salts (ORS) + Zinc sulphate 20mg",
-      dosage: "1 sachet in 1L clean water, sip throughout day. Zinc 1 tab OD.",
-      duration: "3 days",
-      notes: "Maintain good hydration. Return if blood in stool.",
-    },
-    referral: null,
-    created_at: minutesAgo(90),
-    ended_at: minutesAgo(70),
-  };
-
+  // Demo patients removed — live queue is Supabase-only (owner request Aug 2026).
+  // Keeps the app deterministic and avoids polluting analytics.
   return {
     doctorOnline: true,
     settings: DEFAULT_SETTINGS,
-    sessions: [s1, s2, s3],
-    messages: [
-      {
-        id: "m-1",
-        session_id: "seed-2",
-        sender: "system",
-        body: "Consultation started with Dr. Francis Muhoro.",
-        created_at: minutesAgo(20),
-      },
-      {
-        id: "m-2",
-        session_id: "seed-2",
-        sender: "student",
-        body: "Hello doc, I've had this terrible headache for 3 days now.",
-        created_at: minutesAgo(18),
-      },
-      {
-        id: "m-3",
-        session_id: "seed-2",
-        sender: "doctor",
-        body: "Habari Mercy. Are you experiencing any neck stiffness or sensitivity to bright light?",
-        created_at: minutesAgo(15),
-      },
-      {
-        id: "m-4",
-        session_id: "seed-2",
-        sender: "student",
-        body: "Light hurts a bit, but my neck feels okay. It gets worse when studying on my laptop.",
-        created_at: minutesAgo(11),
-      },
-    ],
+    sessions: [],
+    messages: [],
     labResults: [],
     labCatalog: FALLBACK_LAB_CATALOG,
   };

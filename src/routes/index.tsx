@@ -6,6 +6,7 @@ import {
   FileText,
   FlaskConical,
   Ambulance,
+  Gift,
   History,
   MessageSquare,
   Stethoscope,
@@ -93,6 +94,11 @@ function LandingPage({ onAcceptTerms }: { onAcceptTerms: () => void }) {
       icon: Ambulance,
       title: "Hospital referrals",
       text: "Official referral letters when you need a hospital.",
+    },
+    {
+      icon: Gift,
+      title: "Refer & earn",
+      text: "Invite comrades — they get KSh 50 off, you earn KSh 30 credit.",
     },
   ];
 

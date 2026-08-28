@@ -156,6 +156,8 @@ export interface IntakeInput {
   consultation_mode: ConsultationMode;
   /** Smart-triage follow-up answers from the intake's quick questions. */
   triage_answers?: SmartTriageAnswers | null | undefined;
+  /** Optional referral code entered at intake (e.g. BRI7X2A). */
+  referral_code?: string | null | undefined;
 }
 
 interface ClinicApi {
@@ -447,6 +449,11 @@ export function ClinicProvider({ children }: { children: ReactNode }) {
             patient_email?: string | null;
             video_room_name?: string | null;
             consultation_mode?: string | null;
+            referral_code_used?: string | null;
+            referral_discount_kes?: number | null;
+            referred_by_profile_id?: string | null;
+            activated_at?: string | null;
+            ended_at?: string | null;
           };
           if (!row || !row.id) return;
 
@@ -493,6 +500,21 @@ export function ClinicProvider({ children }: { children: ReactNode }) {
           }
           if (row.consultation_mode !== undefined) {
             patch.consultation_mode = row.consultation_mode === "video" ? "video" : "chat";
+          }
+          if (row.referral_code_used !== undefined) {
+            patch.referral_code_used = row.referral_code_used;
+          }
+          if (row.referral_discount_kes !== undefined) {
+            patch.referral_discount_kes = row.referral_discount_kes;
+          }
+          if (row.referred_by_profile_id !== undefined) {
+            patch.referred_by_profile_id = row.referred_by_profile_id;
+          }
+          if (row.activated_at !== undefined) {
+            patch.activated_at = row.activated_at;
+          }
+          if (row.ended_at !== undefined) {
+            patch.ended_at = row.ended_at;
           }
 
           dispatch({
@@ -597,6 +619,8 @@ export function ClinicProvider({ children }: { children: ReactNode }) {
         const t = triage(input.symptom_codes);
         const smart = summarizeSmartTriage(input.symptom_codes, input.triage_answers);
         const level = finalTriageLevel(t.level, smart);
+        const referralCode = input.referral_code?.trim().toUpperCase() || null;
+        const referralDiscount = referralCode ? 50 : 0;
         const session: ConsultSession = {
           id: uid(),
           full_name: input.full_name,
@@ -611,12 +635,14 @@ export function ClinicProvider({ children }: { children: ReactNode }) {
           status: "awaiting_payment",
           consultation_mode: input.consultation_mode,
           paid: false,
-          fee_kes: CONSULT_FEE_KES,
+          fee_kes: CONSULT_FEE_KES - referralDiscount,
           mpesa_receipt: null,
           lab_test_requested: false,
           diagnosis_notes: "",
           prescription: null,
           referral: null,
+          referral_code_used: referralCode,
+          referral_discount_kes: referralDiscount || null,
           created_at: now(),
           ended_at: null,
         };
@@ -639,6 +665,23 @@ export function ClinicProvider({ children }: { children: ReactNode }) {
               patientId = null;
             }
 
+            // Try to resolve referrer profile for referral tracking
+            let referredById: string | null = null;
+            if (referralCode) {
+              try {
+                const { data: refProfile } = await supabase
+                  .from("profiles")
+                  .select("id")
+                  .ilike("referral_code", referralCode)
+                  .maybeSingle();
+                if (refProfile && refProfile.id !== patientId) {
+                  referredById = refProfile.id;
+                }
+              } catch {
+                referredById = null;
+              }
+            }
+
             const { error } = await supabase.from("consultations").insert({
               id: session.id,
               patient_name: input.full_name,
@@ -652,6 +695,9 @@ export function ClinicProvider({ children }: { children: ReactNode }) {
               consultation_mode: input.consultation_mode,
               ...(input.triage_answers ? { triage_answers: input.triage_answers } : {}),
               ...(patientId ? { patient_id: patientId } : {}),
+              ...(referralCode ? { referral_code_used: referralCode } : {}),
+              ...(referralDiscount ? { referral_discount_kes: referralDiscount } : {}),
+              ...(referredById ? { referred_by_profile_id: referredById } : {}),
             });
             if (error) {
               console.error("Supabase consultation insert failed:", error.message);
@@ -664,8 +710,25 @@ export function ClinicProvider({ children }: { children: ReactNode }) {
                 title: `New patient: ${input.full_name}`,
                 body: `${input.campus} · triage: ${t.level}${
                   input.consultation_mode === "video" ? " · wants voice/video" : ""
-                }`,
+                }${referralCode ? ` · ref ${referralCode}` : ""}`,
               });
+
+              // Record referral if code was used
+              if (referralCode && referredById) {
+                try {
+                  await supabase.from("referrals").insert({
+                    code: referralCode,
+                    referrer_profile_id: referredById,
+                    referred_profile_id: patientId,
+                    referred_consultation_id: session.id,
+                    discount_kes: referralDiscount,
+                    reward_kes: 30,
+                    status: "pending",
+                  });
+                } catch (refErr) {
+                  console.warn("Referral record notice:", refErr);
+                }
+              }
             }
             // Email backup for the doctor (no-op when Brevo isn't configured).
             void (async () => {
@@ -1007,6 +1070,14 @@ export function ClinicProvider({ children }: { children: ReactNode }) {
                 ended_at: now(),
               })
               .eq("id", id);
+
+            // Award referral credit if this consult was referred
+            try {
+              const { awardReferralIfNeeded } = await import("./referrals");
+              await awardReferralIfNeeded({ data: { consultation_id: id } });
+            } catch (refErr) {
+              console.warn("Referral award notice:", refErr);
+            }
           } catch (err) {
             console.error("Failed to end session with Rx:", err);
           }
@@ -1046,6 +1117,14 @@ export function ClinicProvider({ children }: { children: ReactNode }) {
                 ended_at: now(),
               })
               .eq("id", id);
+
+            // Award referral credit if this consult was referred
+            try {
+              const { awardReferralIfNeeded } = await import("./referrals");
+              await awardReferralIfNeeded({ data: { consultation_id: id } });
+            } catch (refErr) {
+              console.warn("Referral award notice:", refErr);
+            }
           } catch (err) {
             console.error("Failed to end session with Referral:", err);
           }

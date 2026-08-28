@@ -378,6 +378,21 @@ function DoctorLabResultsSection({ session }: { session: ConsultSession }) {
   );
 }
 
+function ReferralBadge({ session }: { session: ConsultSession }) {
+  if (!session.referral_code_used) return null;
+  return (
+    <div className="flex items-center gap-2 rounded-lg border border-primary/20 bg-primary/5 px-2.5 py-1.5 text-[11px]">
+      <span className="font-bold text-primary">Ref {session.referral_code_used}</span>
+      {session.referral_discount_kes ? (
+        <span className="rounded-full bg-success/15 px-1.5 py-0.5 text-[10px] font-bold text-success-foreground">
+          KSh {session.referral_discount_kes} off
+        </span>
+      ) : null}
+      <span className="text-muted-foreground">via referral</span>
+    </div>
+  );
+}
+
 function SendVisitReportSection({ session }: { session: ConsultSession }) {
   const [sending, setSending] = useState(false);
   const [statusMsg, setStatusMsg] = useState<{ type: "success" | "error"; text: string } | null>(
@@ -515,6 +530,7 @@ export function ClinicalPanel({ session }: { session: ConsultSession }) {
 
   return (
     <div className="space-y-4">
+      <ReferralBadge session={session} />
       <section className="rounded-xl border bg-card p-4 shadow-card">
         <div className="flex items-center justify-between gap-2">
           <p className="text-sm font-semibold">Auto-triage</p>

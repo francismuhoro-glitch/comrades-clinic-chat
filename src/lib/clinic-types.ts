@@ -242,8 +242,15 @@ export interface ConsultSession {
    * per consultation server-side; null until somebody starts a call.
    */
   video_room_name?: string | null | undefined;
+  /** Referral code the patient used at intake (if any). */
+  referral_code_used?: string | null | undefined;
+  /** Discount in KSh applied via referral (e.g. 50). */
+  referral_discount_kes?: number | null | undefined;
+  /** Profile id of the referrer (who owns the code). */
+  referred_by_profile_id?: string | null | undefined;
   created_at: string;
   ended_at: string | null;
+  activated_at?: string | null | undefined;
 }
 
 export interface Doctor {

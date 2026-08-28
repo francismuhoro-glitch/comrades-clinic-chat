@@ -5,19 +5,22 @@ merged into `main` and deployed by Vercel on merge.
 
 ## Shipped features
 
-| PR      | Feature                | What it does                                                                                                       | Setup                                                                                                          |
-| ------- | ---------------------- | ------------------------------------------------------------------------------------------------------------------ | -------------------------------------------------------------------------------------------------------------- |
-| #17     | Admin console `/admin` | Manage users/doctors: roles, names, KMPDC licenses, create doctor accounts                                         | Run migration `20260827090000`; promote yourself: `update public.profiles set role='admin' where email='you';` |
-| #17     | Queue date filter      | Today / 7 days / 30 days / All time above the doctor's queue tabs                                                  | —                                                                                                              |
-| #17     | Landing refresh        | Student-focused hero, services grid incl. voice/video calls                                                        | —                                                                                                              |
-| #18     | Notification center    | Live 🔔 bells for students + doctors (new patient, payment, doctor ready, Rx/lab/referral updates)                 | Run `20260827120000`                                                                                           |
-| #19     | Mental wellness module | Mood check-in (PHQ-2/GAD-2-based, device-local), `/wellness` hub with verified crisis lines, gentle doctor handoff | None                                                                                                           |
-| #20     | Smart triage           | Dynamic follow-up questions, red-flag screeners, auto-escalation, pre-consult summary card                         | Run `20260827130000`                                                                                           |
-| #21     | Appointment booking    | `/book` 7-day EAT slot grid, doctor Bookings tab with confirm/decline, reminders via bells                         | Run `20260827140000`                                                                                           |
-| #22     | PWA + web push         | Installable app, offline page, background push (zero-dependency VAPID implementation)                              | Run `20260827150000`; set `VAPID_PRIVATE_KEY` on Vercel                                                        |
-| #23     | Install button         | One-tap PWA install in both headers (captures `beforeinstallprompt`)                                               | —                                                                                                              |
-| #24/#25 | Push UX fixes          | Vibration + renotify + high-urgency delivery                                                                       | —                                                                                                              |
-| #26     | Doctor email alerts    | Email to the doctor's login address on new queue patients + M-Pesa claims (Brevo)                                  | Same Brevo keys as visit reports; optional `SITE_URL`                                                          |
+| PR      | Feature                | What it does                                                                                                                                                                                            | Setup                                                                                                          |
+| ------- | ---------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------- |
+| #17     | Admin console `/admin` | Manage users/doctors: roles, names, KMPDC licenses, create doctor accounts                                                                                                                              | Run migration `20260827090000`; promote yourself: `update public.profiles set role='admin' where email='you';` |
+| #17     | Queue date filter      | Today / 7 days / 30 days / All time above the doctor's queue tabs                                                                                                                                       | —                                                                                                              |
+| #17     | Landing refresh        | Student-focused hero, services grid incl. voice/video calls                                                                                                                                             | —                                                                                                              |
+| #18     | Notification center    | Live 🔔 bells for students + doctors (new patient, payment, doctor ready, Rx/lab/referral updates)                                                                                                      | Run `20260827120000`                                                                                           |
+| #19     | Mental wellness module | Mood check-in (PHQ-2/GAD-2-based, device-local), `/wellness` hub with verified crisis lines, gentle doctor handoff                                                                                      | None                                                                                                           |
+| #20     | Smart triage           | Dynamic follow-up questions, red-flag screeners, auto-escalation, pre-consult summary card                                                                                                              | Run `20260827130000`                                                                                           |
+| #21     | Appointment booking    | `/book` 7-day EAT slot grid, doctor Bookings tab with confirm/decline, reminders via bells                                                                                                              | Run `20260827140000`                                                                                           |
+| #22     | PWA + web push         | Installable app, offline page, background push (zero-dependency VAPID implementation)                                                                                                                   | Run `20260827150000`; set `VAPID_PRIVATE_KEY` on Vercel                                                        |
+| #23     | Install button         | One-tap PWA install in both headers (captures `beforeinstallprompt`)                                                                                                                                    | —                                                                                                              |
+| #24/#25 | Push UX fixes          | Vibration + renotify + high-urgency delivery                                                                                                                                                            | —                                                                                                              |
+| #26     | Doctor email alerts    | Email to the doctor's login address on new queue patients + M-Pesa claims (Brevo)                                                                                                                       | Same Brevo keys as visit reports; optional `SITE_URL`                                                          |
+| #28     | Remove demo seed       | Strip hardcoded Brian/Mercy/Kelvin patients — live queue is Supabase-only, analytics are real                                                                                                           | — (commit HANDOFF.md)                                                                                          |
+| #29     | Analytics dashboard    | `/admin` Analytics tab: consults/day, revenue (KSh 150×confirmed), top symptoms, triage/mode mix, response times, completion stats, campus breakdown                                                    | Run `20260828100000`                                                                                           |
+| #30     | Referral program       | Student referral codes, invite flow (`/?ref=CODE`), KSh 50 off first consult (pay 100), KSh 30 credit reward, campus ambassadors toggle + leaderboard in `/admin` Referrals tab, `/referrals` dashboard | Run `20260828110000`                                                                                           |
 
 ## Supabase migrations — run in this order
 
@@ -33,6 +36,8 @@ SQL editor only (never automated). All are idempotent.
 8. `20260827130000_smart_triage_answers.sql`
 9. `20260827140000_appointments.sql`
 10. `20260827150000_push_subscriptions.sql`
+11. `20260828100000_analytics_activated_at.sql`
+12. `20260828110000_referral_program.sql`
 
 ## Environment variables (Vercel)
 
@@ -51,6 +56,10 @@ SQL editor only (never automated). All are idempotent.
 
 ## Roadmap (chosen by the owner)
 
-Remaining: **#9 analytics dashboard** (in `/admin`) · **#11 referral program**.
-Done: notifications, mental health, smart triage, booking, PWA+push — plus the
-owner-requested doctor email alerts.
+All owner-picked roadmap items are now shipped:
+
+- **#9 analytics dashboard** ✅ (PR #29) — in `/admin`
+- **#11 referral program** ✅ (PR #30) — `/referrals` + `/admin` Referrals tab
+
+Remaining ideas (not yet approved): campus ambassador perks page, referral credit redemption at payment, SMS invites.
+Done: notifications, mental health, smart triage, booking, PWA+push, doctor email alerts, demo-seed removal, analytics, referrals.

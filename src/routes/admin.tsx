@@ -5,14 +5,11 @@ import {
   Check,
   Clock3,
   CreditCard,
-  Gift,
-  Megaphone,
   Pencil,
   Plus,
   Search,
   ShieldCheck,
   Stethoscope,
-  Trophy,
   UserRound,
   Users,
   Video,
@@ -50,13 +47,6 @@ import {
   type AnalyticsSummary,
   type ConsultationAnalyticsRow,
 } from "@/lib/analytics";
-import {
-  getTopReferrers,
-  setAmbassadorStatus,
-  type TopReferrer,
-  REFERRAL_DISCOUNT_KES,
-  REFERRAL_REWARD_KES,
-} from "@/lib/referrals";
 import { cn } from "@/lib/utils";
 
 export const Route = createFileRoute("/admin")({
@@ -104,7 +94,7 @@ function AdminAccessDenied() {
 const ROLE_OPTIONS = ["patient", "doctor", "admin"] as const;
 
 function AdminConsole({ authenticatedDoctor }: { authenticatedDoctor: AuthenticatedDoctor }) {
-  const [activeTab, setActiveTab] = useState<"analytics" | "users" | "referrals">("analytics");
+  const [activeTab, setActiveTab] = useState<"analytics" | "users">("analytics");
   const [profiles, setProfiles] = useState<ProfileRow[]>([]);
   const [loading, setLoading] = useState(true);
   const [loadError, setLoadError] = useState<string | null>(null);
@@ -182,7 +172,7 @@ function AdminConsole({ authenticatedDoctor }: { authenticatedDoctor: Authentica
             <div>
               <h1 className="text-base font-bold leading-tight">Admin Console</h1>
               <p className="text-xs text-muted-foreground">
-                {authenticatedDoctor.name} · clinic ops, analytics & referrals
+                {authenticatedDoctor.name} · clinic ops & analytics
               </p>
             </div>
           </div>
@@ -199,7 +189,7 @@ function AdminConsole({ authenticatedDoctor }: { authenticatedDoctor: Authentica
       <div className="mx-auto max-w-6xl space-y-5 p-4">
         <Tabs
           value={activeTab}
-          onValueChange={(v) => setActiveTab(v as "analytics" | "users" | "referrals")}
+          onValueChange={(v) => setActiveTab(v as "analytics" | "users")}
           className="w-full"
         >
           <TabsList className="w-full justify-start overflow-x-auto">
@@ -209,17 +199,10 @@ function AdminConsole({ authenticatedDoctor }: { authenticatedDoctor: Authentica
             <TabsTrigger value="users" className="gap-1.5">
               <Users className="size-3.5" /> Users ({profiles.length})
             </TabsTrigger>
-            <TabsTrigger value="referrals" className="gap-1.5">
-              <Gift className="size-3.5" /> Referrals
-            </TabsTrigger>
           </TabsList>
 
           <TabsContent value="analytics" className="mt-4 space-y-5">
             <AnalyticsDashboard />
-          </TabsContent>
-
-          <TabsContent value="referrals" className="mt-4 space-y-5">
-            <ReferralsAdminTab />
           </TabsContent>
 
           <TabsContent value="users" className="mt-4 space-y-5">
@@ -673,148 +656,6 @@ function AnalyticsDashboard() {
           </div>
         </section>
       </div>
-    </div>
-  );
-}
-
-function ReferralsAdminTab() {
-  const [top, setTop] = useState<TopReferrer[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
-  const [busyId, setBusyId] = useState<string | null>(null);
-
-  const fetch = async () => {
-    setLoading(true);
-    setError(null);
-    const res = await getTopReferrers();
-    if (!res.ok) {
-      setError(res.error);
-      setLoading(false);
-      return;
-    }
-    setTop(res.top);
-    setLoading(false);
-  };
-
-  useEffect(() => {
-    void fetch();
-  }, []);
-
-  const toggleAmbassador = async (profile_id: string, current: boolean | null) => {
-    setBusyId(profile_id);
-    const res = await setAmbassadorStatus({
-      data: { profile_id, is_ambassador: !current },
-    });
-    setBusyId(null);
-    if (!res.ok) {
-      setError(res.error);
-      return;
-    }
-    setTop((prev) =>
-      prev.map((p) => (p.profile_id === profile_id ? { ...p, is_ambassador: !current } : p)),
-    );
-  };
-
-  if (loading) {
-    return <p className="py-8 text-center text-xs text-muted-foreground">Loading referrals…</p>;
-  }
-
-  return (
-    <div className="space-y-5">
-      {error && (
-        <p className="rounded-xl border border-destructive/40 bg-destructive/10 px-3 py-2 text-xs font-medium text-destructive">
-          {error}
-        </p>
-      )}
-
-      <section className="rounded-2xl border bg-card p-4 shadow-card">
-        <h3 className="flex items-center gap-2 text-sm font-bold">
-          <Gift className="size-4 text-primary" /> Referral program overview
-        </h3>
-        <div className="mt-2 grid gap-2 text-[11px] leading-relaxed text-muted-foreground sm:grid-cols-2">
-          <div className="rounded-xl border bg-muted/40 p-3">
-            <p className="font-bold text-foreground">Student flow</p>
-            <p>
-              Each student gets a code (e.g. BRI7X2A) on <code>/referrals</code>. They share a link
-              like <code>/?ref=CODE</code>. At intake, code gives KSh {REFERRAL_DISCOUNT_KES} off —
-              pay KSh {150 - REFERRAL_DISCOUNT_KES} instead of 150. Referrer earns KSh{" "}
-              {REFERRAL_REWARD_KES} credit after referee completes first consult.
-            </p>
-          </div>
-          <div className="rounded-xl border bg-muted/40 p-3">
-            <p className="font-bold text-foreground">Campus ambassadors</p>
-            <p>
-              Toggle ambassador status below. Ambassadors get a badge on their referral page and
-              count double in leaderboards (future). They are your growth engine per campus.
-            </p>
-          </div>
-        </div>
-        <div className="mt-3 flex flex-wrap gap-1.5">
-          <span className="rounded-full border bg-muted/50 px-2.5 py-1 text-[11px]">
-            Discount: KSh {REFERRAL_DISCOUNT_KES} off first consult
-          </span>
-          <span className="rounded-full border bg-muted/50 px-2.5 py-1 text-[11px]">
-            Reward: KSh {REFERRAL_REWARD_KES} credit per completed referral
-          </span>
-          <span className="rounded-full border bg-muted/50 px-2.5 py-1 text-[11px]">
-            Link format: /?ref=CODE or /?r=CODE
-          </span>
-        </div>
-      </section>
-
-      <section className="rounded-2xl border bg-card p-4 shadow-card">
-        <h3 className="flex items-center gap-2 text-sm font-bold">
-          <Trophy className="size-4 text-primary" /> Top referrers ({top.length})
-        </h3>
-        {top.length === 0 ? (
-          <p className="mt-3 rounded-xl border border-dashed px-4 py-8 text-center text-xs text-muted-foreground">
-            No referral codes yet. Students generate codes on /referrals after signing in.
-          </p>
-        ) : (
-          <ul className="mt-3 space-y-2">
-            {top.map((r) => (
-              <li
-                key={r.profile_id}
-                className="flex flex-wrap items-center gap-3 rounded-xl border p-3"
-              >
-                <span className="flex size-9 shrink-0 items-center justify-center rounded-full bg-primary/10 text-xs font-bold text-primary">
-                  {(r.full_name || r.email || "?").slice(0, 1).toUpperCase()}
-                </span>
-                <div className="min-w-0 flex-1">
-                  <p className="flex items-center gap-1.5 truncate text-xs font-bold">
-                    {r.full_name || "Unnamed"}
-                    {r.is_ambassador && (
-                      <span className="inline-flex items-center gap-1 rounded-full bg-primary/10 px-1.5 py-0.5 text-[10px] font-bold text-primary">
-                        <Megaphone className="size-3" /> ambassador
-                      </span>
-                    )}
-                    <span className="rounded-full bg-muted px-1.5 py-0.5 font-mono text-[10px]">
-                      {r.referral_code}
-                    </span>
-                  </p>
-                  <p className="truncate text-[11px] text-muted-foreground">
-                    {r.email || "no email"} · {r.total} total · {r.completed} completed
-                  </p>
-                </div>
-                <Button
-                  size="sm"
-                  variant={r.is_ambassador ? "default" : "outline"}
-                  className="h-7 gap-1 text-[11px]"
-                  disabled={busyId === r.profile_id}
-                  onClick={() => void toggleAmbassador(r.profile_id, r.is_ambassador)}
-                >
-                  <Megaphone className="size-3.5" />
-                  {busyId === r.profile_id
-                    ? "…"
-                    : r.is_ambassador
-                      ? "Remove ambassador"
-                      : "Make ambassador"}
-                </Button>
-              </li>
-            ))}
-          </ul>
-        )}
-      </section>
     </div>
   );
 }

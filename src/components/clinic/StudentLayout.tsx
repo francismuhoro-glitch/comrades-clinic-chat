@@ -102,7 +102,7 @@ export function StudentLayout({
       {/* Footer with Legal Links (Bypass strict router path validation via standard anchor tags) */}
       <footer className="border-t bg-card/60 px-4 py-4 text-center text-[11px] text-muted-foreground">
         <div className="mx-auto max-w-lg space-y-2">
-          <div className="flex items-center justify-center gap-4">
+          <div className="flex flex-wrap items-center justify-center gap-3">
             <a
               href="/terms"
               className="hover:text-primary transition-colors underline-offset-4 hover:underline"
@@ -120,6 +120,12 @@ export function StudentLayout({
               className="hover:text-primary transition-colors underline-offset-4 hover:underline"
             >
               Book
+            </a>
+            <a
+              href="/referrals"
+              className="hover:text-primary transition-colors underline-offset-4 hover:underline font-bold"
+            >
+              Refer & Earn
             </a>
             <span>·</span>
             <a

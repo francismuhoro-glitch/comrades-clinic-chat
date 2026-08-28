@@ -3,6 +3,7 @@ import {
   ArrowRight,
   CheckCircle2,
   FlaskConical,
+  Gift,
   Mail,
   MessageSquare,
   ShieldCheck,
@@ -37,6 +38,13 @@ import { questionsFor, summarizeSmartTriage, type SmartTriageAnswers } from "@/l
 import { EMERGENCY_NOTICE, SYMPTOM_OPTIONS, symptomLabel, triage } from "@/lib/triage";
 import { cn } from "@/lib/utils";
 import { consumeIntakeSymptoms } from "@/lib/wellness";
+import {
+  getPendingReferralCode,
+  savePendingReferralCode,
+  validateReferralCode,
+  REFERRAL_DISCOUNT_KES,
+  CONSULT_FEE_WITH_REFERRAL,
+} from "@/lib/referrals";
 import type { LucideIcon } from "lucide-react";
 
 /** Numbered, carded step that gives the form a clear visual rhythm. */
@@ -89,6 +97,13 @@ export function IntakeForm({ onSubmit }: { onSubmit: (input: IntakeInput) => voi
   const [error, setError] = useState<string | null>(null);
   const [smartAnswers, setSmartAnswers] = useState<SmartTriageAnswers>({});
 
+  // Referral code state
+  const [referralCode, setReferralCode] = useState("");
+  const [referralChecking, setReferralChecking] = useState(false);
+  const [referralValid, setReferralValid] = useState<boolean | null>(null);
+  const [referralReferrer, setReferralReferrer] = useState<string | null>(null);
+  const [referralError, setReferralError] = useState<string | null>(null);
+
   // Auto-prefill email if patient is signed in
   useEffect(() => {
     if (patient?.email && !form.patient_email) {
@@ -106,6 +121,71 @@ export function IntakeForm({ onSubmit }: { onSubmit: (input: IntakeInput) => voi
       }));
     }
   }, []);
+
+  // Prefill referral code from URL ?ref= or ?r= or localStorage
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    const params = new URLSearchParams(window.location.search);
+    const fromUrl = params.get("ref") || params.get("r") || params.get("referral");
+    const fromStorage = getPendingReferralCode();
+    const initial = (fromUrl || fromStorage || "").trim().toUpperCase();
+    if (initial) {
+      setReferralCode(initial);
+      // Save to storage for persistence
+      savePendingReferralCode(initial);
+    }
+  }, []);
+
+  // Validate referral code whenever it changes (debounced)
+  useEffect(() => {
+    const code = referralCode.trim().toUpperCase();
+    if (!code) {
+      setReferralValid(null);
+      setReferralReferrer(null);
+      setReferralError(null);
+      return;
+    }
+    if (code.length < 3) {
+      setReferralValid(null);
+      setReferralError(null);
+      return;
+    }
+    let cancelled = false;
+    setReferralChecking(true);
+    setReferralError(null);
+    const timer = setTimeout(async () => {
+      try {
+        const result = await validateReferralCode({ data: { code } });
+        if (cancelled) return;
+        if (!result.ok) {
+          setReferralValid(false);
+          setReferralError(result.error);
+          return;
+        }
+        if (!result.valid) {
+          setReferralValid(false);
+          setReferralError(result.reason);
+          setReferralReferrer(null);
+        } else {
+          setReferralValid(true);
+          setReferralReferrer(result.referrer.full_name || "A comrade");
+          setReferralError(null);
+          savePendingReferralCode(code);
+        }
+      } catch {
+        if (!cancelled) {
+          setReferralValid(false);
+          setReferralError("Could not verify code. You can still continue.");
+        }
+      } finally {
+        if (!cancelled) setReferralChecking(false);
+      }
+    }, 500);
+    return () => {
+      cancelled = true;
+      clearTimeout(timer);
+    };
+  }, [referralCode]);
 
   const set = <K extends keyof IntakeInput>(key: K, value: IntakeInput[K]) =>
     setForm((f) => ({ ...f, [key]: value }));
@@ -138,13 +218,13 @@ export function IntakeForm({ onSubmit }: { onSubmit: (input: IntakeInput) => voi
       setError("Please fill in all the required fields above.");
       return;
     }
-    if (!/^(?:\+?254|0)7\d{8}$|^(?:\+?254|0)1\d{8}$/.test(form.phone.replace(/\s/g, ""))) {
+    if (!/^(?:\+?254|0)7\d{8}$|^(?:\+?254|0)1\d{8}$/.test(form.phone.replace(/\\s/g, ""))) {
       setError("Enter a valid Kenyan M-Pesa number, e.g. 0712345678.");
       return;
     }
     if (
       form.patient_email?.trim() &&
-      !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(form.patient_email.trim())
+      !/^[^\\s@]+@[^\\s@]+\.[^\\s@]+$/.test(form.patient_email.trim())
     ) {
       setError("Enter a valid email address.");
       return;
@@ -165,11 +245,16 @@ export function IntakeForm({ onSubmit }: { onSubmit: (input: IntakeInput) => voi
     onSubmit({
       ...form,
       ...(Object.keys(smartAnswers).length > 0 ? { triage_answers: smartAnswers } : {}),
+      ...(referralValid && referralCode.trim()
+        ? { referral_code: referralCode.trim().toUpperCase() }
+        : {}),
     });
   };
 
   const commonSymptoms = SYMPTOM_OPTIONS.filter((s) => s.level !== "emergency");
   const emergencySymptoms = SYMPTOM_OPTIONS.filter((s) => s.level === "emergency");
+
+  const feeToPay = referralValid ? CONSULT_FEE_WITH_REFERRAL : CONSULT_FEE_KES;
 
   return (
     <form onSubmit={handleSubmit} className="space-y-4">
@@ -274,6 +359,59 @@ export function IntakeForm({ onSubmit }: { onSubmit: (input: IntakeInput) => voi
               ))}
             </SelectContent>
           </Select>
+        </div>
+
+        {/* Referral code (optional) */}
+        <div className="space-y-1.5">
+          <Label htmlFor="referral_code" className="flex items-center gap-1.5">
+            <Gift className="size-3.5 text-primary" />
+            Referral code (optional) — get KSh {REFERRAL_DISCOUNT_KES} off
+          </Label>
+          <div className="flex gap-2">
+            <Input
+              id="referral_code"
+              value={referralCode}
+              onChange={(e) => setReferralCode(e.target.value.toUpperCase())}
+              placeholder="e.g. BRI7X2A"
+              className="font-mono uppercase"
+              maxLength={20}
+            />
+            {referralCode && (
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                className="shrink-0"
+                onClick={() => {
+                  setReferralCode("");
+                  setReferralValid(null);
+                  setReferralReferrer(null);
+                  setReferralError(null);
+                }}
+              >
+                Clear
+              </Button>
+            )}
+          </div>
+          {referralChecking && <p className="text-[11px] text-muted-foreground">Checking code…</p>}
+          {referralValid === true && (
+            <p className="flex items-center gap-1.5 rounded-lg border border-success/30 bg-success/10 px-2.5 py-1.5 text-[11px] font-medium text-success-foreground">
+              <CheckCircle2 className="size-3.5" />
+              Valid! Referred by {referralReferrer} — you pay KSh {CONSULT_FEE_WITH_REFERRAL}{" "}
+              instead of KSh {CONSULT_FEE_KES}.
+            </p>
+          )}
+          {referralValid === false && referralError && (
+            <p className="rounded-lg border border-destructive/30 bg-destructive/10 px-2.5 py-1.5 text-[11px] font-medium text-destructive">
+              {referralError}
+            </p>
+          )}
+          {!referralCode && (
+            <p className="text-[10px] text-muted-foreground">
+              Got a code from a friend? Enter it for KSh {REFERRAL_DISCOUNT_KES} off your first
+              consult. Your friend earns KSh 30 credit when you complete.
+            </p>
+          )}
         </div>
       </Section>
 
@@ -406,7 +544,6 @@ export function IntakeForm({ onSubmit }: { onSubmit: (input: IntakeInput) => voi
         </div>
       </Section>
 
-      {/* ── Step 4 · How would you like to consult? ─────────────────────── */}
       {/* ── Step 3 · Quick questions (smart triage) ─────────────────────── */}
       {smartQuestions.length > 0 && (
         <Section
@@ -551,7 +688,12 @@ export function IntakeForm({ onSubmit }: { onSubmit: (input: IntakeInput) => voi
       )}
 
       <Button type="submit" size="lg" className="h-14 w-full rounded-xl gap-2 text-base font-bold">
-        Start Consultation (KSh {CONSULT_FEE_KES})
+        Start Consultation (KSh {feeToPay})
+        {referralValid && (
+          <span className="rounded-full bg-white/20 px-2 py-0.5 text-[11px] line-through">
+            {CONSULT_FEE_KES}
+          </span>
+        )}
         <ArrowRight className="size-4" />
       </Button>
 

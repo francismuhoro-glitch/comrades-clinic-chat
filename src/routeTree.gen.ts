@@ -14,6 +14,7 @@ import { Route as AdminRouteImport } from './routes/admin'
 import { Route as BookRouteImport } from './routes/book'
 import { Route as DoctorRouteImport } from './routes/doctor'
 import { Route as PrivacyRouteImport } from './routes/privacy'
+import { Route as ReferralsRouteImport } from './routes/referrals'
 import { Route as TermsRouteImport } from './routes/terms'
 import { Route as VisitsRouteImport } from './routes/visits'
 import { Route as WellnessRouteImport } from './routes/wellness'
@@ -43,6 +44,11 @@ const PrivacyRoute = PrivacyRouteImport.update({
   path: '/privacy',
   getParentRoute: () => rootRouteImport,
 } as any)
+const ReferralsRoute = ReferralsRouteImport.update({
+  id: '/referrals',
+  path: '/referrals',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const TermsRoute = TermsRouteImport.update({
   id: '/terms',
   path: '/terms',
@@ -65,6 +71,7 @@ export interface FileRoutesByFullPath {
   '/book': typeof BookRoute
   '/doctor': typeof DoctorRoute
   '/privacy': typeof PrivacyRoute
+  '/referrals': typeof ReferralsRoute
   '/terms': typeof TermsRoute
   '/visits': typeof VisitsRoute
   '/wellness': typeof WellnessRoute
@@ -75,6 +82,7 @@ export interface FileRoutesByTo {
   '/book': typeof BookRoute
   '/doctor': typeof DoctorRoute
   '/privacy': typeof PrivacyRoute
+  '/referrals': typeof ReferralsRoute
   '/terms': typeof TermsRoute
   '/visits': typeof VisitsRoute
   '/wellness': typeof WellnessRoute
@@ -86,6 +94,7 @@ export interface FileRoutesById {
   '/book': typeof BookRoute
   '/doctor': typeof DoctorRoute
   '/privacy': typeof PrivacyRoute
+  '/referrals': typeof ReferralsRoute
   '/terms': typeof TermsRoute
   '/visits': typeof VisitsRoute
   '/wellness': typeof WellnessRoute
@@ -98,6 +107,7 @@ export interface FileRouteTypes {
     | '/book'
     | '/doctor'
     | '/privacy'
+    | '/referrals'
     | '/terms'
     | '/visits'
     | '/wellness'
@@ -108,6 +118,7 @@ export interface FileRouteTypes {
     | '/book'
     | '/doctor'
     | '/privacy'
+    | '/referrals'
     | '/terms'
     | '/visits'
     | '/wellness'
@@ -118,6 +129,7 @@ export interface FileRouteTypes {
     | '/book'
     | '/doctor'
     | '/privacy'
+    | '/referrals'
     | '/terms'
     | '/visits'
     | '/wellness'
@@ -129,6 +141,7 @@ export interface RootRouteChildren {
   BookRoute: typeof BookRoute
   DoctorRoute: typeof DoctorRoute
   PrivacyRoute: typeof PrivacyRoute
+  ReferralsRoute: typeof ReferralsRoute
   TermsRoute: typeof TermsRoute
   VisitsRoute: typeof VisitsRoute
   WellnessRoute: typeof WellnessRoute
@@ -171,6 +184,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof PrivacyRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/referrals': {
+      id: '/referrals'
+      path: '/referrals'
+      fullPath: '/referrals'
+      preLoaderRoute: typeof ReferralsRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/terms': {
       id: '/terms'
       path: '/terms'
@@ -201,6 +221,7 @@ const rootRouteChildren: RootRouteChildren = {
   BookRoute: BookRoute,
   DoctorRoute: DoctorRoute,
   PrivacyRoute: PrivacyRoute,
+  ReferralsRoute: ReferralsRoute,
   TermsRoute: TermsRoute,
   VisitsRoute: VisitsRoute,
   WellnessRoute: WellnessRoute,

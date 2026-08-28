@@ -38,6 +38,9 @@ export interface ConsultationRow {
   ended_at?: string | null;
   activated_at?: string | null;
   updated_at?: string | null;
+  referral_code_used?: string | null;
+  referral_discount_kes?: number | null;
+  referred_by_profile_id?: string | null;
 }
 
 export function mapConsultationRow(row: ConsultationRow): ConsultSession {
@@ -68,7 +71,7 @@ export function mapConsultationRow(row: ConsultationRow): ConsultSession {
       Boolean(row.paid) ||
       row.payment_status === "confirmed" ||
       (row.status !== "payment_pending" && row.status !== "intake"),
-    fee_kes: CONSULT_FEE_KES,
+    fee_kes: CONSULT_FEE_KES - (row.referral_discount_kes ?? 0),
     mpesa_receipt: row.mpesa_code || null,
     mpesa_code: row.mpesa_code ?? null,
     payment_phone: row.payment_phone ?? null,
@@ -81,7 +84,11 @@ export function mapConsultationRow(row: ConsultationRow): ConsultSession {
     lab_order: row.lab_order || null,
     patient_id: row.patient_id ?? null,
     video_room_name: row.video_room_name ?? null,
+    referral_code_used: row.referral_code_used ?? null,
+    referral_discount_kes: row.referral_discount_kes ?? null,
+    referred_by_profile_id: row.referred_by_profile_id ?? null,
     created_at: row.created_at || new Date().toISOString(),
     ended_at: row.ended_at ?? null,
+    activated_at: row.activated_at ?? null,
   };
 }

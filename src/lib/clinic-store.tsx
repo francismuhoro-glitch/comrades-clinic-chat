@@ -767,6 +767,22 @@ export function ClinicProvider({ children }: { children: ReactNode }) {
                 }`,
               });
             }
+            // Email backup for the doctor (no-op when Brevo isn't configured).
+            void (async () => {
+              try {
+                const { notifyDoctorNewPatient } = await import("./doctor-email-alerts");
+                await notifyDoctorNewPatient({
+                  data: {
+                    patientName: input.full_name,
+                    campus: input.campus,
+                    triage: level,
+                    mode: input.consultation_mode,
+                  },
+                });
+              } catch (emailErr) {
+                console.warn("Doctor email alert notice:", emailErr);
+              }
+            })();
           } catch (err) {
             console.warn("Supabase session sync notice:", err);
           }
@@ -801,6 +817,22 @@ export function ClinicProvider({ children }: { children: ReactNode }) {
               payment_status: "pending",
             })
             .eq("id", id);
+          // Email backup for the doctor (no-op when Brevo isn't configured).
+          void (async () => {
+            try {
+              const { notifyDoctorPaymentClaim } = await import("./doctor-email-alerts");
+              await notifyDoctorPaymentClaim({
+                data: {
+                  patientName: claimed?.full_name ?? "A patient",
+                  mpesaCode,
+                  phone: paymentPhone || undefined,
+                  amountKes: claimed?.fee_kes ?? CONSULT_FEE_KES,
+                },
+              });
+            } catch (emailErr) {
+              console.warn("Doctor email alert notice:", emailErr);
+            }
+          })();
         } catch (err) {
           console.error("Failed to submit payment claim:", err);
         }

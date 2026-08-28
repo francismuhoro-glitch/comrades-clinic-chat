@@ -852,7 +852,11 @@ export function ClinicProvider({ children }: { children: ReactNode }) {
         });
         (async () => {
           try {
-            await supabase.from("consultations").update({ status: "active" }).eq("id", id);
+            const activatedAt = now();
+            await supabase
+              .from("consultations")
+              .update({ status: "active", activated_at: activatedAt })
+              .eq("id", id);
           } catch (err) {
             console.error("Failed to activate consultation in Supabase:", err);
           }

@@ -36,6 +36,8 @@ export interface ConsultationRow {
   triage_answers?: SmartTriageAnswers | null;
   created_at?: string | null;
   ended_at?: string | null;
+  activated_at?: string | null;
+  updated_at?: string | null;
 }
 
 export function mapConsultationRow(row: ConsultationRow): ConsultSession {

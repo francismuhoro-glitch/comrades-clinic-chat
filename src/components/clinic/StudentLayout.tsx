@@ -121,12 +121,6 @@ export function StudentLayout({
             >
               Book
             </a>
-            <a
-              href="/referrals"
-              className="hover:text-primary transition-colors underline-offset-4 hover:underline font-bold"
-            >
-              Refer & Earn
-            </a>
             <span>·</span>
             <a
               href="/privacy"

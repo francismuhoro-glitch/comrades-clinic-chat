@@ -5,7 +5,6 @@ import {
   ChevronDown,
   ChevronUp,
   FlaskConical,
-  Gift,
   History,
   Link2,
   LoaderCircle,
@@ -263,26 +262,6 @@ function VisitCard({ visit }: { visit: ConsultSession }) {
   );
 }
 
-function ReferralCta() {
-  return (
-    <div className="rounded-2xl border bg-gradient-to-br from-primary/10 via-primary/5 to-success/10 p-4 shadow-card">
-      <p className="text-xs font-bold flex items-center gap-1.5">
-        <Gift className="size-4 text-primary" /> Invite comrades, earn KSh 30 credit
-      </p>
-      <p className="mt-1 text-[11px] leading-relaxed text-muted-foreground">
-        Your friends get KSh 50 off their first consult (KSh 100 vs 150). You get KSh 30 credit when
-        they complete. Campus ambassadors get leaderboard boosts.
-      </p>
-      <Link
-        to="/referrals"
-        className="mt-2 inline-flex items-center gap-1 rounded-lg bg-primary px-3 py-1.5 text-[11px] font-bold text-primary-foreground hover:bg-primary/90"
-      >
-        Open referral dashboard →
-      </Link>
-    </div>
-  );
-}
-
 function VisitsRouteComponent() {
   const { patient, loading, signOut } = usePatientAuth();
 
@@ -400,8 +379,6 @@ function VisitsRouteComponent() {
                 Sign out
               </Button>
             </div>
-
-            <ReferralCta />
 
             {fetching && (
               <div className="rounded-2xl border bg-card p-6 text-center shadow-card">

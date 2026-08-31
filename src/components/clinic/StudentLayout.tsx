@@ -2,6 +2,7 @@ import { Link } from "@tanstack/react-router";
 import { Smartphone, Stethoscope, UserRound } from "lucide-react";
 import type { ReactNode } from "react";
 
+import { EmergencyContactsBar } from "@/components/clinic/EmergencyContacts";
 import { NotificationBell } from "@/components/clinic/NotificationBell";
 import { useClinic } from "@/lib/clinic-store";
 import type { SessionStatus } from "@/lib/clinic-types";
@@ -46,6 +47,7 @@ export function StudentLayout({
 
   return (
     <div className="min-h-screen bg-background text-foreground flex flex-col justify-between">
+      <EmergencyContactsBar variant="banner" />
       <div>
         {/* Header */}
         <header className="sticky top-0 z-20 border-b bg-card/95 backdrop-blur px-4 py-3 shadow-sm">
@@ -101,7 +103,8 @@ export function StudentLayout({
 
       {/* Footer with Legal Links (Bypass strict router path validation via standard anchor tags) */}
       <footer className="border-t bg-card/60 px-4 py-4 text-center text-[11px] text-muted-foreground">
-        <div className="mx-auto max-w-lg space-y-2">
+        <div className="mx-auto max-w-lg space-y-3">
+          <EmergencyContactsBar variant="footer" />
           <div className="flex flex-wrap items-center justify-center gap-3">
             <a
               href="/terms"

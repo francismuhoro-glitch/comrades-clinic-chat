@@ -1,6 +1,7 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { ArrowLeft, ShieldCheck } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { EmergencyContactsBar } from "@/components/clinic/EmergencyContacts";
 
 export const Route = createFileRoute("/privacy")({
   head: () => ({
@@ -18,8 +19,9 @@ export const Route = createFileRoute("/privacy")({
 
 function PrivacyPage() {
   return (
-    <main className="min-h-screen bg-background px-4 py-8 text-foreground">
-      <div className="mx-auto max-w-3xl space-y-6">
+    <main className="min-h-screen bg-background text-foreground">
+      <EmergencyContactsBar variant="banner" />
+      <div className="mx-auto max-w-3xl space-y-6 px-4 py-8">
         <a href="/">
           <Button
             variant="ghost"
@@ -30,6 +32,8 @@ function PrivacyPage() {
             Back to Clinic
           </Button>
         </a>
+
+        <EmergencyContactsBar variant="card" />
 
         <div className="space-y-2 border-b pb-4">
           <div className="flex items-center gap-2 text-success">

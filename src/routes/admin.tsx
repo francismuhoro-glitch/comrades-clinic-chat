@@ -18,6 +18,7 @@ import {
 import { useEffect, useMemo, useState } from "react";
 
 import { DoctorLogin } from "@/components/clinic/DoctorLogin";
+import { EmergencyContactsBar } from "@/components/clinic/EmergencyContacts";
 import { Button } from "@/components/ui/button";
 import {
   Dialog,
@@ -70,22 +71,25 @@ function AdminRouteComponent() {
 
 function AdminAccessDenied() {
   return (
-    <main className="flex min-h-screen items-center justify-center bg-background p-4">
-      <div className="max-w-sm space-y-3 rounded-2xl border bg-card p-6 text-center shadow-card">
-        <span className="mx-auto flex size-10 items-center justify-center rounded-xl bg-warning/15 text-warning-foreground">
-          <ShieldCheck className="size-5" />
-        </span>
-        <h1 className="text-sm font-bold">Admin access required</h1>
-        <p className="text-xs text-muted-foreground leading-relaxed">
-          This console is restricted to clinic administrators. Ask an existing admin to set your
-          profile role to <strong>admin</strong>, then sign in again.
-        </p>
-        <Link
-          to="/doctor"
-          className="inline-flex items-center gap-1.5 text-xs font-bold text-primary hover:underline"
-        >
-          <ArrowLeft className="size-3.5" /> Back to doctor portal
-        </Link>
+    <main className="min-h-screen bg-background">
+      <EmergencyContactsBar variant="banner" />
+      <div className="flex min-h-[80vh] items-center justify-center p-4">
+        <div className="max-w-sm space-y-3 rounded-2xl border bg-card p-6 text-center shadow-card">
+          <span className="mx-auto flex size-10 items-center justify-center rounded-xl bg-warning/15 text-warning-foreground">
+            <ShieldCheck className="size-5" />
+          </span>
+          <h1 className="text-sm font-bold">Admin access required</h1>
+          <p className="text-xs text-muted-foreground leading-relaxed">
+            This console is restricted to clinic administrators. Ask an existing admin to set your
+            profile role to <strong>admin</strong>, then sign in again.
+          </p>
+          <Link
+            to="/doctor"
+            className="inline-flex items-center gap-1.5 text-xs font-bold text-primary hover:underline"
+          >
+            <ArrowLeft className="size-3.5" /> Back to doctor portal
+          </Link>
+        </div>
       </div>
     </main>
   );
@@ -163,6 +167,7 @@ function AdminConsole({ authenticatedDoctor }: { authenticatedDoctor: Authentica
 
   return (
     <main className="min-h-screen bg-background">
+      <EmergencyContactsBar variant="banner" />
       <header className="sticky top-0 z-30 border-b bg-card px-4 py-3 shadow-sm">
         <div className="mx-auto flex max-w-6xl items-center justify-between gap-3">
           <div className="flex items-center gap-3">

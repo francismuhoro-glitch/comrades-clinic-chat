@@ -24,6 +24,7 @@ import {
   PrescriptionTemplate,
   ReferralTemplate,
 } from "@/components/clinic/DocumentTemplates";
+import { EmergencyContactsBar } from "@/components/clinic/EmergencyContacts";
 import { IntakeForm } from "@/components/clinic/IntakeForm";
 import { LabOrderChoice } from "@/components/clinic/LabOrderChoice";
 import { LabResultsTracker } from "@/components/clinic/LabResultsTracker";
@@ -148,6 +149,8 @@ function LandingPage({ onAcceptTerms }: { onAcceptTerms: () => void }) {
       </div>
 
       <MoodCheckIn />
+
+      <EmergencyContactsBar variant="card" />
 
       {/* What you get */}
       <section className="space-y-2">

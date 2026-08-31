@@ -16,6 +16,7 @@ import { useCallback, useEffect, useState } from "react";
 import { ChatWindow } from "@/components/clinic/ChatWindow";
 import { ClinicalPanel } from "@/components/clinic/ClinicalPanel";
 import { DoctorLogin } from "@/components/clinic/DoctorLogin";
+import { EmergencyContactsBar } from "@/components/clinic/EmergencyContacts";
 import { PatientQueue } from "@/components/clinic/PatientQueue";
 import { VideoCall } from "@/components/clinic/VideoCall";
 import { Button } from "@/components/ui/button";
@@ -173,6 +174,7 @@ function DoctorPortal({ authenticatedDoctor }: { authenticatedDoctor: Authentica
 
   return (
     <main className="min-h-screen bg-background">
+      <EmergencyContactsBar variant="banner" />
       {/* Clinician Portal Header */}
       <header className="sticky top-0 z-30 border-b bg-card px-4 py-3 shadow-sm">
         <div className="mx-auto flex max-w-7xl items-center justify-between gap-4">

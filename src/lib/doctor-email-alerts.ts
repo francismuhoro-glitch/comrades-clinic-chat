@@ -80,12 +80,16 @@ function wrapEmail(title: string, bodyHtml: string): string {
 </div>`;
 }
 
-async function sendDoctorEmail(subject: string, html: string, recipients?: string[]): Promise<boolean> {
+async function sendDoctorEmail(
+  subject: string,
+  html: string,
+  recipients?: string[],
+): Promise<boolean> {
   const apiKey = process.env["BREVO_API_KEY"]?.trim();
   const sender = process.env["BREVO_SENDER_EMAIL"]?.trim();
   if (!apiKey || !sender) return false;
 
-  const emailRecipients = recipients ?? await doctorRecipients();
+  const emailRecipients = recipients ?? (await doctorRecipients());
   if (emailRecipients.length === 0) return false;
 
   try {
@@ -135,19 +139,20 @@ export const notifyDoctorNewPatient = createServerFn({ method: "POST" })
       consultationType === "therapy"
         ? `🧠 New Therapy Session: ${data.patientName} (KSh 250)`
         : `New patient: ${data.patientName} (${data.triage} triage)`;
-    const serviceType = consultationType === "therapy" ? "Therapy / Mental Health Session" : "General Consultation";
+    const serviceType =
+      consultationType === "therapy" ? "Therapy / Mental Health Session" : "General Consultation";
     const fee = consultationType === "therapy" ? "KSh 250" : "KSh 150";
-    
+
     // Route to psychiatrist for therapy, doctor for general
     const recipients =
-      consultationType === "therapy"
-        ? await psychiatristRecipients()
-        : await doctorRecipients();
+      consultationType === "therapy" ? await psychiatristRecipients() : await doctorRecipients();
 
     const sent = await sendDoctorEmail(
       subject,
       wrapEmail(
-        consultationType === "therapy" ? "New therapy session in the queue" : "New patient in the queue",
+        consultationType === "therapy"
+          ? "New therapy session in the queue"
+          : "New patient in the queue",
         `<p><strong>${escapeHtml(data.patientName)}</strong> just completed intake and is completing payment.</p>
          <p>${triageBadge}&nbsp; <strong>${data.mode === "video" ? "Prefers a voice/video call" : "Text chat"}</strong></p>
          <p><strong>Service:</strong> ${serviceType} · ${fee}</p>
@@ -172,12 +177,10 @@ export const notifyDoctorPaymentClaim = createServerFn({ method: "POST" })
   .handler(async ({ data }): Promise<{ sent: boolean }> => {
     const consultationType = data.consultationType ?? "general";
     const when = new Date().toLocaleString("en-KE", { timeZone: "Africa/Nairobi" });
-    
+
     // Route to psychiatrist for therapy, doctor for general
     const recipients =
-      consultationType === "therapy"
-        ? await psychiatristRecipients()
-        : await doctorRecipients();
+      consultationType === "therapy" ? await psychiatristRecipients() : await doctorRecipients();
 
     const sent = await sendDoctorEmail(
       `Payment to verify: ${data.patientName} — KSh ${data.amountKes}`,

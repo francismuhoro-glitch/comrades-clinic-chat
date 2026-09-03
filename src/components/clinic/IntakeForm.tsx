@@ -624,7 +624,9 @@ export function IntakeForm({ onSubmit }: { onSubmit: (input: IntakeInput) => voi
       )}
 
       <Button type="submit" size="lg" className="h-14 w-full rounded-xl gap-2 text-base font-bold">
-        Start Consultation (KSh {form.consultation_type === "therapy" ? THERAPY_FEE_KES : CONSULT_FEE_KES}) <ArrowRight className="size-4" />
+        Start Consultation (KSh{" "}
+        {form.consultation_type === "therapy" ? THERAPY_FEE_KES : CONSULT_FEE_KES}){" "}
+        <ArrowRight className="size-4" />
       </Button>
 
       <p className="flex items-center justify-center gap-1.5 text-[11px] text-muted-foreground">

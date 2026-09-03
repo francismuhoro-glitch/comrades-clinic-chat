@@ -235,17 +235,32 @@ export function computeAnalytics(
   for (let i = bucketDays - 1; i >= 0; i--) {
     const d = daysAgo(i);
     const key = formatEATDateKey(d.toISOString());
-    buckets.set(key, { date: key, label: formatEATLabel(key), count: 0, revenue: 0, generalRevenue: 0, therapyRevenue: 0 });
+    buckets.set(key, {
+      date: key,
+      label: formatEATLabel(key),
+      count: 0,
+      revenue: 0,
+      generalRevenue: 0,
+      therapyRevenue: 0,
+    });
   }
   // For "all", bucket by actual dates present (last 14 distinct)
   if (range === "all") {
     buckets.clear();
     // Build buckets from data grouped by date, sorted
-    const dateCounts = new Map<string, { count: number; revenue: number; generalRevenue: number; therapyRevenue: number }>();
+    const dateCounts = new Map<
+      string,
+      { count: number; revenue: number; generalRevenue: number; therapyRevenue: number }
+    >();
     for (const r of filtered) {
       if (!r.created_at) continue;
       const key = formatEATDateKey(r.created_at);
-      const cur = dateCounts.get(key) ?? { count: 0, revenue: 0, generalRevenue: 0, therapyRevenue: 0 };
+      const cur = dateCounts.get(key) ?? {
+        count: 0,
+        revenue: 0,
+        generalRevenue: 0,
+        therapyRevenue: 0,
+      };
       cur.count++;
       if (isConfirmedPayment(r)) {
         const fee = getRowFee(r);
@@ -262,7 +277,14 @@ export function computeAnalytics(
     const last14 = sortedKeys.slice(-14);
     for (const k of last14) {
       const v = dateCounts.get(k)!;
-      buckets.set(k, { date: k, label: formatEATLabel(k), count: v.count, revenue: v.revenue, generalRevenue: v.generalRevenue, therapyRevenue: v.therapyRevenue });
+      buckets.set(k, {
+        date: k,
+        label: formatEATLabel(k),
+        count: v.count,
+        revenue: v.revenue,
+        generalRevenue: v.generalRevenue,
+        therapyRevenue: v.therapyRevenue,
+      });
     }
     // If no data, keep empty
     return {

@@ -59,11 +59,12 @@ export function mapConsultationRow(row: ConsultationRow): ConsultSession {
           : "awaiting_payment";
 
   // Determine fee from DB row or fall back to consultation type defaults
-  const consultationType: ConsultationType = 
-    (row.consultation_type === "therapy" || row.consultation_type === "general")
+  const consultationType: ConsultationType =
+    row.consultation_type === "therapy" || row.consultation_type === "general"
       ? row.consultation_type
       : "general";
-  const baseFee = row.fee_kes ?? (consultationType === "therapy" ? THERAPY_FEE_KES : CONSULT_FEE_KES);
+  const baseFee =
+    row.fee_kes ?? (consultationType === "therapy" ? THERAPY_FEE_KES : CONSULT_FEE_KES);
 
   return {
     id: row.id,

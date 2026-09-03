@@ -63,16 +63,16 @@ export function IosInstallPrompt() {
 
         <ol className="mt-3 space-y-2">
           <Step index={1} icon={<Share className="h-4 w-4" />}>
-            Tap the <span className="font-semibold text-slate-900">Share</span> button in Safari&apos;s
-            bottom toolbar.
+            Tap the <span className="font-semibold text-slate-900">Share</span> button in
+            Safari&apos;s bottom toolbar.
           </Step>
           <Step index={2} icon={<PlusSquare className="h-4 w-4" />}>
             Scroll down and tap{" "}
             <span className="font-semibold text-slate-900">&quot;Add to Home Screen&quot;</span>.
           </Step>
           <Step index={3} icon={<span className="text-xs font-semibold">Add</span>}>
-            Tap <span className="font-semibold text-slate-900">&quot;Add&quot;</span> in the top right
-            corner.
+            Tap <span className="font-semibold text-slate-900">&quot;Add&quot;</span> in the top
+            right corner.
           </Step>
         </ol>
 

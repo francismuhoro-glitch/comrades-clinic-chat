@@ -73,7 +73,13 @@ export const getCurrentDoctor = createServerFn({ method: "GET" }).handler(
     const session = await useDoctorSession();
     const { userId, email, name, role } = session.data;
 
-    if (!userId || !email || !name || (role !== "doctor" && role !== "admin" && role !== "psychiatrist")) return null;
+    if (
+      !userId ||
+      !email ||
+      !name ||
+      (role !== "doctor" && role !== "admin" && role !== "psychiatrist")
+    )
+      return null;
 
     return {
       id: userId,
@@ -122,7 +128,11 @@ export const loginDoctor = createServerFn({ method: "POST" })
       .eq("id", authData.user.id)
       .maybeSingle();
 
-    if (profile?.role !== "doctor" && profile?.role !== "admin" && profile?.role !== "psychiatrist") {
+    if (
+      profile?.role !== "doctor" &&
+      profile?.role !== "admin" &&
+      profile?.role !== "psychiatrist"
+    ) {
       await supabase.auth.signOut();
       return {
         ok: false as const,

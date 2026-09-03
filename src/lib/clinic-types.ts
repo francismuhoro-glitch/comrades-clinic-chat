@@ -248,6 +248,10 @@ export interface ConsultSession {
   referral_discount_kes?: number | null | undefined;
   /** Profile id of the referrer (who owns the code). */
   referred_by_profile_id?: string | null | undefined;
+  /** Type of consultation: general or therapy. */
+  consultation_type: ConsultationType;
+  /** Profile id of assigned psychiatrist (for therapy sessions). */
+  assigned_to?: string | null | undefined;
   created_at: string;
   ended_at: string | null;
   activated_at?: string | null | undefined;
@@ -273,3 +277,6 @@ export const DOCTOR: Doctor = {
 };
 
 export const CONSULT_FEE_KES = 150;
+export const THERAPY_FEE_KES = 250;
+
+export type ConsultationType = 'general' | 'therapy';

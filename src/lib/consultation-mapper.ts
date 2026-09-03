@@ -5,7 +5,9 @@
 import type { SmartTriageAnswers } from "./smart-triage";
 import {
   CONSULT_FEE_KES,
+  THERAPY_FEE_KES,
   type ConsultSession,
+  type ConsultationType,
   type LabOrder,
   type Prescription,
   type Referral,
@@ -33,6 +35,9 @@ export interface ConsultationRow {
   patient_id?: string | null;
   video_room_name?: string | null;
   consultation_mode?: string | null;
+  consultation_type?: string | null;
+  assigned_to?: string | null;
+  fee_kes?: number | null;
   triage_answers?: SmartTriageAnswers | null;
   created_at?: string | null;
   ended_at?: string | null;
@@ -53,6 +58,13 @@ export function mapConsultationRow(row: ConsultationRow): ConsultSession {
           ? "completed"
           : "awaiting_payment";
 
+  // Determine fee from DB row or fall back to consultation type defaults
+  const consultationType: ConsultationType = 
+    (row.consultation_type === "therapy" || row.consultation_type === "general")
+      ? row.consultation_type
+      : "general";
+  const baseFee = row.fee_kes ?? (consultationType === "therapy" ? THERAPY_FEE_KES : CONSULT_FEE_KES);
+
   return {
     id: row.id,
     full_name: row.patient_name || "Patient",
@@ -71,7 +83,7 @@ export function mapConsultationRow(row: ConsultationRow): ConsultSession {
       Boolean(row.paid) ||
       row.payment_status === "confirmed" ||
       (row.status !== "payment_pending" && row.status !== "intake"),
-    fee_kes: CONSULT_FEE_KES - (row.referral_discount_kes ?? 0),
+    fee_kes: baseFee - (row.referral_discount_kes ?? 0),
     mpesa_receipt: row.mpesa_code || null,
     mpesa_code: row.mpesa_code ?? null,
     payment_phone: row.payment_phone ?? null,
@@ -87,6 +99,8 @@ export function mapConsultationRow(row: ConsultationRow): ConsultSession {
     referral_code_used: row.referral_code_used ?? null,
     referral_discount_kes: row.referral_discount_kes ?? null,
     referred_by_profile_id: row.referred_by_profile_id ?? null,
+    consultation_type: consultationType,
+    assigned_to: row.assigned_to ?? null,
     created_at: row.created_at || new Date().toISOString(),
     ended_at: row.ended_at ?? null,
     activated_at: row.activated_at ?? null,

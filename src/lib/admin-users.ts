@@ -57,7 +57,7 @@ const updateProfileInput = z.object({
   id: z.string().uuid(),
   full_name: z.string().trim().min(1).max(120).optional(),
   kmpdc_license: z.string().trim().max(60).optional(),
-  role: z.enum(["patient", "doctor", "admin"]).optional(),
+  role: z.enum(["patient", "doctor", "admin", "psychiatrist"]).optional(),
 });
 
 export const updateProfile = createServerFn({ method: "POST" })
@@ -85,6 +85,7 @@ const createDoctorInput = z.object({
   password: z.string().min(8).max(128),
   full_name: z.string().trim().min(1).max(120),
   kmpdc_license: z.string().trim().max(60).optional(),
+  role: z.enum(["doctor", "psychiatrist"]).optional().default("doctor"),
 });
 
 export const createDoctor = createServerFn({ method: "POST" })
@@ -117,12 +118,13 @@ export const createDoctor = createServerFn({ method: "POST" })
     if (error) return { ok: false, error: error.message };
 
     // The handle_new_user trigger creates the profile row; upsert to set the
-    // doctor role and details immediately (also covers a missing trigger).
+    // role and details immediately (also covers a missing trigger).
+    const role = data.role ?? "doctor";
     const { error: profileError } = await admin.from("profiles").upsert({
       id: created.user.id,
       email: data.email,
       full_name: data.full_name,
-      role: "doctor",
+      role,
       ...(data.kmpdc_license ? { kmpdc_license: data.kmpdc_license } : {}),
     });
     if (profileError) return { ok: false, error: profileError.message };

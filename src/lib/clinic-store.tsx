@@ -5,6 +5,7 @@ import {
   useEffect,
   useMemo,
   useReducer,
+  useRef,
   useState,
   type ReactNode,
 } from "react";
@@ -15,6 +16,13 @@ import { supabase } from "./supabase";
 import { mapConsultationRow, type ConsultationRow } from "./consultation-mapper";
 
 import { triage } from "./triage";
+import {
+  hydrateOfflineCache,
+  persistClinicSettings,
+  persistConsultations,
+  getCachedConsultations,
+  getCachedSettings,
+} from "./clinic-offline";
 import {
   CONSULT_FEE_KES,
   FALLBACK_LAB_CATALOG,
@@ -320,16 +328,16 @@ export function ClinicProvider({ children }: { children: ReactNode }) {
           .maybeSingle();
 
         if (settingsData) {
-          dispatch({
-            type: "set_settings",
-            settings: {
-              pochi_phone: settingsData.pochi_phone || DEFAULT_SETTINGS.pochi_phone,
-              pochi_name: settingsData.pochi_name || DEFAULT_SETTINGS.pochi_name,
-              helpline_phone: settingsData.helpline_phone || DEFAULT_SETTINGS.helpline_phone,
-              consultation_fee_kes:
-                settingsData.consultation_fee_kes || DEFAULT_SETTINGS.consultation_fee_kes,
-            },
-          });
+          const settings = {
+            pochi_phone: settingsData.pochi_phone || DEFAULT_SETTINGS.pochi_phone,
+            pochi_name: settingsData.pochi_name || DEFAULT_SETTINGS.pochi_name,
+            helpline_phone: settingsData.helpline_phone || DEFAULT_SETTINGS.helpline_phone,
+            consultation_fee_kes:
+              settingsData.consultation_fee_kes || DEFAULT_SETTINGS.consultation_fee_kes,
+          };
+          dispatch({ type: "set_settings", settings });
+          // Keep the offline cache warm so the app has content when offline.
+          void persistClinicSettings(settings);
         }
 
         // Fetch lab catalog
@@ -355,6 +363,8 @@ export function ClinicProvider({ children }: { children: ReactNode }) {
           for (const row of data as ConsultationRow[]) {
             dispatch({ type: "create_session", session: mapConsultationRow(row) });
           }
+          // Persist the freshly-fetched rows to the offline cache.
+          void persistConsultations(data as unknown[]);
         }
 
         // Fetch lab results
@@ -400,7 +410,19 @@ export function ClinicProvider({ children }: { children: ReactNode }) {
           }
         }
       } catch (err) {
-        console.warn("Supabase initial load notice:", err);
+        console.warn("Supabase initial load notice — falling back to offline cache:", err);
+        // Offline-first: if the network is down, render whatever we cached
+        // locally so the app still has content (consultations, settings).
+        const cachedSettings = getCachedSettings();
+        if (cachedSettings) {
+          dispatch({ type: "set_settings", settings: cachedSettings as ClinicSettings });
+        }
+        const cachedConsultations = getCachedConsultations();
+        if (cachedConsultations && cachedConsultations.length > 0) {
+          for (const row of cachedConsultations as ConsultationRow[]) {
+            dispatch({ type: "create_session", session: mapConsultationRow(row) });
+          }
+        }
       }
     })();
 
@@ -1252,6 +1274,40 @@ export function ClinicProvider({ children }: { children: ReactNode }) {
     sendSystemMessage,
   ]);
 
+  // Keep the module-level snapshot current so the offline sync manager (which
+  // runs outside the React tree) can call store actions when reconnecting.
+  useEffect(() => {
+    setClinicApiRef(api);
+    return () => setClinicApiRef(null);
+  }, [api]);
+
+  // Expose the realtime message decoder for backfilling missed messages on
+  // reconnect (used by realtime-manager.ts without re-importing the store into
+  // a cycle). Mirrors the live postgres_changes INSERT handler above.
+  useEffect(() => {
+    addBackfillMessageRef = (raws: BackfillMessageInput[]) => {
+      for (const raw of raws) {
+        if (!raw || !raw.id || !raw.consultation_id) continue;
+        void (async () => {
+          const body = await decryptMessage(raw.content, raw.consultation_id);
+          dispatch({
+            type: "add_message",
+            message: {
+              id: raw.id,
+              session_id: raw.consultation_id,
+              sender: raw.sender_role === "patient" ? "student" : (raw.sender_role ?? "system"),
+              body,
+              created_at: raw.created_at || now(),
+            },
+          });
+        })();
+      }
+    };
+    return () => {
+      addBackfillMessageRef = null;
+    };
+  }, []);
+
   return <ClinicContext.Provider value={api}>{children}</ClinicContext.Provider>;
 }
 
@@ -1260,4 +1316,37 @@ export function useClinic() {
   const ctx = useContext(ClinicContext);
   if (!ctx) throw new Error("useClinic must be used inside <ClinicProvider>");
   return ctx;
+}
+
+// Module-level snapshot of the latest API so non-React code (e.g. the offline
+// sync manager) can invoke store actions without a component tree. Kept in sync
+// on every render via a ref held by the provider.
+let clinicApiRef: ClinicApi | null = null;
+let addBackfillMessageRef: ((raw: BackfillMessageInput[]) => void) | null = null;
+
+export function setClinicApiRef(api: ClinicApi | null): void {
+  clinicApiRef = api;
+}
+
+export type BackfillMessageInput = {
+  id: string;
+  consultation_id: string;
+  sender_role: "patient" | "doctor" | "system";
+  content: string;
+  created_at: string;
+};
+
+/**
+ * Inject messages fetched while offline (e.g. after a realtime reconnect) into
+ * the local store. Decryption + de-duplication mirror the live realtime path so
+ * the UI renders backfilled messages identically to realtime ones.
+ */
+export function deliverBackfilledMessages(raws: BackfillMessageInput[]): void {
+  addBackfillMessageRef?.(raws);
+}
+
+// Non-React accessor for the latest clinic API (null before the provider mounts).
+// Used by the offline sync manager, which runs outside the React tree.
+export function getClinicApiState(): ClinicApi | null {
+  return clinicApiRef;
 }

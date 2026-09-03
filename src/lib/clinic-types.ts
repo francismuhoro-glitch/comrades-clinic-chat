@@ -20,6 +20,11 @@ export interface ChatMessage {
   sender: Sender;
   body: string;
   created_at: string;
+  /**
+   * Set when the message was created offline and is awaiting delivery. Drives
+   * the "Sending…" indicator in the chat UI. Absent for synced messages.
+   */
+  syncStatus?: "queued" | "sent" | "synced";
 }
 
 export interface Prescription {
@@ -37,7 +42,12 @@ export interface Referral {
 export type LabCollectionMethod = "visit_lab" | "doorstep";
 
 export type LabOrderStatus =
-  "pending" | "collected" | "processing" | "resulted" | "reviewed" | "declined";
+  | "pending"
+  | "collected"
+  | "processing"
+  | "resulted"
+  | "reviewed"
+  | "declined";
 
 /** Ordered fulfilment pipeline the doctor advances a lab order through. */
 export const LAB_ORDER_PIPELINE: readonly Exclude<LabOrderStatus, "declined">[] = [
@@ -279,4 +289,4 @@ export const DOCTOR: Doctor = {
 export const CONSULT_FEE_KES = 150;
 export const THERAPY_FEE_KES = 250;
 
-export type ConsultationType = 'general' | 'therapy';
+export type ConsultationType = "general" | "therapy";

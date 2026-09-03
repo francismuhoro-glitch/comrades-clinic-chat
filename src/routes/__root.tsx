@@ -13,8 +13,11 @@ import appCss from "../styles.css?url";
 import { reportLovableError } from "../lib/lovable-error-reporting";
 import { RoleSwitcher } from "../components/clinic/RoleSwitcher";
 import { IosInstallPrompt } from "../components/clinic/IosInstallPrompt";
+import { OfflineIndicator } from "../components/clinic/OfflineIndicator";
 import { ClinicProvider } from "../lib/clinic-store";
 import { PatientAuthProvider } from "../lib/patient-auth";
+import { registerSyncManager } from "../lib/sync-manager";
+import { hydrateOfflineCache } from "../lib/clinic-offline";
 
 function NotFoundComponent() {
   return (
@@ -164,11 +167,23 @@ function RootComponent() {
     })();
   }, []);
 
+  // Boot the offline sync manager (online/offline listeners, TanStack Query
+  // onlineManager, Background Sync registration). Idempotent.
+  useEffect(() => {
+    try {
+      registerSyncManager();
+      void hydrateOfflineCache();
+    } catch {
+      // Non-fatal — the app still works without background sync wiring.
+    }
+  }, []);
+
   return (
     <QueryClientProvider client={queryClient}>
       <PatientAuthProvider>
         <ClinicProvider>
           <RoleSwitcher />
+          <OfflineIndicator />
           {/* Required: nested routes render here. Removing <Outlet /> breaks all child routes. */}
           <Outlet />
           <IosInstallPrompt />

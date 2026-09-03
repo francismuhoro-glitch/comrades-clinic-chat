@@ -1,4 +1,4 @@
-import { Send, Stethoscope } from "lucide-react";
+import { Clock, Send, Stethoscope, WifiOff } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
 
 import { Button } from "@/components/ui/button";
@@ -14,6 +14,8 @@ interface ChatWindowProps {
   disabledLabel?: string;
   className?: string;
   emptyHint?: string;
+  /** True when the realtime socket isn't live (offline or disconnected). */
+  realtimePaused?: boolean;
 }
 
 function timeOf(iso: string) {
@@ -31,6 +33,7 @@ export function ChatWindow({
   disabledLabel = "This session has ended",
   className,
   emptyHint = "Say hello and describe how you are feeling.",
+  realtimePaused = false,
 }: ChatWindowProps) {
   const [draft, setDraft] = useState("");
   const endRef = useRef<HTMLDivElement>(null);
@@ -87,11 +90,18 @@ export function ChatWindow({
                 <p className="whitespace-pre-wrap break-words">{m.body}</p>
                 <p
                   className={cn(
-                    "mt-1 text-[10px] tabular-nums",
+                    "mt-1 flex items-center gap-1 text-[10px] tabular-nums",
                     mine ? "text-chat-student-foreground/70" : "text-muted-foreground",
                   )}
                 >
-                  {timeOf(m.created_at)}
+                  {m.syncStatus === "queued" ? (
+                    <>
+                      <Clock className="size-3" />
+                      Sending…
+                    </>
+                  ) : (
+                    timeOf(m.created_at)
+                  )}
                 </p>
               </div>
             </div>
@@ -99,6 +109,13 @@ export function ChatWindow({
         })}
         <div ref={endRef} />
       </div>
+
+      {realtimePaused && (
+        <div className="flex items-center justify-center gap-1.5 border-t border-dashed bg-muted/40 px-3 py-1.5 text-[11px] text-muted-foreground">
+          <WifiOff className="size-3" />
+          Real-time chat paused — messages will deliver when you're back online.
+        </div>
+      )}
 
       <div className="border-t bg-card px-3 py-3">
         {disabled ? (

@@ -20,9 +20,11 @@ import {
   FALLBACK_LAB_CATALOG,
   LAB_ORDER_STATUS_LABELS,
   LAB_RESULT_STAGE_LABELS,
+  THERAPY_FEE_KES,
   type ChatMessage,
   type ClinicSettings,
   type ConsultationMode,
+  type ConsultationType,
   type ConsultSession,
   type LabOrder,
   type LabOrderStatus,
@@ -158,6 +160,8 @@ export interface IntakeInput {
   triage_answers?: SmartTriageAnswers | null | undefined;
   /** Optional referral code entered at intake (e.g. BRI7X2A). */
   referral_code?: string | null | undefined;
+  /** Type of consultation: general or therapy. */
+  consultation_type?: ConsultationType | undefined;
 }
 
 interface ClinicApi {
@@ -621,6 +625,8 @@ export function ClinicProvider({ children }: { children: ReactNode }) {
         const level = finalTriageLevel(t.level, smart);
         const referralCode = input.referral_code?.trim().toUpperCase() || null;
         const referralDiscount = referralCode ? 50 : 0;
+        const consultationType: ConsultationType = input.consultation_type || "general";
+        const baseFee = consultationType === "therapy" ? THERAPY_FEE_KES : CONSULT_FEE_KES;
         const session: ConsultSession = {
           id: uid(),
           full_name: input.full_name,
@@ -635,7 +641,7 @@ export function ClinicProvider({ children }: { children: ReactNode }) {
           status: "awaiting_payment",
           consultation_mode: input.consultation_mode,
           paid: false,
-          fee_kes: CONSULT_FEE_KES - referralDiscount,
+          fee_kes: baseFee - referralDiscount,
           mpesa_receipt: null,
           lab_test_requested: false,
           diagnosis_notes: "",
@@ -643,6 +649,7 @@ export function ClinicProvider({ children }: { children: ReactNode }) {
           referral: null,
           referral_code_used: referralCode,
           referral_discount_kes: referralDiscount || null,
+          consultation_type: consultationType,
           created_at: now(),
           ended_at: null,
         };
@@ -693,6 +700,8 @@ export function ClinicProvider({ children }: { children: ReactNode }) {
               triage_level: level,
               status: "payment_pending",
               consultation_mode: input.consultation_mode,
+              consultation_type: consultationType,
+              fee_kes: baseFee,
               ...(input.triage_answers ? { triage_answers: input.triage_answers } : {}),
               ...(patientId ? { patient_id: patientId } : {}),
               ...(referralCode ? { referral_code_used: referralCode } : {}),
@@ -740,6 +749,7 @@ export function ClinicProvider({ children }: { children: ReactNode }) {
                     campus: input.campus,
                     triage: level,
                     mode: input.consultation_mode,
+                    consultationType,
                   },
                 });
               } catch (emailErr) {
@@ -760,7 +770,7 @@ export function ClinicProvider({ children }: { children: ReactNode }) {
           consultationId: id,
           type: "payment.pending",
           title: "Payment to verify",
-          body: `${claimed?.full_name ?? "A patient"} submitted ${mpesaCode} (KSh ${CONSULT_FEE_KES}).`,
+          body: `${claimed?.full_name ?? "A patient"} submitted ${mpesaCode} (KSh ${claimed?.fee_kes ?? CONSULT_FEE_KES}).`,
         });
         dispatch({
           type: "patch_session",
@@ -790,6 +800,7 @@ export function ClinicProvider({ children }: { children: ReactNode }) {
                   mpesaCode,
                   phone: paymentPhone || undefined,
                   amountKes: claimed?.fee_kes ?? CONSULT_FEE_KES,
+                  consultationType: claimed?.consultation_type ?? "general",
                 },
               });
             } catch (emailErr) {
@@ -866,7 +877,7 @@ export function ClinicProvider({ children }: { children: ReactNode }) {
         const receipt = "Q" + uid().toUpperCase().slice(0, 9);
         dispatch({ type: "mark_paid", id, receipt });
         const s = state.sessions.find((x) => x.id === id);
-        system(id, `Payment of KSh ${CONSULT_FEE_KES} received. Receipt ${receipt}.`);
+        system(id, `Payment of KSh ${s?.fee_kes ?? CONSULT_FEE_KES} received. Receipt ${receipt}.`);
         if (s) {
           const t = triage(s.symptom_codes);
           if (t.emergency) {

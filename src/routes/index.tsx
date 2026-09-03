@@ -15,6 +15,7 @@ import {
   Video,
   Wallet,
   XCircle,
+  Brain,
 } from "lucide-react";
 import { useEffect, useState } from "react";
 
@@ -38,6 +39,7 @@ import { Input } from "@/components/ui/input";
 import { useClinic } from "@/lib/clinic-store";
 import {
   CONSULT_FEE_KES,
+  THERAPY_FEE_KES,
   DOCTOR,
   LAB_ORDER_STATUS_LABELS,
   type LabResult,
@@ -49,11 +51,11 @@ import { cn } from "@/lib/utils";
 export const Route = createFileRoute("/")({
   head: () => ({
     meta: [
-      { title: "Comrades Clinic — KSh 150 Doctor Chat for Students" },
+      { title: "Comrades Clinic — KSh 150 – 250 Doctor Chat for Students" },
       {
         name: "description",
         content:
-          "Affordable telemedicine for Kenyan university students. Pay KSh 150 via Pochi la Biashara, talk to a real doctor, get digital prescriptions, doorstep lab orders, or hospital referrals.",
+          "Affordable telemedicine for Kenyan university students. Pay from KSh 150 via Pochi la Biashara, talk to a real doctor or psychiatrist, get digital prescriptions, doorstep lab orders, or hospital referrals.",
       },
     ],
   }),
@@ -64,8 +66,8 @@ function LandingPage({ onAcceptTerms }: { onAcceptTerms: () => void }) {
   const [agreed, setAgreed] = useState(false);
 
   const trustChips = [
-    "KMPDC-licensed doctor",
-    "KSh 150 flat — no hidden costs",
+    "KMPDC-licensed doctors & psychiatrists",
+    "From KSh 150 — no hidden costs",
     "Encrypted & confidential",
   ];
 
@@ -91,6 +93,11 @@ function LandingPage({ onAcceptTerms }: { onAcceptTerms: () => void }) {
       text: "Sample collection at your hostel or a partner lab.",
     },
     {
+      icon: Brain,
+      title: "Therapy & mental health",
+      text: "Confidential sessions with a psychiatrist for KSh 250.",
+    },
+    {
       icon: Ambulance,
       title: "Hospital referrals",
       text: "Official referral letters when you need a hospital.",
@@ -100,12 +107,12 @@ function LandingPage({ onAcceptTerms }: { onAcceptTerms: () => void }) {
   const steps = [
     {
       icon: Wallet,
-      title: `Pay KSh ${CONSULT_FEE_KES} via M-Pesa`,
-      text: "One flat fee via Pochi la Biashara. No queues, no registration lines.",
+      title: `Pay from KSh ${CONSULT_FEE_KES} via M-Pesa`,
+      text: `General consult KSh ${CONSULT_FEE_KES}, therapy KSh ${THERAPY_FEE_KES}. Via Pochi la Biashara.`,
     },
     {
       icon: Stethoscope,
-      title: "Talk to the doctor",
+      title: "Talk to a clinician",
       text: "Start in encrypted chat — switch to a voice or video call any time.",
     },
     {

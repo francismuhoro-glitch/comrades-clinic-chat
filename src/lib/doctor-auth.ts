@@ -13,7 +13,7 @@ type DoctorSessionData = {
   userId: string;
   email: string;
   name: string;
-  role: "doctor" | "admin";
+  role: "doctor" | "admin" | "psychiatrist";
   authenticatedAt: string;
 };
 
@@ -21,7 +21,7 @@ export interface AuthenticatedDoctor {
   id: string;
   email: string;
   name: string;
-  role: "doctor" | "admin";
+  role: "doctor" | "admin" | "psychiatrist";
 }
 
 const loginSchema = z.object({
@@ -73,7 +73,7 @@ export const getCurrentDoctor = createServerFn({ method: "GET" }).handler(
     const session = await useDoctorSession();
     const { userId, email, name, role } = session.data;
 
-    if (!userId || !email || !name || (role !== "doctor" && role !== "admin")) return null;
+    if (!userId || !email || !name || (role !== "doctor" && role !== "admin" && role !== "psychiatrist")) return null;
 
     return {
       id: userId,
@@ -85,15 +85,15 @@ export const getCurrentDoctor = createServerFn({ method: "GET" }).handler(
 );
 
 /**
- * Role from the portal session cookie ("doctor" | "admin"), or null when not
+ * Role from the portal session cookie ("doctor" | "admin" | "psychiatrist"), or null when not
  * signed in. Used by admin server functions to gate management actions.
  */
 export const getCurrentSessionRole = createServerFn({ method: "GET" }).handler(
-  async (): Promise<"doctor" | "admin" | null> => {
+  async (): Promise<"doctor" | "admin" | "psychiatrist" | null> => {
     preventAuthResponseCaching();
     const session = await useDoctorSession();
     const { role } = session.data;
-    if (role !== "doctor" && role !== "admin") return null;
+    if (role !== "doctor" && role !== "admin" && role !== "psychiatrist") return null;
     return role;
   },
 );
@@ -122,7 +122,7 @@ export const loginDoctor = createServerFn({ method: "POST" })
       .eq("id", authData.user.id)
       .maybeSingle();
 
-    if (profile?.role !== "doctor" && profile?.role !== "admin") {
+    if (profile?.role !== "doctor" && profile?.role !== "admin" && profile?.role !== "psychiatrist") {
       await supabase.auth.signOut();
       return {
         ok: false as const,
@@ -135,7 +135,7 @@ export const loginDoctor = createServerFn({ method: "POST" })
       userId: authData.user.id,
       email: authData.user.email || data.email,
       name: profile.full_name || DOCTOR.name,
-      role: profile.role === "admin" ? "admin" : "doctor",
+      role: profile.role,
       authenticatedAt: new Date().toISOString(),
     });
 

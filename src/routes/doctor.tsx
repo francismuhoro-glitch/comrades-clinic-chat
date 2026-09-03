@@ -99,6 +99,7 @@ function DoctorPortal({ authenticatedDoctor }: { authenticatedDoctor: Authentica
     pendingPayments,
     confirmPayment,
     rejectPayment,
+    sessions,
     sessionsByStatus,
     getSession,
     messagesFor,
@@ -136,6 +137,20 @@ function DoctorPortal({ authenticatedDoctor }: { authenticatedDoctor: Authentica
       return Date.now() - created < days * 86_400_000;
     },
     [queueRange],
+  );
+
+  // Filter sessions by role: general doctors see general therapy; psychiatrists see therapy only; admins see all
+  const filterByRole = useCallback(
+    (sessionList: typeof sessions) => {
+      const role = authenticatedDoctor.role;
+      if (role === "admin") return sessionList;
+      if (role === "psychiatrist") {
+        return sessionList.filter((s) => s.consultation_type === "therapy");
+      }
+      // role === "doctor" - see general consultations (including null/legacy consultation_type)
+      return sessionList.filter((s) => !s.consultation_type || s.consultation_type === "general");
+    },
+    [authenticatedDoctor.role],
   );
 
   // Switching patients always leaves the previous patient's call.
@@ -183,7 +198,9 @@ function DoctorPortal({ authenticatedDoctor }: { authenticatedDoctor: Authentica
               <Stethoscope className="size-5" />
             </span>
             <div>
-              <h1 className="text-base font-bold leading-tight">Comrades Clinic · Doctor Portal</h1>
+              <h1 className="text-base font-bold leading-tight">
+                Comrades Clinic · {authenticatedDoctor.role === "psychiatrist" ? "Psychiatrist Portal" : authenticatedDoctor.role === "admin" ? "Admin Portal" : "Doctor Portal"}
+              </h1>
               <p className="text-xs text-muted-foreground">
                 {authenticatedDoctor.name} · KMPDC {DOCTOR.kmpdc_license}
               </p>
@@ -421,7 +438,7 @@ function DoctorPortal({ authenticatedDoctor }: { authenticatedDoctor: Authentica
             {/* Waiting Queue Tab Content */}
             <TabsContent value="waiting" className="mt-3">
               <PatientQueue
-                sessions={sessionsByStatus("waiting").filter((s) => inRange(s.created_at))}
+                sessions={filterByRole(sessionsByStatus("waiting")).filter((s) => inRange(s.created_at))}
                 selectedId={selectedId}
                 onSelect={(id) => setSelectedId(id)}
                 emptyLabel="No comrades waiting in queue right now."
@@ -432,7 +449,7 @@ function DoctorPortal({ authenticatedDoctor }: { authenticatedDoctor: Authentica
             {/* Active Consultations Tab Content */}
             <TabsContent value="active" className="mt-3">
               <PatientQueue
-                sessions={sessionsByStatus("active").filter((s) => inRange(s.created_at))}
+                sessions={filterByRole(sessionsByStatus("active")).filter((s) => inRange(s.created_at))}
                 selectedId={selectedId}
                 onSelect={(id) => setSelectedId(id)}
                 emptyLabel="No active consultations in progress."
@@ -443,7 +460,7 @@ function DoctorPortal({ authenticatedDoctor }: { authenticatedDoctor: Authentica
             {/* Completed Consultations Tab Content */}
             <TabsContent value="completed" className="mt-3">
               <PatientQueue
-                sessions={sessionsByStatus("completed").filter((s) => inRange(s.created_at))}
+                sessions={filterByRole(sessionsByStatus("completed")).filter((s) => inRange(s.created_at))}
                 selectedId={selectedId}
                 onSelect={(id) => setSelectedId(id)}
                 emptyLabel="No completed records yet."

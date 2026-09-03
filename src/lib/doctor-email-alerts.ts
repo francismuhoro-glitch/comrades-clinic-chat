@@ -21,13 +21,16 @@ function escapeHtml(str: string): string {
     .replace(/'/g, "&#039;");
 }
 
-async function doctorRecipients(): Promise<string[]> {
+/**
+ * Fetch email addresses for profiles with any of the specified roles.
+ */
+async function recipientsByRole(roles: string[]): Promise<string[]> {
   const recipients: string[] = [];
   try {
     const { data } = await supabase
       .from("profiles")
       .select("email, role")
-      .in("role", ["doctor", "admin"])
+      .in("role", roles)
       .not("email", "is", null);
     for (const row of (data ?? []) as { email: string | null }[]) {
       const email = row.email?.trim().toLowerCase();
@@ -41,6 +44,20 @@ async function doctorRecipients(): Promise<string[]> {
     if (fallback && fallback.includes("@")) recipients.push(fallback);
   }
   return [...new Set(recipients)];
+}
+
+/**
+ * Recipients for general doctor notifications (doctors + admins).
+ */
+async function doctorRecipients(): Promise<string[]> {
+  return recipientsByRole(["doctor", "admin"]);
+}
+
+/**
+ * Recipients for therapy/psychiatrist notifications (psychiatrists + admins).
+ */
+async function psychiatristRecipients(): Promise<string[]> {
+  return recipientsByRole(["psychiatrist", "admin"]);
 }
 
 function wrapEmail(title: string, bodyHtml: string): string {
@@ -63,13 +80,13 @@ function wrapEmail(title: string, bodyHtml: string): string {
 </div>`;
 }
 
-async function sendDoctorEmail(subject: string, html: string): Promise<boolean> {
+async function sendDoctorEmail(subject: string, html: string, recipients?: string[]): Promise<boolean> {
   const apiKey = process.env["BREVO_API_KEY"]?.trim();
   const sender = process.env["BREVO_SENDER_EMAIL"]?.trim();
   if (!apiKey || !sender) return false;
 
-  const recipients = await doctorRecipients();
-  if (recipients.length === 0) return false;
+  const emailRecipients = recipients ?? await doctorRecipients();
+  if (emailRecipients.length === 0) return false;
 
   try {
     const response = await fetch("https://api.brevo.com/v3/smtp/email", {
@@ -81,7 +98,7 @@ async function sendDoctorEmail(subject: string, html: string): Promise<boolean> 
       },
       body: JSON.stringify({
         sender: { email: sender, name: "COMRACARE Student Clinic" },
-        to: recipients.map((email) => ({ email })),
+        to: emailRecipients.map((email) => ({ email })),
         subject,
         htmlContent: html,
       }),
@@ -98,12 +115,14 @@ const newPatientInput = z.object({
   campus: z.string().max(120).optional(),
   triage: z.enum(["routine", "urgent", "emergency"]),
   mode: z.enum(["chat", "video"]),
+  consultationType: z.enum(["general", "therapy"]).optional().default("general"),
 });
 
 /** Fired when a patient completes intake and lands awaiting payment. */
 export const notifyDoctorNewPatient = createServerFn({ method: "POST" })
   .validator(newPatientInput)
   .handler(async ({ data }): Promise<{ sent: boolean }> => {
+    const consultationType = data.consultationType ?? "general";
     const triageBadge =
       data.triage === "emergency"
         ? '<span style="background:#fee2e2;color:#b91c1c;font-weight:700;font-size:11px;padding:2px 8px;border-radius:10px;">EMERGENCY TRIAGE</span>'
@@ -112,14 +131,29 @@ export const notifyDoctorNewPatient = createServerFn({ method: "POST" })
           : '<span style="background:#dcfce7;color:#15803d;font-weight:700;font-size:11px;padding:2px 8px;border-radius:10px;">ROUTINE</span>';
 
     const when = new Date().toLocaleString("en-KE", { timeZone: "Africa/Nairobi" });
+    const subject =
+      consultationType === "therapy"
+        ? `🧠 New Therapy Session: ${data.patientName} (KSh 250)`
+        : `New patient: ${data.patientName} (${data.triage} triage)`;
+    const serviceType = consultationType === "therapy" ? "Therapy / Mental Health Session" : "General Consultation";
+    const fee = consultationType === "therapy" ? "KSh 250" : "KSh 150";
+    
+    // Route to psychiatrist for therapy, doctor for general
+    const recipients =
+      consultationType === "therapy"
+        ? await psychiatristRecipients()
+        : await doctorRecipients();
+
     const sent = await sendDoctorEmail(
-      `New patient: ${data.patientName} (${data.triage} triage)`,
+      subject,
       wrapEmail(
-        "New patient in the queue",
+        consultationType === "therapy" ? "New therapy session in the queue" : "New patient in the queue",
         `<p><strong>${escapeHtml(data.patientName)}</strong> just completed intake and is completing payment.</p>
          <p>${triageBadge}&nbsp; <strong>${data.mode === "video" ? "Prefers a voice/video call" : "Text chat"}</strong></p>
+         <p><strong>Service:</strong> ${serviceType} · ${fee}</p>
          <p style="color:#5b7470;font-size:13px;">Campus: ${escapeHtml(data.campus || "Not set")}<br/>Time: ${escapeHtml(when)} (EAT)</p>`,
       ),
+      recipients,
     );
     return { sent };
   });
@@ -129,22 +163,33 @@ const paymentInput = z.object({
   mpesaCode: z.string().min(3).max(40),
   phone: z.string().max(20).optional(),
   amountKes: z.number().int().positive().max(1_000_000),
+  consultationType: z.enum(["general", "therapy"]).optional().default("general"),
 });
 
 /** Fired when a patient submits an M-Pesa code for the doctor to verify. */
 export const notifyDoctorPaymentClaim = createServerFn({ method: "POST" })
   .validator(paymentInput)
   .handler(async ({ data }): Promise<{ sent: boolean }> => {
+    const consultationType = data.consultationType ?? "general";
     const when = new Date().toLocaleString("en-KE", { timeZone: "Africa/Nairobi" });
+    
+    // Route to psychiatrist for therapy, doctor for general
+    const recipients =
+      consultationType === "therapy"
+        ? await psychiatristRecipients()
+        : await doctorRecipients();
+
     const sent = await sendDoctorEmail(
       `Payment to verify: ${data.patientName} — KSh ${data.amountKes}`,
       wrapEmail(
         "Payment awaiting your verification",
         `<p><strong>${escapeHtml(data.patientName)}</strong> submitted an M-Pesa payment claim.</p>
          <p style="font-size:15px;"><strong>Code: <span style="color:#17828b;">${escapeHtml(data.mpesaCode)}</span> · KSh ${data.amountKes}</strong></p>
+         <p><strong>Consultation type:</strong> ${consultationType === "therapy" ? "Therapy / Mental Health (KSh 250)" : "General Consultation (KSh 150)"}</p>
          <p style="color:#5b7470;font-size:13px;">Phone: ${escapeHtml(data.phone || "Not set")}<br/>Time: ${escapeHtml(when)} (EAT)</p>
          <p>Verify it in the portal's <strong>Payments</strong> tab to move them into the queue.</p>`,
       ),
+      recipients,
     );
     return { sent };
   });

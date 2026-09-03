@@ -6,7 +6,7 @@ import { createServerFn } from "@tanstack/react-start";
 
 import { getCurrentSessionRole } from "./doctor-auth";
 import { supabase } from "./supabase";
-import { CONSULT_FEE_KES } from "./clinic-types";
+import { CONSULT_FEE_KES, THERAPY_FEE_KES } from "./clinic-types";
 import { SYMPTOM_OPTIONS, symptomLabel } from "./triage";
 
 const BY_CODE = new Map(SYMPTOM_OPTIONS.map((o) => [o.code, o.label]));
@@ -24,6 +24,8 @@ export interface ConsultationAnalyticsRow {
   status: string | null;
   payment_status: string | null;
   consultation_mode: string | null;
+  consultation_type: string | null;
+  fee_kes: number | null;
   created_at: string | null;
   activated_at: string | null;
   ended_at: string | null;
@@ -34,6 +36,8 @@ export interface DailyBucket {
   label: string; // e.g. "Aug 28"
   count: number;
   revenue: number;
+  generalRevenue: number;
+  therapyRevenue: number;
 }
 
 export interface SymptomStat {
@@ -45,6 +49,8 @@ export interface SymptomStat {
 export interface AnalyticsSummary {
   totalConsults: number;
   totalRevenue: number;
+  totalGeneralRevenue: number;
+  totalTherapyRevenue: number;
   totalCompleted: number;
   completionRate: number;
   avgConsultMinutes: number | null;
@@ -117,6 +123,17 @@ function isConfirmedPayment(row: ConsultationAnalyticsRow): boolean {
   return false;
 }
 
+/**
+ * Get the fee for a consultation row. Uses fee_kes from DB, or falls back to
+ * CONSULT_FEE_KES / THERAPY_FEE_KES based on consultation_type.
+ */
+function getRowFee(row: ConsultationAnalyticsRow): number {
+  if (row.fee_kes && row.fee_kes > 0) return row.fee_kes;
+  // Fallback to type-based fee
+  if (row.consultation_type === "therapy") return THERAPY_FEE_KES;
+  return CONSULT_FEE_KES;
+}
+
 export function computeAnalytics(
   rows: ConsultationAnalyticsRow[],
   range: AnalyticsRange,
@@ -141,7 +158,18 @@ export function computeAnalytics(
 
   const totalConsults = filtered.length;
   const confirmedRows = filtered.filter(isConfirmedPayment);
-  const totalRevenue = confirmedRows.length * CONSULT_FEE_KES;
+  // Calculate revenue using actual fees from rows
+  let totalGeneralRevenue = 0;
+  let totalTherapyRevenue = 0;
+  for (const r of confirmedRows) {
+    const fee = getRowFee(r);
+    if (r.consultation_type === "therapy") {
+      totalTherapyRevenue += fee;
+    } else {
+      totalGeneralRevenue += fee;
+    }
+  }
+  const totalRevenue = totalGeneralRevenue + totalTherapyRevenue;
 
   // Triage mix
   const triageMix = { routine: 0, urgent: 0, emergency: 0 };
@@ -207,31 +235,41 @@ export function computeAnalytics(
   for (let i = bucketDays - 1; i >= 0; i--) {
     const d = daysAgo(i);
     const key = formatEATDateKey(d.toISOString());
-    buckets.set(key, { date: key, label: formatEATLabel(key), count: 0, revenue: 0 });
+    buckets.set(key, { date: key, label: formatEATLabel(key), count: 0, revenue: 0, generalRevenue: 0, therapyRevenue: 0 });
   }
   // For "all", bucket by actual dates present (last 14 distinct)
   if (range === "all") {
     buckets.clear();
     // Build buckets from data grouped by date, sorted
-    const dateCounts = new Map<string, { count: number; revenue: number }>();
+    const dateCounts = new Map<string, { count: number; revenue: number; generalRevenue: number; therapyRevenue: number }>();
     for (const r of filtered) {
       if (!r.created_at) continue;
       const key = formatEATDateKey(r.created_at);
-      const cur = dateCounts.get(key) ?? { count: 0, revenue: 0 };
+      const cur = dateCounts.get(key) ?? { count: 0, revenue: 0, generalRevenue: 0, therapyRevenue: 0 };
       cur.count++;
-      if (isConfirmedPayment(r)) cur.revenue += CONSULT_FEE_KES;
+      if (isConfirmedPayment(r)) {
+        const fee = getRowFee(r);
+        cur.revenue += fee;
+        if (r.consultation_type === "therapy") {
+          cur.therapyRevenue += fee;
+        } else {
+          cur.generalRevenue += fee;
+        }
+      }
       dateCounts.set(key, cur);
     }
     const sortedKeys = Array.from(dateCounts.keys()).sort();
     const last14 = sortedKeys.slice(-14);
     for (const k of last14) {
       const v = dateCounts.get(k)!;
-      buckets.set(k, { date: k, label: formatEATLabel(k), count: v.count, revenue: v.revenue });
+      buckets.set(k, { date: k, label: formatEATLabel(k), count: v.count, revenue: v.revenue, generalRevenue: v.generalRevenue, therapyRevenue: v.therapyRevenue });
     }
     // If no data, keep empty
     return {
       totalConsults,
       totalRevenue,
+      totalGeneralRevenue,
+      totalTherapyRevenue,
       totalCompleted: completed,
       completionRate,
       avgConsultMinutes,
@@ -252,7 +290,15 @@ export function computeAnalytics(
     const b = buckets.get(key);
     if (!b) continue;
     b.count++;
-    if (isConfirmedPayment(r)) b.revenue += CONSULT_FEE_KES;
+    if (isConfirmedPayment(r)) {
+      const fee = getRowFee(r);
+      b.revenue += fee;
+      if (r.consultation_type === "therapy") {
+        b.therapyRevenue += fee;
+      } else {
+        b.generalRevenue += fee;
+      }
+    }
   }
 
   const daily = Array.from(buckets.values());
@@ -260,6 +306,8 @@ export function computeAnalytics(
   return {
     totalConsults,
     totalRevenue,
+    totalGeneralRevenue,
+    totalTherapyRevenue,
     totalCompleted: completed,
     completionRate,
     avgConsultMinutes,
@@ -320,7 +368,7 @@ export const fetchConsultationsForAnalytics = createServerFn({ method: "GET" }).
     const { data, error } = await supabase
       .from("consultations")
       .select(
-        "id, patient_name, campus, symptoms_selected, triage_level, status, payment_status, consultation_mode, created_at, activated_at, ended_at",
+        "id, patient_name, campus, symptoms_selected, triage_level, status, payment_status, consultation_mode, consultation_type, fee_kes, created_at, activated_at, ended_at",
       )
       .order("created_at", { ascending: false })
       .limit(2000);

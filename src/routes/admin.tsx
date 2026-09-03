@@ -14,6 +14,7 @@ import {
   Users,
   Video,
   MessageCircle,
+  Brain,
 } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
 
@@ -95,7 +96,7 @@ function AdminAccessDenied() {
   );
 }
 
-const ROLE_OPTIONS = ["patient", "doctor", "admin"] as const;
+const ROLE_OPTIONS = ["patient", "doctor", "admin", "psychiatrist"] as const;
 
 function AdminConsole({ authenticatedDoctor }: { authenticatedDoctor: AuthenticatedDoctor }) {
   const [activeTab, setActiveTab] = useState<"analytics" | "users">("analytics");
@@ -133,6 +134,7 @@ function AdminConsole({ authenticatedDoctor }: { authenticatedDoctor: Authentica
     () => ({
       admin: profiles.filter((p) => p.role === "admin").length,
       doctor: profiles.filter((p) => p.role === "doctor").length,
+      psychiatrist: profiles.filter((p) => p.role === "psychiatrist").length,
       patient: profiles.filter((p) => p.role === "patient").length,
     }),
     [profiles],
@@ -140,7 +142,7 @@ function AdminConsole({ authenticatedDoctor }: { authenticatedDoctor: Authentica
 
   const handleRoleChange = async (id: string, role: string) => {
     const result = await updateProfile({
-      data: { id, role: role as "patient" | "doctor" | "admin" },
+      data: { id, role: role as "patient" | "doctor" | "admin" | "psychiatrist" },
     });
     if (!result.ok) {
       setLoadError(result.error);
@@ -212,10 +214,11 @@ function AdminConsole({ authenticatedDoctor }: { authenticatedDoctor: Authentica
 
           <TabsContent value="users" className="mt-4 space-y-5">
             {/* Stats */}
-            <div className="grid grid-cols-3 gap-3">
+            <div className="grid grid-cols-4 gap-3">
               {(
                 [
                   { label: "Doctors", value: counts.doctor, icon: Stethoscope },
+                  { label: "Psychiatrists", value: counts.psychiatrist, icon: Brain },
                   { label: "Patients", value: counts.patient, icon: UserRound },
                   { label: "Admins", value: counts.admin, icon: ShieldCheck },
                 ] as const
@@ -416,7 +419,7 @@ function AnalyticsDashboard() {
       </div>
 
       {/* KPI cards */}
-      <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
+      <div className="grid grid-cols-2 gap-3 lg:grid-cols-5">
         <KpiCard
           icon={BarChart3}
           label="Consults"
@@ -427,13 +430,19 @@ function AnalyticsDashboard() {
           icon={CreditCard}
           label="Revenue"
           value={`KSh ${summary.totalRevenue.toLocaleString()}`}
-          sub={`${Math.round(summary.totalRevenue / 150)} × KSh 150 confirmed`}
+          sub="All confirmed payments"
         />
         <KpiCard
-          icon={Check}
-          label="Completed"
-          value={`${summary.totalCompleted}`}
-          sub={`${summary.completionRate}% completion rate`}
+          icon={Stethoscope}
+          label="General Revenue"
+          value={`KSh ${summary.totalGeneralRevenue.toLocaleString()}`}
+          sub="KSh 150 per consult"
+        />
+        <KpiCard
+          icon={Brain}
+          label="Therapy Revenue"
+          value={`KSh ${summary.totalTherapyRevenue.toLocaleString()}`}
+          sub="KSh 250 per session"
         />
         <KpiCard
           icon={Clock3}
@@ -750,6 +759,7 @@ function AddDoctorCard({ onCreated }: { onCreated: () => void }) {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [license, setLicense] = useState("");
+  const [role, setRole] = useState<"doctor" | "psychiatrist">("doctor");
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [created, setCreated] = useState<string | null>(null);
@@ -764,6 +774,7 @@ function AddDoctorCard({ onCreated }: { onCreated: () => void }) {
         password,
         full_name: fullName.trim(),
         kmpdc_license: license.trim() || undefined,
+        role,
       },
     });
     setSaving(false);
@@ -771,7 +782,8 @@ function AddDoctorCard({ onCreated }: { onCreated: () => void }) {
       setError(result.error);
       return;
     }
-    setCreated(`${fullName.trim()} (${email.trim()}) can now sign in on the doctor portal.`);
+    const roleLabel = role === "psychiatrist" ? "psychiatrist" : "doctor";
+    setCreated(`${fullName.trim()} (${email.trim()}) can now sign in on the ${roleLabel} portal.`);
     setFullName("");
     setEmail("");
     setPassword("");
@@ -784,7 +796,7 @@ function AddDoctorCard({ onCreated }: { onCreated: () => void }) {
       <div className="flex items-center justify-between gap-2">
         <h2 className="flex items-center gap-2 text-sm font-bold">
           <Plus className="size-4 text-primary" />
-          Add a doctor
+          Add a clinician
         </h2>
         <Button
           size="sm"
@@ -793,7 +805,7 @@ function AddDoctorCard({ onCreated }: { onCreated: () => void }) {
           onClick={() => setOpen(true)}
         >
           <Plus className="size-3.5" />
-          New doctor account
+          New clinician account
         </Button>
       </div>
       <p className="text-[11px] leading-relaxed text-muted-foreground">
@@ -812,7 +824,7 @@ function AddDoctorCard({ onCreated }: { onCreated: () => void }) {
       <Dialog open={open} onOpenChange={setOpen}>
         <DialogContent className="sm:max-w-[400px]">
           <DialogHeader>
-            <DialogTitle>New doctor account</DialogTitle>
+            <DialogTitle>New clinician account</DialogTitle>
             <DialogDescription>
               They will sign in on /doctor with this email and password.
             </DialogDescription>
@@ -827,6 +839,18 @@ function AddDoctorCard({ onCreated }: { onCreated: () => void }) {
                 placeholder="e.g. Dr. Mercy Kamau"
                 required
               />
+            </div>
+            <div className="space-y-1.5">
+              <Label htmlFor="doc-role">Role</Label>
+              <Select value={role} onValueChange={(v) => setRole(v as "doctor" | "psychiatrist")}>
+                <SelectTrigger id="doc-role">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="doctor">Doctor (General Consultation)</SelectItem>
+                  <SelectItem value="psychiatrist">Psychiatrist (Therapy Sessions)</SelectItem>
+                </SelectContent>
+              </Select>
             </div>
             <div className="space-y-1.5">
               <Label htmlFor="doc-email">Email</Label>
@@ -846,7 +870,7 @@ function AddDoctorCard({ onCreated }: { onCreated: () => void }) {
                 type="text"
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
-                placeholder="Share securely with the doctor"
+                placeholder="Share securely with the clinician"
                 minLength={8}
                 required
               />
@@ -867,7 +891,7 @@ function AddDoctorCard({ onCreated }: { onCreated: () => void }) {
             )}
             <DialogFooter>
               <Button type="submit" disabled={saving}>
-                {saving ? "Creating…" : "Create doctor account"}
+                {saving ? "Creating…" : "Create clinician account"}
               </Button>
             </DialogFooter>
           </form>

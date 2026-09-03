@@ -11,6 +11,8 @@ import {
   UserRound,
   Video,
   X,
+  Brain,
+  StethoscopeIcon,
 } from "lucide-react";
 import { useEffect, useState } from "react";
 import { KENYAN_INSTITUTIONS } from "@/lib/kenya-institutions";
@@ -31,7 +33,7 @@ import {
 } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
 import { useClinic, type IntakeInput } from "@/lib/clinic-store";
-import { CONSULT_FEE_KES } from "@/lib/clinic-types";
+import { CONSULT_FEE_KES, THERAPY_FEE_KES, type ConsultationType } from "@/lib/clinic-types";
 import { usePatientAuth } from "@/lib/patient-auth";
 import { questionsFor, summarizeSmartTriage, type SmartTriageAnswers } from "@/lib/smart-triage";
 import { EMERGENCY_NOTICE, SYMPTOM_OPTIONS, symptomLabel, triage } from "@/lib/triage";
@@ -84,6 +86,7 @@ export function IntakeForm({ onSubmit }: { onSubmit: (input: IntakeInput) => voi
     symptoms: "",
     symptom_codes: [],
     consultation_mode: "chat",
+    consultation_type: "general" as ConsultationType,
   });
   const [agreed, setAgreed] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -277,9 +280,80 @@ export function IntakeForm({ onSubmit }: { onSubmit: (input: IntakeInput) => voi
         </div>
       </Section>
 
-      {/* ── Step 2 · Your symptoms ──────────────────────────────────────── */}
+      {/* ── Step 2 · Service Selection ───────────────────────────────────── */}
       <Section
         step={2}
+        icon={Brain}
+        title="Choose your service"
+        hint="Select the type of consultation you need."
+      >
+        <div className="grid grid-cols-2 gap-3">
+          <button
+            type="button"
+            aria-pressed={form.consultation_type === "general"}
+            onClick={() => set("consultation_type", "general")}
+            className={cn(
+              "relative space-y-2 rounded-xl border-2 p-4 text-left transition-colors",
+              form.consultation_type === "general"
+                ? "border-primary bg-primary/10 ring-2 ring-primary/30"
+                : "bg-card hover:border-primary/40",
+            )}
+          >
+            {form.consultation_type === "general" && (
+              <CheckCircle2 className="absolute right-2 top-2 size-5 text-primary" />
+            )}
+            <span className="flex size-9 items-center justify-center rounded-lg bg-primary/10 text-primary">
+              <StethoscopeIcon className="size-5" />
+            </span>
+            <span
+              className={cn(
+                "block text-xs font-bold",
+                form.consultation_type === "general" ? "text-primary" : "text-foreground",
+              )}
+            >
+              General Consultation
+            </span>
+            <span className="block text-sm font-extrabold">KSh {CONSULT_FEE_KES}</span>
+            <span className="block text-[10px] leading-relaxed text-muted-foreground">
+              Physical symptoms, general health concerns, prescriptions.
+            </span>
+          </button>
+          <button
+            type="button"
+            aria-pressed={form.consultation_type === "therapy"}
+            onClick={() => set("consultation_type", "therapy")}
+            className={cn(
+              "relative space-y-2 rounded-xl border-2 p-4 text-left transition-colors",
+              form.consultation_type === "therapy"
+                ? "border-primary bg-primary/10 ring-2 ring-primary/30"
+                : "bg-card hover:border-primary/40",
+            )}
+          >
+            {form.consultation_type === "therapy" && (
+              <CheckCircle2 className="absolute right-2 top-2 size-5 text-primary" />
+            )}
+            <span className="flex size-9 items-center justify-center rounded-lg bg-primary/10 text-primary">
+              <Brain className="size-5" />
+            </span>
+            <span
+              className={cn(
+                "block text-xs font-bold",
+                form.consultation_type === "therapy" ? "text-primary" : "text-foreground",
+              )}
+            >
+              Therapy / Mental Health
+            </span>
+            <span className="block text-sm font-extrabold">KSh {THERAPY_FEE_KES}</span>
+            <span className="block text-[10px] leading-relaxed text-muted-foreground">
+              Stress, anxiety, depression, trauma support.
+            </span>
+          </button>
+        </div>
+      </Section>
+
+      {/* ── Step 3 · Your symptoms ──────────────────────────────────────── */}
+      <Section
+        step={3}
         icon={Stethoscope}
         title="Your symptoms"
         hint="Pick at least one from the dropdown — it powers automatic triage."
@@ -406,10 +480,10 @@ export function IntakeForm({ onSubmit }: { onSubmit: (input: IntakeInput) => voi
         </div>
       </Section>
 
-      {/* ── Step 3 · Quick questions (smart triage) ─────────────────────── */}
+      {/* ── Step 4 · Quick questions (smart triage) ─────────────────────── */}
       {smartQuestions.length > 0 && (
         <Section
-          step={3}
+          step={4}
           icon={Siren}
           title="A few quick questions"
           hint="30 seconds — this tells the doctor how urgent things are before the chat even starts."
@@ -457,7 +531,7 @@ export function IntakeForm({ onSubmit }: { onSubmit: (input: IntakeInput) => voi
       )}
 
       <Section
-        step={4}
+        step={5}
         icon={Video}
         title="How would you like to consult?"
         hint="Chat is always available either way — this tells the doctor your preference."
@@ -550,7 +624,7 @@ export function IntakeForm({ onSubmit }: { onSubmit: (input: IntakeInput) => voi
       )}
 
       <Button type="submit" size="lg" className="h-14 w-full rounded-xl gap-2 text-base font-bold">
-        Start Consultation (KSh {CONSULT_FEE_KES}) <ArrowRight className="size-4" />
+        Start Consultation (KSh {form.consultation_type === "therapy" ? THERAPY_FEE_KES : CONSULT_FEE_KES}) <ArrowRight className="size-4" />
       </Button>
 
       <p className="flex items-center justify-center gap-1.5 text-[11px] text-muted-foreground">

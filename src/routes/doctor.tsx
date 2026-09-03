@@ -42,6 +42,7 @@ import {
   type Appointment,
 } from "@/lib/appointments";
 import { useClinic } from "@/lib/clinic-store";
+import { useChatSession } from "@/lib/use-chat-session";
 import { DOCTOR } from "@/lib/clinic-types";
 import { getCurrentDoctor, logoutDoctor, type AuthenticatedDoctor } from "@/lib/doctor-auth";
 import { useInstallPrompt } from "@/lib/push-client";
@@ -127,6 +128,9 @@ function DoctorPortal({ authenticatedDoctor }: { authenticatedDoctor: Authentica
 
   const selectedSession = getSession(selectedId);
 
+  // Offline-aware chat: merges locally-queued messages and routes sends.
+  const chat = useChatSession(selectedSession?.id ?? null, "doctor");
+
   // Queue date filter — keeps long patient lists manageable.
   const inRange = useCallback(
     (iso: string) => {
@@ -203,7 +207,12 @@ function DoctorPortal({ authenticatedDoctor }: { authenticatedDoctor: Authentica
             </span>
             <div>
               <h1 className="text-base font-bold leading-tight">
-                Comrades Clinic · {authenticatedDoctor.role === "psychiatrist" ? "Psychiatrist Portal" : authenticatedDoctor.role === "admin" ? "Admin Portal" : "Doctor Portal"}
+                Comrades Clinic ·{" "}
+                {authenticatedDoctor.role === "psychiatrist"
+                  ? "Psychiatrist Portal"
+                  : authenticatedDoctor.role === "admin"
+                    ? "Admin Portal"
+                    : "Doctor Portal"}
               </h1>
               <p className="text-xs text-muted-foreground">
                 {authenticatedDoctor.name} · KMPDC {DOCTOR.kmpdc_license}
@@ -451,7 +460,9 @@ function DoctorPortal({ authenticatedDoctor }: { authenticatedDoctor: Authentica
             {/* Waiting Queue Tab Content */}
             <TabsContent value="waiting" className="mt-3">
               <PatientQueue
-                sessions={filterByRole(sessionsByStatus("waiting")).filter((s) => inRange(s.created_at))}
+                sessions={filterByRole(sessionsByStatus("waiting")).filter((s) =>
+                  inRange(s.created_at),
+                )}
                 selectedId={selectedId}
                 onSelect={(id) => setSelectedId(id)}
                 emptyLabel="No comrades waiting in queue right now."
@@ -462,7 +473,9 @@ function DoctorPortal({ authenticatedDoctor }: { authenticatedDoctor: Authentica
             {/* Active Consultations Tab Content */}
             <TabsContent value="active" className="mt-3">
               <PatientQueue
-                sessions={filterByRole(sessionsByStatus("active")).filter((s) => inRange(s.created_at))}
+                sessions={filterByRole(sessionsByStatus("active")).filter((s) =>
+                  inRange(s.created_at),
+                )}
                 selectedId={selectedId}
                 onSelect={(id) => setSelectedId(id)}
                 emptyLabel="No active consultations in progress."
@@ -473,7 +486,9 @@ function DoctorPortal({ authenticatedDoctor }: { authenticatedDoctor: Authentica
             {/* Completed Consultations Tab Content */}
             <TabsContent value="completed" className="mt-3">
               <PatientQueue
-                sessions={filterByRole(sessionsByStatus("completed")).filter((s) => inRange(s.created_at))}
+                sessions={filterByRole(sessionsByStatus("completed")).filter((s) =>
+                  inRange(s.created_at),
+                )}
                 selectedId={selectedId}
                 onSelect={(id) => setSelectedId(id)}
                 emptyLabel="No completed records yet."
@@ -542,10 +557,11 @@ function DoctorPortal({ authenticatedDoctor }: { authenticatedDoctor: Authentica
                 </div>
                 <ChatWindow
                   className="min-h-0 flex-1"
-                  messages={messagesFor(selectedSession.id)}
+                  messages={chat.messages}
                   viewer="doctor"
-                  onSend={(body) => sendMessage(selectedSession.id, "doctor", body)}
+                  onSend={chat.send}
                   disabled={selectedSession.status === "completed"}
+                  realtimePaused={chat.realtimePaused}
                 />
               </div>
               <div>

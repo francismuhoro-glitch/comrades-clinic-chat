@@ -37,6 +37,7 @@ import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Input } from "@/components/ui/input";
 import { useClinic } from "@/lib/clinic-store";
+import { useChatSession } from "@/lib/use-chat-session";
 import {
   CONSULT_FEE_KES,
   THERAPY_FEE_KES,
@@ -271,6 +272,10 @@ function PatientRouteComponent() {
 
   const session = getSession(studentSessionId);
 
+  // Offline-aware chat: merges locally-queued messages and routes sends.
+  // Called unconditionally (Rules of Hooks); guarded internally by session id.
+  const chat = useChatSession(session?.id ?? null, "student");
+
   // Ending the consultation always tears down an open video call.
   useEffect(() => {
     if (session?.status === "completed") {
@@ -429,6 +434,7 @@ function PatientRouteComponent() {
       <StudentLayout subtitle="Pochi la Biashara Consultation Payment" compact>
         <MpesaProcessing
           phone={session.phone}
+          isOnline={chat.isOnline}
           onSimulateSuccess={() => simulatePayment(session.id)}
           onCancel={() => clearActiveSession()}
         />
@@ -436,7 +442,6 @@ function PatientRouteComponent() {
     );
   }
 
-  const msgs = messagesFor(session.id);
   const assessment = triage(session.symptom_codes);
   const isCompleted = session.status === "completed";
 
@@ -513,11 +518,12 @@ function PatientRouteComponent() {
         {/* Live / Historic Consultation Chat */}
         <div className="h-[460px] overflow-hidden rounded-2xl border bg-card shadow-card">
           <ChatWindow
-            messages={msgs}
+            messages={chat.messages}
             viewer="student"
-            onSend={(body) => sendMessage(session.id, "student", body)}
+            onSend={chat.send}
             disabled={isCompleted}
             disabledLabel="This consultation has concluded"
+            realtimePaused={chat.realtimePaused}
           />
         </div>
 

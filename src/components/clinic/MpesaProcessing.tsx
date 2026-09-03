@@ -1,17 +1,20 @@
 import { useState } from "react";
-import { Loader2, Landmark, AlertCircle } from "lucide-react";
+import { Loader2, Landmark, AlertCircle, WifiOff } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import { CONSULT_FEE_KES } from "@/lib/clinic-types";
 import { useClinic } from "@/lib/clinic-store";
 
 export function MpesaProcessing({
   phone,
+  isOnline = true,
   onCancel,
 }: {
   phone: string;
   onSimulateSuccess: () => void;
+  isOnline?: boolean;
   onCancel: () => void;
 }) {
   const { submitPaymentClaim, studentSessionId, settings } = useClinic();
@@ -27,6 +30,16 @@ export function MpesaProcessing({
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setError(null);
+
+    // M-Pesa submission requires a live connection — the claim is verified
+    // server-side, so we block it while offline (the form can still be filled
+    // in and the claim is queued for delivery on reconnect).
+    if (!isOnline) {
+      setError(
+        "M-Pesa payment requires an internet connection. Please reconnect to complete payment.",
+      );
+      return;
+    }
 
     const cleanRef = refCode.trim().toUpperCase();
     if (cleanRef.length < 8 || cleanRef.length > 12) {
@@ -108,10 +121,37 @@ export function MpesaProcessing({
               </p>
             )}
 
+            {!isOnline && (
+              <p className="flex items-center gap-1.5 rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-xs font-medium text-amber-800">
+                <WifiOff className="size-4" />
+                M-Pesa payment requires an internet connection. Please reconnect to complete
+                payment.
+              </p>
+            )}
+
             <div className="space-y-2 pt-1">
-              <Button type="submit" className="w-full h-11 rounded-xl">
-                Submit Reference Code
-              </Button>
+              <TooltipProvider delayDuration={150}>
+                <Tooltip>
+                  <TooltipTrigger asChild>
+                    <span className="block">
+                      <Button
+                        type="submit"
+                        className="w-full h-11 rounded-xl"
+                        disabled={!isOnline}
+                        aria-disabled={!isOnline}
+                      >
+                        Submit Reference Code
+                      </Button>
+                    </span>
+                  </TooltipTrigger>
+                  {!isOnline && (
+                    <TooltipContent>
+                      M-Pesa payment requires an internet connection. Please reconnect to complete
+                      payment.
+                    </TooltipContent>
+                  )}
+                </Tooltip>
+              </TooltipProvider>
               <Button
                 type="button"
                 variant="ghost"

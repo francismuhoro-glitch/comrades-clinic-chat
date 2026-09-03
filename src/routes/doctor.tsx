@@ -2,6 +2,7 @@ import { createFileRoute, Link, useRouter } from "@tanstack/react-router";
 import {
   CalendarCheck,
   Check,
+  Clock,
   CreditCard,
   LogOut,
   Settings,
@@ -116,6 +117,9 @@ function DoctorPortal({ authenticatedDoctor }: { authenticatedDoctor: Authentica
   const [videoCallOpen, setVideoCallOpen] = useState(false);
   const [queueRange, setQueueRange] = useState<QueueRange>("today");
   const { canInstall, installed, promptInstall } = useInstallPrompt();
+
+  // Only Admin may confirm/reject M-Pesa payments. Doctors & psychiatrists see a read-only badge.
+  const isAdmin = authenticatedDoctor.role === "admin";
 
   // Scheduled appointment requests (live).
   const { appointments: appointmentList, loading: appointmentsLoading } = useAppointments();
@@ -411,25 +415,34 @@ function DoctorPortal({ authenticatedDoctor }: { authenticatedDoctor: Authentica
                       )}
                     </div>
 
-                    <div className="flex items-center gap-2 pt-1">
-                      <Button
-                        size="sm"
-                        className="flex-1 bg-success hover:bg-success/90 text-success-foreground h-8 text-xs gap-1"
-                        onClick={() => confirmPayment(p.id)}
-                      >
-                        <Check className="size-3.5" />
-                        Confirm Payment
-                      </Button>
-                      <Button
-                        size="sm"
-                        variant="outline"
-                        className="text-destructive hover:bg-destructive/10 h-8 text-xs gap-1"
-                        onClick={() => rejectPayment(p.id)}
-                      >
-                        <X className="size-3.5" />
-                        Reject
-                      </Button>
-                    </div>
+                    {isAdmin ? (
+                      <div className="flex items-center gap-2 pt-1">
+                        <Button
+                          size="sm"
+                          className="flex-1 bg-success hover:bg-success/90 text-success-foreground h-8 text-xs gap-1"
+                          onClick={() => confirmPayment(p.id, authenticatedDoctor.role)}
+                        >
+                          <Check className="size-3.5" />
+                          Confirm Payment
+                        </Button>
+                        <Button
+                          size="sm"
+                          variant="outline"
+                          className="text-destructive hover:bg-destructive/10 h-8 text-xs gap-1"
+                          onClick={() => rejectPayment(p.id, authenticatedDoctor.role)}
+                        >
+                          <X className="size-3.5" />
+                          Reject
+                        </Button>
+                      </div>
+                    ) : (
+                      <div className="pt-1">
+                        <span className="inline-flex items-center gap-1.5 rounded-full bg-warning/15 px-2.5 py-1 text-[10px] font-bold uppercase text-warning-foreground">
+                          <Clock className="size-3" />
+                          Payment Pending Admin Verification
+                        </span>
+                      </div>
+                    )}
                   </div>
                 ))
               )}

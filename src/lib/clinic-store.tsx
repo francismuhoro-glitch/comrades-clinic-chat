@@ -42,6 +42,9 @@ const uid = () =>
     : `${Date.now().toString(16)}-${Math.random().toString(16).slice(2, 10)}-4000-8000-${Math.random().toString(16).slice(2, 14)}`;
 const now = () => new Date().toISOString();
 
+/** Portal roles that can reach the /doctor workspace. Only "admin" may confirm/reject payments. */
+type ClinicianRole = "doctor" | "admin" | "psychiatrist";
+
 const DEFAULT_SETTINGS: ClinicSettings = {
   pochi_phone: "0712345678",
   pochi_name: "COMRADES CLINIC",
@@ -181,8 +184,10 @@ interface ClinicApi {
   resumeSessionByPhone: (phoneOrEmail: string) => Promise<boolean>;
   clearActiveSession: () => void;
   submitPaymentClaim: (id: string, mpesaCode: string, paymentPhone: string) => Promise<void>;
-  confirmPayment: (id: string) => Promise<void>;
-  rejectPayment: (id: string) => Promise<void>;
+  /** Only an admin may clear money. The role is passed from the caller and validated. */
+  confirmPayment: (id: string, role?: ClinicianRole) => Promise<void>;
+  /** Only an admin may reject a payment. The role is passed from the caller and validated. */
+  rejectPayment: (id: string, role?: ClinicianRole) => Promise<void>;
   submitLabOrder: (id: string, order: LabOrder) => Promise<void>;
   /** Patient declines the doctor's lab request (with an optional reason). */
   declineLabOrder: (id: string, reason?: string) => Promise<void>;
@@ -811,7 +816,11 @@ export function ClinicProvider({ children }: { children: ReactNode }) {
           console.error("Failed to submit payment claim:", err);
         }
       },
-      confirmPayment: async (id) => {
+      confirmPayment: async (id, role) => {
+        if (role !== "admin") {
+          console.warn("Payment confirmation restricted to admin accounts.");
+          return;
+        }
         const s = state.sessions.find((x) => x.id === id);
         const receipt = s?.mpesa_code || "POCHI-" + uid().toUpperCase().slice(0, 8);
         dispatch({ type: "mark_paid", id, receipt });
@@ -841,7 +850,11 @@ export function ClinicProvider({ children }: { children: ReactNode }) {
           console.error("Failed to confirm payment in Supabase:", err);
         }
       },
-      rejectPayment: async (id) => {
+      rejectPayment: async (id, role) => {
+        if (role !== "admin") {
+          console.warn("Payment rejection restricted to admin accounts.");
+          return;
+        }
         const rejected = state.sessions.find((x) => x.id === id);
         void sendNotification({
           audience: "patient",

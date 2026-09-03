@@ -12,6 +12,7 @@ import { useEffect, type ReactNode } from "react";
 import appCss from "../styles.css?url";
 import { reportLovableError } from "../lib/lovable-error-reporting";
 import { RoleSwitcher } from "../components/clinic/RoleSwitcher";
+import { IosInstallPrompt } from "../components/clinic/IosInstallPrompt";
 import { ClinicProvider } from "../lib/clinic-store";
 import { PatientAuthProvider } from "../lib/patient-auth";
 
@@ -170,6 +171,7 @@ function RootComponent() {
           <RoleSwitcher />
           {/* Required: nested routes render here. Removing <Outlet /> breaks all child routes. */}
           <Outlet />
+          <IosInstallPrompt />
         </ClinicProvider>
       </PatientAuthProvider>
     </QueryClientProvider>

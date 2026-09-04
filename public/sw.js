@@ -10,7 +10,7 @@
  *     flush any queued work once connectivity returns.
  *
  * Cache strategies:
- *  - Navigations (HTML):      Stale-While-Revalidate (instant load, fresh next time)
+ *  - Navigations (HTML):      Cache-First with /offline.html fallback
  *  - Static assets (js/css/svg/png/woff): Cache-First (hashed, immutable)
  *  - API / Supabase:         Network-First with cache fallback (never serve stale auth)
  *  - Authenticated API + WebSocket (realtime): NEVER cached (security + correctness)
@@ -48,7 +48,24 @@ function isStaticAsset(url) {
 }
 
 self.addEventListener("install", (event) => {
-  event.waitUntil(caches.open(APP_SHELL_CACHE).then((cache) => cache.add(OFFLINE_URL)));
+  // Pre-cache the app shell + offline fallback page.
+  event.waitUntil(
+    caches
+      .open(APP_SHELL_CACHE)
+      .then((cache) =>
+        cache.addAll([
+          "/",
+          "/offline.html",
+          "/manifest.webmanifest",
+          "/favicon.svg",
+          "/favicon.ico",
+          "/icons/icon-192.png",
+          "/icons/icon-512.png",
+          "/icons/icon-maskable-512.png",
+          "/robots.txt",
+        ]),
+      ),
+  );
   // Register a background sync tag as a fallback for queued work.
   try {
     event.waitUntil(self.registration.sync.register("sync-messages"));
@@ -85,19 +102,20 @@ self.addEventListener("fetch", (event) => {
   // Authenticated / realtime traffic: never intercept.
   if (isNetworkOnly(url)) return;
 
-  // Navigations: Stale-While-Revalidate.
+  // Navigations: Cache-First, then network, with /offline.html as fallback.
   if (isNavigation(req)) {
     event.respondWith(
       (async () => {
         const cache = await caches.open(APP_SHELL_CACHE);
         const cached = await cache.match(req);
-        const network = fetch(req)
-          .then((res) => {
-            if (res && res.status === 200) cache.put(req, res.clone());
-            return res;
-          })
-          .catch(() => cached);
-        return cached || network || cache.match(OFFLINE_URL) || Response.error();
+        if (cached) return cached;
+        try {
+          const res = await fetch(req);
+          if (res && res.status === 200) cache.put(req, res.clone());
+          return res;
+        } catch {
+          return (await cache.match(OFFLINE_URL)) || Response.error();
+        }
       })(),
     );
     return;

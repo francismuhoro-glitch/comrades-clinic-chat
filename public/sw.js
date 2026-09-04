@@ -66,11 +66,16 @@ self.addEventListener("install", (event) => {
         ]),
       ),
   );
-  // Register a background sync tag as a fallback for queued work.
-  try {
-    event.waitUntil(self.registration.sync.register("sync-messages"));
-  } catch {
-    // Background Sync unsupported (Safari/Firefox) — the online event covers us.
+  // Register a background sync tag as a fallback for queued work — but only
+  // where the Background Sync API exists. Safari/Firefox have no
+  // `registration.sync`, so they skip this entirely and drain through the
+  // client's online / visibilitychange listeners instead.
+  if ("sync" in self.registration) {
+    try {
+      event.waitUntil(self.registration.sync.register("sync-messages"));
+    } catch {
+      // Registration unavailable/rejected — the online event covers us.
+    }
   }
   self.skipWaiting();
 });

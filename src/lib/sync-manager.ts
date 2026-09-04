@@ -88,19 +88,28 @@ export async function flushAll(): Promise<void> {
   }
 }
 
+type SyncCapableRegistration = ServiceWorkerRegistration & {
+  sync?: { register: (tag: string) => Promise<void> };
+};
+
+/**
+ * Register the Background Sync tag — only where the API actually exists.
+ *
+ * Safari (and Firefox) ship no Background Sync, so `registration.sync` is
+ * `undefined` there. We feature-check after awaiting `serviceWorker.ready` and
+ * return silently instead of throwing: those browsers drain the queue through
+ * the `online` / `visibilitychange` listeners wired below (and through the
+ * `SYNC_NOW` message the SW posts when its own sync event fires).
+ */
 function registerBackgroundSyncTag(): void {
   if (typeof navigator === "undefined" || !("serviceWorker" in navigator)) return;
   void (async () => {
     try {
-      const reg = await navigator.serviceWorker.ready;
-      const sync = (
-        reg as ServiceWorkerRegistration & {
-          sync?: { register: (tag: string) => Promise<void> };
-        }
-      ).sync;
-      await sync?.register("sync-messages");
+      const reg = (await navigator.serviceWorker.ready) as SyncCapableRegistration;
+      if (!("sync" in reg) || reg.sync === undefined) return;
+      await reg.sync.register("sync-messages");
     } catch {
-      /* Background Sync may be unsupported (e.g. Firefox/Safari) — non-fatal. */
+      /* Background Sync unsupported or registration rejected — non-fatal. */
     }
   })();
 }

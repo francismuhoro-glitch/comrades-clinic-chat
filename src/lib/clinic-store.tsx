@@ -16,6 +16,7 @@ import { supabase } from "./supabase";
 import { mapConsultationRow, type ConsultationRow } from "./consultation-mapper";
 
 import { triage } from "./triage";
+import { WHATSAPP_FALLBACK_NUMBER } from "./whatsapp";
 import {
   hydrateOfflineCache,
   persistClinicSettings,
@@ -58,6 +59,7 @@ const DEFAULT_SETTINGS: ClinicSettings = {
   pochi_name: "COMRADES CLINIC",
   helpline_phone: "+254 712 345 678",
   consultation_fee_kes: CONSULT_FEE_KES,
+  whatsapp_number: WHATSAPP_FALLBACK_NUMBER,
 };
 
 interface State {
@@ -334,6 +336,7 @@ export function ClinicProvider({ children }: { children: ReactNode }) {
             helpline_phone: settingsData.helpline_phone || DEFAULT_SETTINGS.helpline_phone,
             consultation_fee_kes:
               settingsData.consultation_fee_kes || DEFAULT_SETTINGS.consultation_fee_kes,
+            whatsapp_number: settingsData.whatsapp_number || DEFAULT_SETTINGS.whatsapp_number,
           };
           dispatch({ type: "set_settings", settings });
           // Keep the offline cache warm so the app has content when offline.

@@ -1,4 +1,13 @@
-import { Brain, HeartHandshake, LifeBuoy, Lock, Phone, RotateCcw } from "lucide-react";
+import {
+  Brain,
+  ChevronDown,
+  ChevronUp,
+  HeartHandshake,
+  LifeBuoy,
+  Lock,
+  Phone,
+  RotateCcw,
+} from "lucide-react";
 import { useState } from "react";
 
 import { Button } from "@/components/ui/button";
@@ -34,6 +43,9 @@ function primeMentalIntake() {
 }
 
 export function MoodCheckIn() {
+  // Collapsed by default so the landing page stays short on phones — the full
+  // check-in is one tap away and works exactly as before once opened.
+  const [open, setOpen] = useState(false);
   const [answers, setAnswers] = useState<(number | null)[]>([null, null, null, null]);
   const answered = answers.filter((a): a is number => a !== null);
   const complete = answered.length === QUESTIONS.length;
@@ -58,6 +70,28 @@ export function MoodCheckIn() {
             body: "Nice. Keep your routines going — sleep, people, movement. If things shift, this check-in will be here, and so will we.",
           };
 
+  if (!open) {
+    return (
+      <button
+        type="button"
+        onClick={() => setOpen(true)}
+        aria-expanded={open}
+        className="flex w-full items-center gap-3 rounded-2xl border bg-card p-3.5 text-left shadow-card transition-colors hover:border-primary/40"
+      >
+        <span className="flex size-9 shrink-0 items-center justify-center rounded-xl bg-primary text-primary-foreground shadow-sm">
+          <Brain className="size-4" />
+        </span>
+        <span className="min-w-0 flex-1">
+          <span className="block text-sm font-bold leading-tight">How have you really been?</span>
+          <span className="mt-0.5 block text-[11px] leading-snug text-muted-foreground">
+            Optional 30-second check-in · private, stays on your device
+          </span>
+        </span>
+        <ChevronDown className="size-4 shrink-0 text-muted-foreground" />
+      </button>
+    );
+  }
+
   return (
     <section className="relative overflow-hidden rounded-3xl border bg-gradient-to-br from-primary/5 via-card to-accent/40 p-5 shadow-card">
       <div className="pointer-events-none absolute -right-8 -top-8 size-32 rounded-full bg-primary/10 blur-2xl" />
@@ -76,6 +110,14 @@ export function MoodCheckIn() {
               Private — stays on your device
             </p>
           </div>
+          <button
+            type="button"
+            onClick={() => setOpen(false)}
+            aria-label="Collapse mood check-in"
+            className="flex size-7 shrink-0 items-center justify-center rounded-full border bg-card text-muted-foreground transition-colors hover:text-foreground"
+          >
+            <ChevronUp className="size-4" />
+          </button>
         </header>
 
         <div className="space-y-3">

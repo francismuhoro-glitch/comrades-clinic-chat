@@ -66,41 +66,37 @@ export const Route = createFileRoute("/")({
 function LandingPage({ onAcceptTerms }: { onAcceptTerms: () => void }) {
   const [agreed, setAgreed] = useState(false);
 
-  const trustChips = [
-    "KMPDC-licensed doctors & psychiatrists",
-    "From KSh 150 — no hidden costs",
-    "Encrypted & confidential",
-  ];
+  const trustChips = ["KMPDC-licensed", "From KSh 150", "Private & encrypted"];
 
   const services = [
     {
       icon: MessageSquare,
-      title: "Live text chat",
+      title: "Text chat",
       text: "Encrypted, real-time messaging with the doctor.",
     },
     {
       icon: Video,
-      title: "Voice & video calls",
+      title: "Voice/video",
       text: "Audio-first calls when typing isn't enough.",
     },
     {
       icon: FileText,
-      title: "Digital prescriptions",
+      title: "Prescriptions",
       text: "Signed prescriptions sent straight to your phone.",
     },
     {
       icon: FlaskConical,
-      title: "Doorstep lab tests",
+      title: "Lab tests",
       text: "Sample collection at your hostel or a partner lab.",
     },
     {
       icon: Brain,
-      title: "Therapy & mental health",
+      title: "Therapy",
       text: "Confidential sessions with a psychiatrist for KSh 250.",
     },
     {
       icon: Ambulance,
-      title: "Hospital referrals",
+      title: "Referrals",
       text: "Official referral letters when you need a hospital.",
     },
   ];
@@ -109,27 +105,27 @@ function LandingPage({ onAcceptTerms }: { onAcceptTerms: () => void }) {
     {
       icon: Wallet,
       title: `Pay from KSh ${CONSULT_FEE_KES} via M-Pesa`,
-      text: `General consult KSh ${CONSULT_FEE_KES}, therapy KSh ${THERAPY_FEE_KES}. Via Pochi la Biashara.`,
+      text: `General KSh ${CONSULT_FEE_KES} · therapy KSh ${THERAPY_FEE_KES} · Pochi.`,
     },
     {
       icon: Stethoscope,
       title: "Talk to a clinician",
-      text: "Start in encrypted chat — switch to a voice or video call any time.",
+      text: "Encrypted chat, voice or video.",
     },
     {
       icon: FileText,
       title: "Get your documents",
-      text: "Prescription, lab order or referral letter — signed and delivered digitally.",
+      text: "Prescription, lab order or referral — signed, on your phone.",
     },
   ];
 
   return (
     <div className="space-y-4">
       {/* Hero */}
-      <div className="relative overflow-hidden rounded-3xl bg-gradient-to-br from-primary via-primary to-success p-6 text-primary-foreground shadow-card">
+      <div className="relative overflow-hidden rounded-3xl bg-gradient-to-br from-primary via-primary to-success p-5 text-primary-foreground shadow-card">
         <div className="pointer-events-none absolute -right-10 -top-10 size-44 rounded-full bg-white/10" />
         <div className="pointer-events-none absolute -bottom-12 -left-8 size-40 rounded-full bg-white/10" />
-        <div className="relative space-y-4">
+        <div className="relative space-y-3">
           <div className="flex flex-wrap gap-1.5">
             {trustChips.map((chip) => (
               <span
@@ -140,49 +136,61 @@ function LandingPage({ onAcceptTerms }: { onAcceptTerms: () => void }) {
               </span>
             ))}
           </div>
-          <div className="space-y-2">
-            <h1 className="text-2xl font-extrabold leading-tight sm:text-3xl">
-              Talk to a real doctor in minutes — right from your hostel.
+          <div className="space-y-1.5">
+            <h1 className="text-xl font-extrabold leading-tight sm:text-3xl">
+              See a real doctor in minutes.
             </h1>
             <p className="max-w-md text-xs leading-relaxed text-primary-foreground/85 sm:text-sm">
-              COMRACARE connects university students with licensed clinicians: encrypted chat, voice
-              &amp; video calls, digital prescriptions, doorstep labs and hospital referrals.
+              Chat, calls, prescriptions, labs &amp; referrals — from your hostel.
             </p>
           </div>
+          <Button
+            size="lg"
+            onClick={() =>
+              document.getElementById("start-consult")?.scrollIntoView({ behavior: "smooth" })
+            }
+            className="w-full gap-2 rounded-xl bg-white text-sm font-bold text-primary shadow-sm hover:bg-white/90"
+          >
+            Start now — from KSh {CONSULT_FEE_KES}
+            <ArrowRight className="size-4" />
+          </Button>
           <p className="flex items-center gap-1.5 text-[11px] font-semibold text-primary-foreground/90">
             <ShieldCheck className="size-3.5" />
-            Registered clinician · KMPDC {DOCTOR.kmpdc_license}
+            Licensed clinicians · KMPDC {DOCTOR.kmpdc_license}
           </p>
         </div>
       </div>
 
       <MoodCheckIn />
 
-      <EmergencyContactsBar variant="card" />
+      {/* Compact: full emergency numbers already appear in the top banner + footer */}
+      <EmergencyContactsBar variant="compact" />
 
-      {/* What you get */}
+      {/* What you get — titles only on phones to cut scrolling; details on larger screens */}
       <section className="space-y-2">
         <h2 className="text-sm font-bold">Everything in one place</h2>
-        <div className="grid grid-cols-2 gap-2.5 sm:grid-cols-3">
+        <div className="grid grid-cols-3 gap-2 sm:gap-2.5">
           {services.map(({ icon: Icon, title, text }) => (
             <div
               key={title}
-              className="space-y-1.5 rounded-2xl border bg-card p-3.5 shadow-card transition-colors hover:border-primary/40"
+              className="space-y-1 rounded-2xl border bg-card p-2.5 shadow-card transition-colors hover:border-primary/40 sm:space-y-1.5 sm:p-3.5"
             >
-              <span className="flex size-8 items-center justify-center rounded-lg bg-primary/10 text-primary">
-                <Icon className="size-4" />
+              <span className="flex size-7 items-center justify-center rounded-lg bg-primary/10 text-primary sm:size-8">
+                <Icon className="size-3.5 sm:size-4" />
               </span>
-              <p className="text-xs font-bold leading-tight">{title}</p>
-              <p className="text-[11px] leading-snug text-muted-foreground">{text}</p>
+              <p className="text-[10px] font-bold leading-tight sm:text-xs">{title}</p>
+              <p className="hidden text-[11px] leading-snug text-muted-foreground sm:block">
+                {text}
+              </p>
             </div>
           ))}
         </div>
       </section>
 
       {/* How it works */}
-      <section className="space-y-2.5 rounded-2xl border bg-card p-5 shadow-card">
+      <section className="space-y-2 rounded-2xl border bg-card p-4 shadow-card">
         <h2 className="text-sm font-bold">How it works</h2>
-        <ol className="space-y-3">
+        <ol className="space-y-2.5">
           {steps.map(({ icon: Icon, title, text }, i) => (
             <li key={title} className="flex items-start gap-3">
               <span className="flex size-7 shrink-0 items-center justify-center rounded-lg bg-primary text-xs font-bold text-primary-foreground">
@@ -203,7 +211,7 @@ function LandingPage({ onAcceptTerms }: { onAcceptTerms: () => void }) {
       {/* Terms & Privacy Policy Confirmation Gate */}
       <div
         id="start-consult"
-        className="space-y-4 rounded-2xl border bg-card p-5 shadow-card scroll-mt-24"
+        className="space-y-3 rounded-2xl border bg-card p-4 shadow-card scroll-mt-24"
       >
         <label className="flex cursor-pointer items-start gap-3 rounded-xl border bg-secondary/40 p-3.5">
           <Checkbox

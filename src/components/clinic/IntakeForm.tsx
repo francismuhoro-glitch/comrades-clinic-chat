@@ -2,6 +2,7 @@ import {
   AlertTriangle,
   ArrowRight,
   CheckCircle2,
+  ChevronDown,
   FlaskConical,
   Mail,
   MessageSquare,
@@ -56,7 +57,7 @@ function Section({
   children: React.ReactNode;
 }) {
   return (
-    <section className="space-y-3 rounded-2xl border bg-card p-4 shadow-card">
+    <section className="space-y-2.5 rounded-2xl border bg-card p-3 shadow-card sm:p-4">
       <header className="flex items-center gap-2.5">
         <span className="flex size-7 shrink-0 items-center justify-center rounded-lg bg-primary text-xs font-bold text-primary-foreground">
           {step}
@@ -91,11 +92,14 @@ export function IntakeForm({ onSubmit }: { onSubmit: (input: IntakeInput) => voi
   const [agreed, setAgreed] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [smartAnswers, setSmartAnswers] = useState<SmartTriageAnswers>({});
+  // Optional email stays collapsed to keep step 1 short on phones.
+  const [emailOpen, setEmailOpen] = useState(false);
 
   // Auto-prefill email if patient is signed in
   useEffect(() => {
     if (patient?.email && !form.patient_email) {
       setForm((f) => ({ ...f, patient_email: patient.email ?? "" }));
+      setEmailOpen(true);
     }
   }, [patient, form.patient_email]);
 
@@ -149,6 +153,7 @@ export function IntakeForm({ onSubmit }: { onSubmit: (input: IntakeInput) => voi
       form.patient_email?.trim() &&
       !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(form.patient_email.trim())
     ) {
+      setEmailOpen(true);
       setError("Enter a valid email address.");
       return;
     }
@@ -181,7 +186,7 @@ export function IntakeForm({ onSubmit }: { onSubmit: (input: IntakeInput) => voi
         step={1}
         icon={UserRound}
         title="Your details"
-        hint="So we can identify you and reach you about this consultation."
+        hint="How we reach you about this visit."
       >
         <div className="space-y-1.5">
           <Label htmlFor="full_name">Full name</Label>
@@ -209,33 +214,44 @@ export function IntakeForm({ onSubmit }: { onSubmit: (input: IntakeInput) => voi
           />
         </div>
 
-        <div className="space-y-1.5">
-          <div className="flex items-center justify-between">
-            <Label htmlFor="patient_email">Email address (optional)</Label>
-            {patient?.email && (
-              <span className="text-[10px] text-muted-foreground flex items-center gap-1">
-                <Mail className="size-3 text-primary" /> Auto-attached from account
-              </span>
-            )}
+        <details
+          open={emailOpen}
+          onToggle={(e) => setEmailOpen(e.currentTarget.open)}
+          className="group rounded-xl border bg-muted/40"
+        >
+          <summary className="flex cursor-pointer list-none items-center gap-2 px-3 py-2.5 text-xs font-semibold">
+            <Mail className="size-3.5 text-primary" />
+            <span className="flex-1">
+              Email for visit report{" "}
+              <span className="font-normal text-muted-foreground">(optional)</span>
+              {patient?.email && (
+                <span className="ml-1 text-[10px] font-normal text-muted-foreground">
+                  · from your account
+                </span>
+              )}
+            </span>
+            <ChevronDown className="size-4 text-muted-foreground transition-transform group-open:rotate-180" />
+          </summary>
+          <div className="space-y-1.5 px-3 pb-3">
+            <Input
+              id="patient_email"
+              type="email"
+              value={form.patient_email || ""}
+              onChange={(e) => set("patient_email", e.target.value)}
+              placeholder="e.g. comrade@students.ku.ac.ke"
+              autoComplete="email"
+            />
+            <p className="text-[10px] text-muted-foreground">
+              We send your visit report, prescriptions and lab results here.
+            </p>
           </div>
-          <Input
-            id="patient_email"
-            type="email"
-            value={form.patient_email || ""}
-            onChange={(e) => set("patient_email", e.target.value)}
-            placeholder="e.g. comrade@students.ku.ac.ke"
-            autoComplete="email"
-          />
-          <p className="text-[10px] text-muted-foreground">
-            Used to send you your official visit report with prescriptions and lab results.
-          </p>
-        </div>
+        </details>
 
         <div className="space-y-1.5">
-          <Label htmlFor="campus">Institution / Campus / TVET / College</Label>
+          <Label htmlFor="campus">Institution / campus</Label>
           <Select value={form.campus} onValueChange={(v) => set("campus", v)}>
             <SelectTrigger id="campus" className="w-full">
-              <SelectValue placeholder="Select your institution..." />
+              <SelectValue placeholder="Select…" />
             </SelectTrigger>
             <SelectContent className="max-h-72">
               <div className="px-2 py-1.5 text-xs font-bold text-primary">Public Universities</div>
@@ -281,19 +297,14 @@ export function IntakeForm({ onSubmit }: { onSubmit: (input: IntakeInput) => voi
       </Section>
 
       {/* ── Step 2 · Service Selection ───────────────────────────────────── */}
-      <Section
-        step={2}
-        icon={Brain}
-        title="Choose your service"
-        hint="Select the type of consultation you need."
-      >
-        <div className="grid grid-cols-2 gap-3">
+      <Section step={2} icon={Brain} title="Choose your service" hint="General or therapy?">
+        <div className="grid grid-cols-2 gap-2.5">
           <button
             type="button"
             aria-pressed={form.consultation_type === "general"}
             onClick={() => set("consultation_type", "general")}
             className={cn(
-              "relative space-y-2 rounded-xl border-2 p-4 text-left transition-colors",
+              "relative space-y-1.5 rounded-xl border-2 p-3 text-left transition-colors",
               form.consultation_type === "general"
                 ? "border-primary bg-primary/10 ring-2 ring-primary/30"
                 : "bg-card hover:border-primary/40",
@@ -314,8 +325,8 @@ export function IntakeForm({ onSubmit }: { onSubmit: (input: IntakeInput) => voi
               General Consultation
             </span>
             <span className="block text-sm font-extrabold">KSh {CONSULT_FEE_KES}</span>
-            <span className="block text-[10px] leading-relaxed text-muted-foreground">
-              Physical symptoms, general health concerns, prescriptions.
+            <span className="block text-[10px] leading-snug text-muted-foreground">
+              Symptoms, prescriptions & general health.
             </span>
           </button>
           <button
@@ -323,7 +334,7 @@ export function IntakeForm({ onSubmit }: { onSubmit: (input: IntakeInput) => voi
             aria-pressed={form.consultation_type === "therapy"}
             onClick={() => set("consultation_type", "therapy")}
             className={cn(
-              "relative space-y-2 rounded-xl border-2 p-4 text-left transition-colors",
+              "relative space-y-1.5 rounded-xl border-2 p-3 text-left transition-colors",
               form.consultation_type === "therapy"
                 ? "border-primary bg-primary/10 ring-2 ring-primary/30"
                 : "bg-card hover:border-primary/40",
@@ -344,8 +355,8 @@ export function IntakeForm({ onSubmit }: { onSubmit: (input: IntakeInput) => voi
               Therapy / Mental Health
             </span>
             <span className="block text-sm font-extrabold">KSh {THERAPY_FEE_KES}</span>
-            <span className="block text-[10px] leading-relaxed text-muted-foreground">
-              Stress, anxiety, depression, trauma support.
+            <span className="block text-[10px] leading-snug text-muted-foreground">
+              Stress, anxiety & mood support.
             </span>
           </button>
         </div>
@@ -356,7 +367,7 @@ export function IntakeForm({ onSubmit }: { onSubmit: (input: IntakeInput) => voi
         step={3}
         icon={Stethoscope}
         title="Your symptoms"
-        hint="Pick at least one from the dropdown — it powers automatic triage."
+        hint="Pick at least one — it sets your urgency."
       >
         <div className="space-y-1.5">
           <Label htmlFor="symptom_picker">Choose a symptom</Label>
@@ -460,21 +471,21 @@ export function IntakeForm({ onSubmit }: { onSubmit: (input: IntakeInput) => voi
           <p className="flex items-start gap-2 rounded-xl border border-warning bg-warning/12 p-3 text-xs text-warning-foreground">
             <FlaskConical className="mt-0.5 size-3.5 shrink-0" />
             <span>
-              A lab test will likely be needed
-              {assessment.labPanels.length ? `: ${assessment.labPanels.join("; ")}` : ""}. The
-              doctor confirms this in your consultation.
+              Lab test likely needed
+              {assessment.labPanels.length ? `: ${assessment.labPanels.join("; ")}` : ""} — the
+              doctor confirms.
             </span>
           </p>
         )}
 
         <div className="space-y-1.5">
-          <Label htmlFor="symptoms">Describe your symptoms or reason for visit</Label>
+          <Label htmlFor="symptoms">Describe your symptoms</Label>
           <Textarea
             id="symptoms"
-            rows={4}
+            rows={3}
             value={form.symptoms}
             onChange={(e) => set("symptoms", e.target.value)}
-            placeholder="Tell the doctor what you are feeling, for how long, and any medication you have taken."
+            placeholder="What you feel, for how long, any medication taken."
             required
           />
         </div>
@@ -486,7 +497,7 @@ export function IntakeForm({ onSubmit }: { onSubmit: (input: IntakeInput) => voi
           step={4}
           icon={Siren}
           title="A few quick questions"
-          hint="30 seconds — this tells the doctor how urgent things are before the chat even starts."
+          hint="30 seconds — sets your urgency before the chat."
         >
           {smartSummary.redFlags.length > 0 && (
             <p className="mb-3 flex items-start gap-2 rounded-lg border border-destructive bg-destructive/10 p-2.5 text-[11px] font-semibold text-destructive">
@@ -500,7 +511,7 @@ export function IntakeForm({ onSubmit }: { onSubmit: (input: IntakeInput) => voi
               <div key={q.id} className="space-y-1.5">
                 <p className="text-xs font-bold leading-snug">{q.question}</p>
                 {q.hint && <p className="text-[10px] text-muted-foreground">{q.hint}</p>}
-                <div className="grid grid-cols-1 gap-1.5 sm:grid-cols-2">
+                <div className="grid grid-cols-2 gap-1.5">
                   {q.options.map((option) => {
                     const active = smartAnswers[q.id] === option.label;
                     return (
@@ -534,7 +545,7 @@ export function IntakeForm({ onSubmit }: { onSubmit: (input: IntakeInput) => voi
         step={5}
         icon={Video}
         title="How would you like to consult?"
-        hint="Chat is always available either way — this tells the doctor your preference."
+        hint="Chat is always available — this is your preference."
       >
         <div className="grid grid-cols-2 gap-2">
           <button
@@ -565,8 +576,8 @@ export function IntakeForm({ onSubmit }: { onSubmit: (input: IntakeInput) => voi
             >
               Text chat
             </span>
-            <span className="block text-[10px] leading-relaxed text-muted-foreground">
-              Encrypted in-app messaging with the doctor.
+            <span className="block text-[10px] leading-snug text-muted-foreground">
+              Private messaging.
             </span>
           </button>
           <button
@@ -597,8 +608,8 @@ export function IntakeForm({ onSubmit }: { onSubmit: (input: IntakeInput) => voi
             >
               Voice/video call
             </span>
-            <span className="block text-[10px] leading-relaxed text-muted-foreground">
-              Audio-first call — camera stays off until you turn it on.
+            <span className="block text-[10px] leading-snug text-muted-foreground">
+              Audio-first; camera optional.
             </span>
           </button>
         </div>
@@ -612,8 +623,7 @@ export function IntakeForm({ onSubmit }: { onSubmit: (input: IntakeInput) => voi
           className="mt-0.5"
         />
         <span className="text-xs leading-relaxed text-secondary-foreground">
-          I understand this service is for basic care only. For emergencies, I will visit a physical
-          hospital immediately.
+          I understand this is basic care only. In an emergency I&apos;ll go to a hospital.
         </span>
       </label>
 
@@ -636,8 +646,7 @@ export function IntakeForm({ onSubmit }: { onSubmit: (input: IntakeInput) => voi
 
       {!doctorOnline && (
         <p className="text-center text-[11px] text-muted-foreground">
-          The doctor is offline. You can still submit — you will be queued for the next available
-          session.
+          Doctor offline — submit anyway, you&apos;ll be queued.
         </p>
       )}
     </form>

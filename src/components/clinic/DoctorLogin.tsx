@@ -8,6 +8,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { EmergencyContactsBar } from "@/components/clinic/EmergencyContacts";
+import { WhatsAppFallback } from "@/components/clinic/WhatsAppFallback";
 import { loginDoctor } from "@/lib/doctor-auth";
 
 export function DoctorLogin() {
@@ -138,6 +139,11 @@ export function DoctorLogin() {
             <ShieldCheck className="size-3.5 text-success" aria-hidden="true" />
             Protected by an encrypted, HTTP-only session cookie
           </p>
+
+          {/* Persistent site-help fallback (secondary to the portal) */}
+          <div className="flex justify-center">
+            <WhatsAppFallback />
+          </div>
         </div>
       </div>
     </main>

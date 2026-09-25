@@ -68,6 +68,7 @@ export async function persistClinicSettings(settings: ClinicSettings): Promise<v
       pochi_name: settings.pochi_name,
       helpline_phone: settings.helpline_phone,
       consultation_fee_kes: settings.consultation_fee_kes,
+      whatsapp_number: settings.whatsapp_number,
     });
   } catch {
     /* non-fatal */

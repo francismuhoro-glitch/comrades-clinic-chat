@@ -35,6 +35,7 @@ import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { NotificationBell } from "@/components/clinic/NotificationBell";
+import { WhatsAppFallback } from "@/components/clinic/WhatsAppFallback";
 import {
   appointmentWhen,
   setAppointmentStatus,
@@ -113,6 +114,7 @@ function DoctorPortal({ authenticatedDoctor }: { authenticatedDoctor: Authentica
   const [pochiPhone, setPochiPhone] = useState(settings.pochi_phone);
   const [pochiName, setPochiName] = useState(settings.pochi_name);
   const [helpline, setHelpline] = useState(settings.helpline_phone);
+  const [whatsappNumber, setWhatsappNumber] = useState(settings.whatsapp_number);
   const [settingsOpen, setSettingsOpen] = useState(false);
   const [savingSettings, setSavingSettings] = useState(false);
   const [videoCallOpen, setVideoCallOpen] = useState(false);
@@ -190,6 +192,7 @@ function DoctorPortal({ authenticatedDoctor }: { authenticatedDoctor: Authentica
       pochi_phone: pochiPhone,
       pochi_name: pochiName,
       helpline_phone: helpline,
+      whatsapp_number: whatsappNumber,
     });
     setSavingSettings(false);
     setSettingsOpen(false);
@@ -266,10 +269,10 @@ function DoctorPortal({ authenticatedDoctor }: { authenticatedDoctor: Authentica
               <DialogContent className="sm:max-w-[425px]">
                 <form onSubmit={handleSaveSettings}>
                   <DialogHeader>
-                    <DialogTitle>Pochi la Biashara & Helpline Settings</DialogTitle>
+                    <DialogTitle>Clinic Settings</DialogTitle>
                     <DialogDescription>
-                      Update the Pochi payment number, business name, and helpline displayed to
-                      students.
+                      Pochi payment details, the helpline shown to students, and the WhatsApp number
+                      behind the “Trouble with the site?” fallback link.
                     </DialogDescription>
                   </DialogHeader>
                   <div className="grid gap-4 py-4">
@@ -302,6 +305,19 @@ function DoctorPortal({ authenticatedDoctor }: { authenticatedDoctor: Authentica
                         placeholder="+254 7XX XXX XXX"
                         required
                       />
+                    </div>
+                    <div className="space-y-1.5">
+                      <Label htmlFor="whatsapp-number">WhatsApp Fallback Number</Label>
+                      <Input
+                        id="whatsapp-number"
+                        value={whatsappNumber}
+                        onChange={(e) => setWhatsappNumber(e.target.value)}
+                        placeholder="2541XXXXXXXX"
+                      />
+                      <p className="text-[11px] text-muted-foreground">
+                        Opens WhatsApp with a prefilled site-help message. International format,
+                        digits only — e.g. 2541XXXXXXXX.
+                      </p>
                     </div>
                   </div>
                   <DialogFooter>
@@ -579,6 +595,15 @@ function DoctorPortal({ authenticatedDoctor }: { authenticatedDoctor: Authentica
           )}
         </section>
       </div>
+
+      {/* Slim footer — persistent site-help fallback (secondary to the main flow) */}
+      <footer className="border-t bg-card/60 px-4 py-3 text-center">
+        <div className="mx-auto flex max-w-7xl flex-wrap items-center justify-center gap-x-3 gap-y-1 text-[11px] text-muted-foreground">
+          <WhatsAppFallback />
+          <span aria-hidden="true">·</span>
+          <span>© 2026 Comrades Clinic Kenya</span>
+        </div>
+      </footer>
 
       {/* Voice/video call overlay (auto-closed when the consultation completes) */}
       {videoCallOpen && selectedSession && selectedSession.status !== "completed" && (

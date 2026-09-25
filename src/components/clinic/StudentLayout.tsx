@@ -4,6 +4,7 @@ import type { ReactNode } from "react";
 
 import { EmergencyContactsBar } from "@/components/clinic/EmergencyContacts";
 import { NotificationBell } from "@/components/clinic/NotificationBell";
+import { WhatsAppFallback } from "@/components/clinic/WhatsAppFallback";
 import { useClinic } from "@/lib/clinic-store";
 import type { SessionStatus } from "@/lib/clinic-types";
 import { useInstallPrompt } from "@/lib/push-client";
@@ -90,6 +91,8 @@ export function StudentLayout({
                 />
                 <span className="font-medium">{doctorOnline ? "Doctor Online" : "Offline"}</span>
               </div>
+              {/* Persistent site-help fallback (secondary to the main chat flow) */}
+              <WhatsAppFallback variant="icon" />
             </div>
           </div>
         </header>
@@ -138,6 +141,9 @@ export function StudentLayout({
             >
               Clinician Portal
             </Link>
+          </div>
+          <div className="flex justify-center">
+            <WhatsAppFallback />
           </div>
           <p>© 2026 Comrades Clinic Kenya · Verified Non-Emergency Student Care</p>
         </div>

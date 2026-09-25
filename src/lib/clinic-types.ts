@@ -278,6 +278,8 @@ export interface ClinicSettings {
   pochi_name: string;
   helpline_phone: string;
   consultation_fee_kes: number;
+  /** Clinic WhatsApp number (international digits) for the wa.me site-help fallback link. */
+  whatsapp_number: string;
 }
 
 export const DOCTOR: Doctor = {

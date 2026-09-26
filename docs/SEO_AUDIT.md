@@ -376,3 +376,110 @@ Verified output: 10 URLs — `/`, `/how-it-works`, `/pricing`, `/facilities`, `/
 `robots.txt` is a static file, so its `Sitemap:` line contains the current canonical origin. When
 the site moves to its own domain, update that one line (and `VITE_SITE_URL` / `FALLBACK_ORIGIN` in
 `src/lib/site.ts`) — the sitemap's `<loc>` URLs follow `SITE_ORIGIN` automatically.
+
+---
+
+# Stage 5 results — performance / Core Web Vitals review (measurements only, no changes applied)
+
+Measured on the production build (`NITRO_PRESET=node-server`), serving locally and reading what the
+browser would actually fetch: per-route `modulepreload` graph, gzip sizes of every chunk, the head's
+resource inventory, and the script/overlay structure. Two things could not be measured from this
+sandbox and are flagged as such: **font file sizes** (no network egress to `fonts.googleapis.com`)
+and **real-world field metrics** (need PageSpeed Insights / CrUX against the deployed URL).
+
+## Transfer profile of the public pages
+
+| Route           | JS chunks | JS gzip      | CSS raw (gzip ≈16 KB) | HTML    | Third-party blocking requests |
+| --------------- | --------- | ------------ | --------------------- | ------- | ----------------------------- |
+| `/`             | 42        | **264.8 KB** | 103.3 KB              | 38.5 KB | 1 (Google Fonts CSS)          |
+| `/book`         | 20        | 215.3 KB     | 103.3 KB              | 32.2 KB | 1                             |
+| `/facilities`   | 22        | 202.5 KB     | 103.3 KB              | 30.6 KB | 1                             |
+| `/wellness`     | 19        | 203.6 KB     | 103.3 KB              | 34.3 KB | 1                             |
+| `/how-it-works` | 18        | 198.5 KB     | 103.3 KB              | 30.8 KB | 1                             |
+| `/about`        | 16        | 197.9 KB     | 103.3 KB              | 31.9 KB | 1                             |
+| `/pricing`      | 16        | 197.4 KB     | 103.3 KB              | 28.5 KB | 1                             |
+| `/terms`        | 14        | 197.3 KB     | 103.3 KB              | 18.7 KB | 1                             |
+| `/privacy`      | 14        | 197.1 KB     | 103.3 KB              | 18.0 KB | 1                             |
+| `/faq`          | 12        | 197.0 KB     | 103.3 KB              | 39.5 KB | 1                             |
+
+## Finding 1 — the Supabase client and the clinic store ship to every public page (biggest win)
+
+Every public page — including `/terms` and `/privacy` — loads the same 10-chunk baseline of
+**194 KB gzip**, and 63 KB of it has no business on a static information page:
+
+| Chunk                                 | gzip        | Needed on `/terms`, `/faq`, `/how-it-works`? |
+| ------------------------------------- | ----------- | -------------------------------------------- |
+| `index-*.js` (React + router + Query) | 103.5 KB    | yes — the app shell                          |
+| `supabase-*.js`                       | **52.7 KB** | **no**                                       |
+| `createServerFn-*.js`                 | 11.7 KB     | yes — routing                                |
+| `clinic-store-*.js`                   | **10.0 KB** | **no**                                       |
+| `link-*.js`, `react-*.js`, misc       | 16.3 KB     | yes                                          |
+
+Cause: `EmergencyContactsBar` and `WhatsAppFallback` (used by both `PublicPageLayout` and
+`StudentLayout`) call `useClinic()` to read `clinic_settings.helpline_phone` /
+`clinic_settings.whatsapp_number` — and importing the clinic store pulls the Supabase client, the
+realtime/WebSocket stack, `crypto` helpers and the whole consult-flow reducer into the graph of
+every page that renders a header.
+
+**Proposal (not applied):** let those two components accept an optional override and use the
+committed defaults (`src/lib/whatsapp.ts`, `src/components/clinic/EmergencyContacts.tsx`) on public
+pages, keeping `useClinic()` only inside the app routes. Expected: **−63 KB gzip (−32%) on every
+public page**, and no Supabase/Realtime client on crawlable pages at all. Effort: small; risk: low
+(the app routes keep today's behaviour — needs a check that nothing else in the public graph
+imports the store transitively).
+
+## Finding 2 — `/` ships the whole consultation flow to visitors who may never start one
+
+`/` is 42 chunks / 264.8 KB gzip. 32 of those chunks (**+70.6 KB gzip**) exist only because the
+marketing landing and the live consult flow share one route module: `dist-*.js` 19.3 KB,
+`routes-*.js` 16.8 KB, `select-*.js` 9.6 KB, `use-chat-session-*.js` 6.8 KB,
+`kenya-institutions-*.js` 4.2 KB, `LabResultsTracker`, `facilities`, `StudentLayout`, etc.
+
+**Proposal (not applied):** `React.lazy()` the consult-only components (IntakeForm, ChatWindow,
+VideoCall, LabOrderChoice, LabResultsTracker, MpesaProcessing, MoodCheckIn, DocumentTemplates) so
+they load when the visitor taps "Continue to Consultation Intake". Expected: up to **−70 KB gzip off
+first load of `/`**; LCP there is the hero headline, so this mainly improves TBT/INP headroom on
+budget Android phones. Effort: medium; risk: medium — this touches the consultation route's
+component graph, so it must be verified against the "don't change data-fetching for PRIVATE routes"
+rule (lazy loading is presentational, but `/doctor`, `/admin`, `/visits` and the chat flow need a
+smoke test after).
+
+## Finding 3 — one render-blocking third-party request (fonts)
+
+The head contains a cross-origin, render-blocking stylesheet for **7 declared weights** across two
+families (`Sora 500/600/700`, `Plus Jakarta Sans 400/500/600/700`), fetched from
+`fonts.googleapis.com`, with preconnects to both Google hosts. That is a blocking round trip before
+first paint on a page whose LCP element is **text** (the hero headline — there is no hero image).
+
+**Proposal (not applied):** self-host the woff2 files actually used (drop unused weights), add
+`font-display: swap` + `preload` for the two weights above the fold, and optionally add
+`size-adjust`/fallback metrics to cut swap reflow. Expected: one fewer blocking cross-origin
+request (~100–300 ms on mobile) and a more stable text LCP. Effort: medium (font files land in
+`public/`, ~50–80 KB); risk: low; needs your sign-off on adding font binaries to the repo. If you
+prefer zero new binaries, the fallback is keeping Google Fonts but dropping unused weights.
+
+## Finding 4 — things that are already fine (no action)
+
+- **No images on public pages.** The only `<img>` is the 16 px decorative `/favicon.svg` in
+  `RoleSwitcher` (`aria-hidden`). Nothing needs `loading="lazy"`/dimensions, and there is no LCP
+  image to prioritise.
+- **No heavy third-party chat widgets.** WhatsApp is a plain `wa.me` link; Jitsi loads only when a
+  call starts; Supabase is first-party. `facilities.json` (933 KB) is fetched only when a visitor
+  taps "Load directory" — confirmed by the on-demand loader in `FacilityDirectory`.
+- **App JavaScript does not block rendering.** 4 script tags total: the async `type="module"`
+  bundle, an inline bootstrap, the streaming barrier, plus the JSON-LD block (data, not script).
+- **No layout-shift risk from overlays.** `OfflineIndicator` and `IosInstallPrompt` are
+  `position: fixed` and the offline banner now renders nothing until mounted (Stage 2).
+- **CSS is 103 KB raw but 16 KB gzip** — Tailwind output, single file, acceptable.
+- **Sitemap cost is negligible**: statically generated per request, no database access.
+
+## Proposed order of work (your call — nothing applied yet)
+
+1. **Finding 1** — largest saving, smallest blast radius (−63 KB gzip/page, touches two components).
+2. **Finding 2** — −70 KB gzip on `/`, but needs a consult-flow smoke test.
+3. **Finding 3** — fonts; needs a decision on committing font binaries.
+4. **Field verification** — after merge, run PageSpeed Insights/CrUX on the live URL and watch
+   Search Console coverage for the 10 sitemap URLs. No code change.
+
+Reminder that applies to every one of these: the service worker caches static assets cache-first, so
+after a deploy do a hard refresh (and re-run Lighthouse with "clear storage").

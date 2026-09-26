@@ -66,7 +66,7 @@ function Section({
           <Icon className="size-4" />
         </span>
         <div className="min-w-0">
-          <h3 className="text-sm font-bold leading-tight">{title}</h3>
+          <h2 className="text-sm font-bold leading-tight">{title}</h2>
           <p className="text-[11px] leading-snug text-muted-foreground">{hint}</p>
         </div>
       </header>

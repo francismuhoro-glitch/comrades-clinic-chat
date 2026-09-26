@@ -342,10 +342,10 @@ function VisitsRouteComponent() {
     <StudentLayout subtitle="Your consultation history, safe on your account">
       <div className="space-y-4">
         <div className="flex items-center justify-between gap-2">
-          <h2 className="text-lg font-bold sm:text-xl flex items-center gap-2">
+          <h1 className="text-lg font-bold sm:text-xl flex items-center gap-2">
             <History className="size-5 text-primary" />
             My Visits
-          </h2>
+          </h1>
           <Link
             to="/"
             className="inline-flex items-center gap-1 text-xs font-medium text-primary hover:underline"

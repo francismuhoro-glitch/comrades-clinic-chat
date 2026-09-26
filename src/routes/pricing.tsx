@@ -3,20 +3,23 @@ import { Ban, Check, CreditCard, Receipt, RotateCcw, ShieldCheck, Wallet } from 
 
 import { PublicList, PublicPageLayout, PublicSection } from "@/components/clinic/PublicPageLayout";
 import { CONSULT_FEE_KES, THERAPY_FEE_KES } from "@/lib/clinic-types";
+import { medicalWebPageSchema, offerCatalogSchema, seoHead } from "@/lib/seo";
+
+const TITLE = `Pricing — KSh ${CONSULT_FEE_KES} general, KSh ${THERAPY_FEE_KES} therapy | Comrades Clinic`;
+const DESCRIPTION =
+  "KSh 150 for a general doctor consultation, KSh 250 for therapy with the psychiatrist — paid by M-Pesa Pochi la Biashara. See what each fee includes and what it does not.";
 
 export const Route = createFileRoute("/pricing")({
-  head: () => ({
-    meta: [
-      {
-        title: `Pricing — KSh ${CONSULT_FEE_KES} doctor chat, KSh ${THERAPY_FEE_KES} therapy | Comrades Clinic`,
-      },
-      {
-        name: "description",
-        content:
-          "Comrades Clinic pricing for Kenyan students: KSh 150 general consultation, KSh 250 therapy/mental-health consultation, paid by M-Pesa Pochi la Biashara. What is included, what is not, and how refunds work.",
-      },
-    ],
-  }),
+  head: () =>
+    seoHead({
+      title: TITLE,
+      description: DESCRIPTION,
+      path: "/pricing",
+      schema: [
+        medicalWebPageSchema({ title: TITLE, description: DESCRIPTION, path: "/pricing" }),
+        offerCatalogSchema(),
+      ],
+    }),
   component: PricingPage,
 });
 

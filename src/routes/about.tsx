@@ -11,18 +11,28 @@ import {
 
 import { PublicList, PublicPageLayout, PublicSection } from "@/components/clinic/PublicPageLayout";
 import { CONSULT_FEE_KES, DOCTOR, THERAPY_FEE_KES } from "@/lib/clinic-types";
+import { medicalOrganizationSchema, seoHead, webPageSchema } from "@/lib/seo";
+
+const TITLE = "About — KMPDC-registered student telemedicine | Comrades Clinic";
+const DESCRIPTION =
+  "Who runs Comrades Clinic: KMPDC-registered clinicians led by Dr. Francis Muhoro, MBChB, non-emergency telemedicine for Kenyan students, and how your health data is protected.";
 
 export const Route = createFileRoute("/about")({
-  head: () => ({
-    meta: [
-      { title: "About Comrades Clinic — student telemedicine in Kenya" },
-      {
-        name: "description",
-        content:
-          "Who runs Comrades Clinic: KMPDC-registered clinicians led by Dr. Francis Muhoro (MBChB), a non-emergency telemedicine service built for Kenyan university and college students with encrypted chats, M-Pesa payments and student-friendly pricing.",
-      },
-    ],
-  }),
+  head: () =>
+    seoHead({
+      title: TITLE,
+      description: DESCRIPTION,
+      path: "/about",
+      schema: [
+        medicalOrganizationSchema(),
+        webPageSchema({
+          title: TITLE,
+          description: DESCRIPTION,
+          path: "/about",
+          type: "AboutPage",
+        }),
+      ],
+    }),
   component: AboutPage,
 });
 

@@ -3,18 +3,22 @@ import { HelpCircle, MessageCircleQuestion, Phone } from "lucide-react";
 
 import { PublicPageLayout, PublicSection } from "@/components/clinic/PublicPageLayout";
 import { FAQ_ITEMS } from "@/lib/faq-content";
+import { faqPageSchema, seoHead } from "@/lib/seo";
+
+const TITLE = "FAQ — fees, privacy, prescriptions & labs | Comrades Clinic";
+const DESCRIPTION =
+  "How much a consultation costs, how M-Pesa payment is verified, whether your chat is private, how prescriptions, lab tests and referrals work, and what to do in an emergency.";
 
 export const Route = createFileRoute("/faq")({
-  head: () => ({
-    meta: [
-      { title: "FAQ — fees, privacy, prescriptions & labs | Comrades Clinic" },
-      {
-        name: "description",
-        content:
-          "Answers for Kenyan students using Comrades Clinic: how much a consultation costs, how M-Pesa payment works, whether the chat is private, how prescriptions, lab tests and referrals work, and what to do in an emergency.",
-      },
-    ],
-  }),
+  head: () =>
+    seoHead({
+      title: TITLE,
+      description: DESCRIPTION,
+      path: "/faq",
+      schema: [
+        faqPageSchema({ title: TITLE, description: DESCRIPTION, path: "/faq", items: FAQ_ITEMS }),
+      ],
+    }),
   component: FaqPage,
 });
 

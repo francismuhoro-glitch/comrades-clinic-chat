@@ -27,19 +27,22 @@ import { Label } from "@/components/ui/label";
 import { LAB_ORDER_STATUS_LABELS, type ConsultSession, type LabResult } from "@/lib/clinic-types";
 import { mapConsultationRow, type ConsultationRow } from "@/lib/consultation-mapper";
 import { usePatientAuth } from "@/lib/patient-auth";
+import { seoHead } from "@/lib/seo";
 import { supabase } from "@/lib/supabase";
 
+const VISITS_TITLE = "My Visits — sign in to see your consultation history | Comrades Clinic";
+const VISITS_DESCRIPTION =
+  "Sign in with your email to view your consultation history, prescriptions, referrals and lab orders from any device. Patient records are private and are not indexed.";
+
 export const Route = createFileRoute("/visits")({
-  head: () => ({
-    meta: [
-      { title: "My Visits — Comrades Clinic" },
-      {
-        name: "description",
-        content:
-          "Sign in with your email to view your full consultation history, prescriptions, referrals, and lab orders from any device.",
-      },
-    ],
-  }),
+  // Private patient records behind a sign-in: never indexed.
+  head: () =>
+    seoHead({
+      title: VISITS_TITLE,
+      description: VISITS_DESCRIPTION,
+      path: "/visits",
+      noindex: true,
+    }),
   component: VisitsRouteComponent,
 });
 

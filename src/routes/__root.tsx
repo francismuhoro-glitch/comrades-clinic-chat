@@ -100,14 +100,18 @@ export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()(
         content: "Affordable M-Pesa telemedicine for Kenyan university students.",
       },
       { name: "author", content: "COMRACARE Student Clinic" },
+      // Fallbacks for routes that do not define their own social tags (private
+      // routes). Public routes override all of these via src/lib/seo.ts, which
+      // TanStack Router dedupes by property/name with the deepest route winning.
       { property: "og:title", content: "COMRACARE Student Clinic" },
       {
         property: "og:description",
         content: "Affordable M-Pesa telemedicine for Kenyan university students.",
       },
       { property: "og:type", content: "website" },
-      { name: "twitter:card", content: "summary_large_image" },
-      { name: "twitter:site", content: "@Lovable" },
+      { property: "og:site_name", content: "COMRACARE Student Clinic" },
+      { property: "og:locale", content: "en_KE" },
+      { name: "twitter:card", content: "summary" },
       { name: "theme-color", content: "#17828b" },
       { name: "mobile-web-app-capable", content: "yes" },
       { name: "apple-mobile-web-app-capable", content: "yes" },

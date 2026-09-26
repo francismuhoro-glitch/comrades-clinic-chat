@@ -12,19 +12,23 @@ import {
 
 import { PublicList, PublicPageLayout, PublicSection } from "@/components/clinic/PublicPageLayout";
 import { CONSULT_FEE_KES, DOCTOR, THERAPY_FEE_KES } from "@/lib/clinic-types";
+import { medicalWebPageSchema, seoHead } from "@/lib/seo";
 import { SYMPTOM_OPTIONS } from "@/lib/triage";
 
+const TITLE = "How it works — see a doctor online in Kenya | Comrades Clinic";
+const DESCRIPTION =
+  "Describe your symptoms, pay KSh 150 on M-Pesa, consult a KMPDC-registered doctor by encrypted chat, then get your prescription, lab order or referral letter.";
+
 export const Route = createFileRoute("/how-it-works")({
-  head: () => ({
-    meta: [
-      { title: "How it works — see a Kenyan doctor online from campus | Comrades Clinic" },
-      {
-        name: "description",
-        content:
-          "How a Comrades Clinic consultation works for Kenyan students: pick general or therapy, pay KSh 150 or 250 on M-Pesa, chat with a KMPDC-registered doctor, then get a prescription, lab order or referral letter on your phone.",
-      },
-    ],
-  }),
+  head: () =>
+    seoHead({
+      title: TITLE,
+      description: DESCRIPTION,
+      path: "/how-it-works",
+      schema: [
+        medicalWebPageSchema({ title: TITLE, description: DESCRIPTION, path: "/how-it-works" }),
+      ],
+    }),
   component: HowItWorksPage,
 });
 

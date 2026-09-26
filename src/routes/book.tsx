@@ -32,20 +32,24 @@ import {
   useAppointments,
 } from "@/lib/appointments";
 import { KENYAN_INSTITUTIONS } from "@/lib/kenya-institutions";
+import { medicalWebPageSchema, seoHead } from "@/lib/seo";
 import { usePatientAuth } from "@/lib/patient-auth";
 import { cn } from "@/lib/utils";
 
+const BOOK_TITLE = "Book an appointment with a doctor online | Comrades Clinic";
+const BOOK_DESCRIPTION =
+  "Pick a 30-minute slot in the next seven days (09:00–16:00 East Africa Time) and the doctor confirms from the portal. KSh 150 general consultation, paid by M-Pesa.";
+
 export const Route = createFileRoute("/book")({
-  head: () => ({
-    meta: [
-      { title: "Book an appointment — COMRACARE Student Clinic" },
-      {
-        name: "description",
-        content:
-          "Schedule a private online consultation with a KMPDC-licensed Kenyan doctor at a time that fits your timetable.",
-      },
-    ],
-  }),
+  head: () =>
+    seoHead({
+      title: BOOK_TITLE,
+      description: BOOK_DESCRIPTION,
+      path: "/book",
+      schema: [
+        medicalWebPageSchema({ title: BOOK_TITLE, description: BOOK_DESCRIPTION, path: "/book" }),
+      ],
+    }),
   component: BookAppointmentPage,
 });
 

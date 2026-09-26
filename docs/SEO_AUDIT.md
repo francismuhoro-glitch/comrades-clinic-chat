@@ -231,3 +231,82 @@ the issue was the duplicated `<h1>` and the offline sentence, both now fixed.
 - **Stage 5**: Core Web Vitals report — the public pages add no images and no third-party scripts;
   the known cost is the shared client bundle + the render-blocking Google Fonts stylesheet, both
   unaffected by this stage and still to be quantified.
+
+---
+
+# Stage 3 results — per-route metadata and structured data
+
+Implemented in `src/lib/seo.ts`; every public route now calls `seoHead({ title, description, path,
+schema })`, which emits the title, description, a self-referential canonical, the full Open Graph
+set (`og:title/description/url/type/site_name/locale/image` + image dimensions/alt), the Twitter
+card, and one `@graph` JSON-LD block. Private routes use the same helper with `noindex: true`.
+
+## Per-route metadata
+
+| Route               | Title                                                                   | JSON-LD                            |
+| ------------------- | ----------------------------------------------------------------------- | ---------------------------------- |
+| `/`                 | Comrades Clinic — online doctor chat for Kenyan students                | `MedicalOrganization`, `WebSite`   |
+| `/how-it-works`     | How it works — see a doctor online in Kenya \| Comrades Clinic          | `MedicalWebPage`                   |
+| `/pricing`          | Pricing — KSh 150 general, KSh 250 therapy \| Comrades Clinic           | `MedicalWebPage`, `OfferCatalog`   |
+| `/facilities`       | Find care near campus: hospitals, labs & referrals \| Comrades Clinic   | `MedicalWebPage`                   |
+| `/faq`              | FAQ — fees, privacy, prescriptions & labs \| Comrades Clinic            | `FAQPage` (16 questions)           |
+| `/about`            | About — KMPDC-registered student telemedicine \| Comrades Clinic        | `MedicalOrganization`, `AboutPage` |
+| `/wellness`         | Wellness Hub — free mental health support for students                  | `MedicalWebPage`                   |
+| `/book`             | Book an appointment with a doctor online \| Comrades Clinic             | `MedicalWebPage`                   |
+| `/terms`            | Terms of Service \| Comrades Clinic                                     | `WebPage`                          |
+| `/privacy`          | Privacy Policy — health data under Kenya's DPA \| Comrades Clinic       | `WebPage`                          |
+| `/referrals`        | Referral programme — not open yet \| Comrades Clinic                    | none — **noindex**                 |
+| `/visits`           | My Visits — sign in to see your consultation history \| Comrades Clinic | none — **noindex**                 |
+| `/doctor`, `/admin` | unchanged (already `noindex, nofollow`)                                 | none                               |
+
+Root head cleanup: removed `twitter:site: "@Lovable"`; added `og:site_name` and `og:locale`; changed
+the root `twitter:card` to `summary`. Root `og:*`/`title` remain only as fallbacks — TanStack Router
+dedupes by `name`/`property` with the deepest route winning, which the verification run confirms
+(exactly one `og:title` per page, and the route's value, not the root default).
+
+## Accuracy guardrails for the structured data
+
+- Fees come from `CONSULT_FEE_KES` / `THERAPY_FEE_KES` in `src/lib/clinic-types.ts`; the clinician
+  name, title and KMPDC number come from `DOCTOR`. No statistic, rating, review, opening hours,
+  certification or address is asserted anywhere — the repo has none.
+- **No phone numbers in JSON-LD.** The helpline and Pochi numbers live in the `clinic_settings`
+  row and can change without a deploy, so publishing them as structured data would go stale; the
+  visible pages still show them.
+- `PrivacyPolicy` and `TermsOfService` are **not** schema.org types (still open proposals —
+  schemaorg/suggestions-questions-brainstorming#59), so `/terms` and `/privacy` use `WebPage`.
+- `medicalSpecialty` uses the confirmed enumeration members `https://schema.org/PrimaryCare` and
+  `https://schema.org/Psychiatric` (general consultations + psychiatrist therapy).
+- `og:image` is the existing 512×512 app icon (`/icons/icon-512.png`) — a real shipped brand asset —
+  so `twitter:card` is `summary`, not `summary_large_image`. A purpose-built 1200×630 OG image is a
+  design task, not something to fake with a generator.
+
+## Verification (raw HTML, JS disabled)
+
+| Route           | `<title>` | description | canonical | og:title | JSON-LD                            | robots              |
+| --------------- | --------- | ----------- | --------- | -------- | ---------------------------------- | ------------------- |
+| `/`             | 1         | 1           | 1         | 1        | `MedicalOrganization`, `WebSite`   | —                   |
+| `/how-it-works` | 1         | 1           | 1         | 1        | `MedicalWebPage`                   | —                   |
+| `/pricing`      | 1         | 1           | 1         | 1        | `MedicalWebPage`, `OfferCatalog`   | —                   |
+| `/facilities`   | 1         | 1           | 1         | 1        | `MedicalWebPage`                   | —                   |
+| `/faq`          | 1         | 1           | 1         | 1        | `FAQPage`                          | —                   |
+| `/about`        | 1         | 1           | 1         | 1        | `MedicalOrganization`, `AboutPage` | —                   |
+| `/wellness`     | 1         | 1           | 1         | 1        | `MedicalWebPage`                   | —                   |
+| `/book`         | 1         | 1           | 1         | 1        | `MedicalWebPage`                   | —                   |
+| `/terms`        | 1         | 1           | 1         | 1        | `WebPage`                          | —                   |
+| `/privacy`      | 1         | 1           | 1         | 1        | `WebPage`                          | —                   |
+| `/referrals`    | 1         | 1           | 0         | 1        | —                                  | `noindex, nofollow` |
+| `/visits`       | 1         | 1           | 0         | 1        | —                                  | `noindex, nofollow` |
+| `/doctor`       | 1         | 1           | 0         | 1        | —                                  | `noindex, nofollow` |
+| `/admin`        | 1         | 1           | 0         | 1        | —                                  | `noindex, nofollow` |
+
+Every canonical/`og:url` matches the route path on the canonical origin
+(`https://comrades-clinic-chat-six.vercel.app` today — one constant, or `VITE_SITE_URL`). Each
+JSON-LD block parses as valid JSON and the whole graph is emitted through TanStack Router's
+`script:ld+json` meta entry, which HTML-escapes the payload.
+
+## Still to come
+
+- **Stage 4**: `public/robots.txt` (disallow `/doctor`, `/admin`, `/visits`, `/*?ref=`) and a
+  build-time `sitemap.xml` generated from `PUBLIC_ROUTES` (10 URLs, `/referrals` excluded).
+- **Stage 5**: Core Web Vitals — render-blocking Google Fonts stylesheet and the shared landing
+  bundle are the two items to quantify.

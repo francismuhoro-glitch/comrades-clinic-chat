@@ -46,20 +46,22 @@ import {
   type LabResult,
 } from "@/lib/clinic-types";
 import { supabase } from "@/lib/supabase";
+import { medicalOrganizationSchema, seoHead, webSiteSchema } from "@/lib/seo";
 import { EMERGENCY_NOTICE, triage } from "@/lib/triage";
 import { cn } from "@/lib/utils";
 
+const HOME_TITLE = "Comrades Clinic — online doctor chat for Kenyan students";
+const HOME_DESCRIPTION =
+  "See a KMPDC-registered doctor from your hostel — encrypted chat, voice or video, prescriptions, lab tests and referrals. Pay KSh 150 by M-Pesa Pochi la Biashara.";
+
 export const Route = createFileRoute("/")({
-  head: () => ({
-    meta: [
-      { title: "Comrades Clinic — KSh 150 – 250 Doctor Chat for Students" },
-      {
-        name: "description",
-        content:
-          "Affordable telemedicine for Kenyan university students. Pay from KSh 150 via Pochi la Biashara, talk to a real doctor or psychiatrist, get digital prescriptions, doorstep lab orders, or hospital referrals.",
-      },
-    ],
-  }),
+  head: () =>
+    seoHead({
+      title: HOME_TITLE,
+      description: HOME_DESCRIPTION,
+      path: "/",
+      schema: [medicalOrganizationSchema(), webSiteSchema()],
+    }),
   component: PatientRouteComponent,
 });
 

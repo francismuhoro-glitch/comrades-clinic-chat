@@ -3,18 +3,22 @@ import { Ambulance, FlaskConical, Hospital, LifeBuoy, MapPin, Siren } from "luci
 
 import { FacilityDirectory } from "@/components/clinic/FacilityDirectory";
 import { PublicList, PublicPageLayout, PublicSection } from "@/components/clinic/PublicPageLayout";
+import { medicalWebPageSchema, seoHead } from "@/lib/seo";
+
+const TITLE = "Find care near campus: hospitals, labs & referrals | Comrades Clinic";
+const DESCRIPTION =
+  "Search 4,834 Kenyan health facilities, see how a referral letter gets you directions to the right hospital, and how doorstep or partner-lab sample collection works.";
 
 export const Route = createFileRoute("/facilities")({
-  head: () => ({
-    meta: [
-      { title: "Find care near campus — hospitals, labs & referrals | Comrades Clinic" },
-      {
-        name: "description",
-        content:
-          "Find a hospital, health centre or lab near your campus in Kenya: search the KMHFL facility directory, see how referral letters and doorstep lab sample collection work, and get the emergency numbers students should call first.",
-      },
-    ],
-  }),
+  head: () =>
+    seoHead({
+      title: TITLE,
+      description: DESCRIPTION,
+      path: "/facilities",
+      schema: [
+        medicalWebPageSchema({ title: TITLE, description: DESCRIPTION, path: "/facilities" }),
+      ],
+    }),
   component: FacilitiesPage,
 });
 

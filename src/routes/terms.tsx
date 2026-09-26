@@ -2,17 +2,22 @@ import { createFileRoute } from "@tanstack/react-router";
 import { ArrowLeft, FileText, ShieldAlert } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { EmergencyContactsBar } from "@/components/clinic/EmergencyContacts";
+import { seoHead, webPageSchema } from "@/lib/seo";
+
+const TERMS_TITLE = "Terms of Service | Comrades Clinic";
+const TERMS_DESCRIPTION =
+  "The telemedicine user agreement for Comrades Clinic: consultation scope, KMPDC compliance, KSh 150 fees, refunds and escalation, medical records and governing law.";
 
 export const Route = createFileRoute("/terms")({
-  head: () => ({
-    meta: [
-      { title: "Terms of Service — Comrades Clinic" },
-      {
-        name: "description",
-        content: "Terms of Service and Telemedicine User Agreement for Comrades Clinic.",
-      },
-    ],
-  }),
+  head: () =>
+    seoHead({
+      title: TERMS_TITLE,
+      description: TERMS_DESCRIPTION,
+      path: "/terms",
+      schema: [
+        webPageSchema({ title: TERMS_TITLE, description: TERMS_DESCRIPTION, path: "/terms" }),
+      ],
+    }),
   component: TermsPage,
 });
 

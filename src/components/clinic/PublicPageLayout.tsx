@@ -51,13 +51,16 @@ export function PublicPageLayout({
               </span>
             </Link>
 
-            <Link
-              to="/"
-              className="inline-flex h-9 shrink-0 items-center gap-1.5 rounded-xl bg-primary px-3 text-xs font-bold text-primary-foreground shadow-sm transition-colors hover:bg-primary/90"
-            >
-              Start a consult
-              <ArrowRight className="size-3.5" />
-            </Link>
+            <div className="flex shrink-0 items-center gap-2">
+              <WhatsAppFallback variant="button" />
+              <Link
+                to="/"
+                className="inline-flex h-9 shrink-0 items-center gap-1.5 rounded-xl bg-primary px-3 text-xs font-bold text-primary-foreground shadow-sm transition-colors hover:bg-primary/90"
+              >
+                Start a consult
+                <ArrowRight className="size-3.5" />
+              </Link>
+            </div>
           </div>
 
           <nav

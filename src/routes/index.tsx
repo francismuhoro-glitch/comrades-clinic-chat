@@ -32,6 +32,7 @@ import { LabResultsTracker } from "@/components/clinic/LabResultsTracker";
 import { MpesaProcessing } from "@/components/clinic/MpesaProcessing";
 import { MoodCheckIn } from "@/components/clinic/MoodCheckIn";
 import { StatusBadge, StudentLayout } from "@/components/clinic/StudentLayout";
+import { WhatsAppFallback } from "@/components/clinic/WhatsAppFallback";
 import { VideoCall } from "@/components/clinic/VideoCall";
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
@@ -162,6 +163,10 @@ function LandingPage({ onAcceptTerms }: { onAcceptTerms: () => void }) {
           </p>
         </div>
       </div>
+
+      {/* Site-help fallback, kept high on the page so a stuck visitor sees it
+          immediately (reverses the PR #39 "visually secondary" decision). */}
+      <WhatsAppFallback variant="cta" />
 
       <MoodCheckIn />
 

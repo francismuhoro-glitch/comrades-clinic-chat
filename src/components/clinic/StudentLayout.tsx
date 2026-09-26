@@ -93,8 +93,10 @@ export function StudentLayout({
                 />
                 <span className="font-medium">{doctorOnline ? "Doctor Online" : "Offline"}</span>
               </div>
-              {/* Persistent site-help fallback (secondary to the main chat flow) */}
-              <WhatsAppFallback variant="icon" />
+              {/* Site-help fallback — prominent at the top of the patient pages
+                  (deliberately reverses the "visually secondary" styling from
+                  PR #39; the footer keeps the quiet text link). */}
+              <WhatsAppFallback variant="button" />
             </div>
           </div>
         </header>

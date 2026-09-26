@@ -2,6 +2,7 @@ import "./lib/error-capture";
 
 import { consumeLastCapturedError } from "./lib/error-capture";
 import { renderErrorPage } from "./lib/error-page";
+import { sitemapResponse } from "./lib/sitemap";
 
 type ServerEntry = {
   fetch: (request: Request, env: unknown, ctx: unknown) => Promise<Response> | Response;
@@ -46,6 +47,10 @@ function isH3SwallowedErrorBody(body: string): boolean {
 
 export default {
   async fetch(request: Request, env: unknown, ctx: unknown) {
+    // Generated from PUBLIC_ROUTES (src/lib/site.ts) — see src/lib/sitemap.ts.
+    const sitemap = sitemapResponse(request);
+    if (sitemap) return sitemap;
+
     try {
       const handler = await getServerEntry();
       const response = await handler.fetch(request, env, ctx);

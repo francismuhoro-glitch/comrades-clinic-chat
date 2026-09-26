@@ -310,3 +310,69 @@ JSON-LD block parses as valid JSON and the whole graph is emitted through TanSta
   build-time `sitemap.xml` generated from `PUBLIC_ROUTES` (10 URLs, `/referrals` excluded).
 - **Stage 5**: Core Web Vitals — render-blocking Google Fonts stylesheet and the shared landing
   bundle are the two items to quantify.
+
+---
+
+# Stage 4 results — robots.txt and sitemap.xml
+
+## robots.txt (static, `public/robots.txt`)
+
+Replaced the previous blanket `Allow: /` for every user agent:
+
+```
+User-agent: *
+Allow: /
+Disallow: /doctor
+Disallow: /admin
+Disallow: /visits
+Sitemap: https://comrades-clinic-chat-six.vercel.app/sitemap.xml
+```
+
+Two deliberate decisions:
+
+- **`/referrals` is not disallowed.** It carries `noindex, nofollow` in its HTML, and a crawler can
+  only see that directive if it is allowed to fetch the page — disallowing a noindex page is the
+  classic contradiction that leaves URL-only entries in the index. The comment in the file says to
+  remove the noindex on that route when the referral programme launches.
+- **`/?ref=CODE` is not disallowed either**, for the same reason: those invite links are duplicate
+  versions of `/` and already consolidate through the canonical tag added in Stage 3. A
+  commented-out `Disallow: /*?ref=` line is left in the file for the owner to enable if Search
+  Console ever reports crawl waste on referral URLs.
+
+## sitemap.xml (generated, `/sitemap.xml`)
+
+Generated from `PUBLIC_ROUTES` in `src/lib/site.ts` and served by the app's own server entry
+(`sitemapResponse()` in `src/lib/sitemap.ts`, wired into `src/server.ts`), instead of a committed
+build artefact:
+
+- **Single source of truth** — the same list drives the header/footer navigation, so the sitemap
+  cannot drift from the routes that exist, and no generated file has to be committed or gitignored
+  (and `package.json` — which may not be committed — stays untouched, so a `prebuild` hook was not
+  an option).
+- **Always current** — it is rebuilt on request (`cache-control: public, max-age=3600,
+s-maxage=86400`), so adding a public route + a `PUBLIC_ROUTES` entry is enough.
+- **No `lastmod`** — nothing in the app tracks per-page modification times, and a wrong `lastmod`
+  is worse than none. `changefreq` and `priority` come from `PUBLIC_ROUTES`.
+- Content type is `application/xml; charset=utf-8`; `HEAD` returns the same headers with no body.
+
+Verified output: 10 URLs — `/`, `/how-it-works`, `/pricing`, `/facilities`, `/faq`, `/about`,
+`/wellness`, `/book`, `/terms`, `/privacy`.
+
+## Automated cross-checks (run against the built server)
+
+| Check                                                                          | Result              |
+| ------------------------------------------------------------------------------ | ------------------- |
+| Sitemap XML is well-formed (parsed with an XML parser)                         | pass                |
+| Every indexable route in `src/routes/*` appears in the sitemap                 | pass (none missing) |
+| No `noindex` route appears in the sitemap                                      | pass (none leaked)  |
+| Every sitemap URL maps to a real route                                         | pass (none unknown) |
+| Every `Disallow` path is a route that also sends `noindex`                     | pass                |
+| `Sitemap:` directive present and pointing at `/sitemap.xml`                    | pass                |
+| `/sitemap.xml` returns 200 + `application/xml` (prod build **and** `vite dev`) | pass                |
+| `/robots.txt` still served from `public/`                                      | pass (text/plain)   |
+
+## Note for the owner
+
+`robots.txt` is a static file, so its `Sitemap:` line contains the current canonical origin. When
+the site moves to its own domain, update that one line (and `VITE_SITE_URL` / `FALLBACK_ORIGIN` in
+`src/lib/site.ts`) — the sitemap's `<loc>` URLs follow `SITE_ORIGIN` automatically.

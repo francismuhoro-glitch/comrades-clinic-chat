@@ -1,14 +1,29 @@
-User-agent: Googlebot
-Allow: /
-
-User-agent: Bingbot
-Allow: /
-
-User-agent: Twitterbot
-Allow: /
-
-User-agent: facebookexternalhit
-Allow: /
+# COMRACARE Student Clinic — https://comrades-clinic-chat-six.vercel.app
+#
+# Public information pages may be crawled and indexed:
+#   /  /how-it-works  /pricing  /facilities  /faq  /about  /wellness  /book
+#   /terms  /privacy
+#
+# Everything under the paths below is auth-gated (doctor portal, admin console,
+# patient visit records) and must never be indexed. Those pages also send
+# `robots: noindex, nofollow` in their own HTML head.
+# Route list lives in src/lib/site.ts.
 
 User-agent: *
 Allow: /
+
+Disallow: /doctor
+Disallow: /admin
+Disallow: /visits
+
+# /referrals is a "coming soon" placeholder: it is NOT disallowed here because it
+# carries a noindex meta tag, which crawlers can only honour if they may fetch
+# the page. Remove the noindex on that route when the programme launches.
+
+# Referral invite links (/?ref=CODE) are duplicate versions of "/" and are
+# consolidated by the canonical tag on "/". If Search Console ever reports crawl
+# waste on them, uncomment the next line — but note that a disallowed URL cannot
+# be crawled, so its canonical is never seen.
+# Disallow: /*?ref=
+
+Sitemap: https://comrades-clinic-chat-six.vercel.app/sitemap.xml

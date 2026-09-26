@@ -2,18 +2,22 @@ import { createFileRoute } from "@tanstack/react-router";
 import { ArrowLeft, ShieldCheck } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { EmergencyContactsBar } from "@/components/clinic/EmergencyContacts";
+import { seoHead, webPageSchema } from "@/lib/seo";
+
+const PRIVACY_TITLE = "Privacy Policy — health data under Kenya's DPA | Comrades Clinic";
+const PRIVACY_DESCRIPTION =
+  "How Comrades Clinic handles student health data under the Kenya Data Protection Act 2019: what we collect, encryption and row-level security, third-party disclosure, and your rights.";
 
 export const Route = createFileRoute("/privacy")({
-  head: () => ({
-    meta: [
-      { title: "Privacy Policy — Comrades Clinic" },
-      {
-        name: "description",
-        content:
-          "Patient data protection and privacy policy under the Kenya Data Protection Act 2019.",
-      },
-    ],
-  }),
+  head: () =>
+    seoHead({
+      title: PRIVACY_TITLE,
+      description: PRIVACY_DESCRIPTION,
+      path: "/privacy",
+      schema: [
+        webPageSchema({ title: PRIVACY_TITLE, description: PRIVACY_DESCRIPTION, path: "/privacy" }),
+      ],
+    }),
   component: PrivacyPage,
 });
 

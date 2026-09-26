@@ -1,17 +1,21 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { ArrowLeft, Gift } from "lucide-react";
 import { EmergencyContactsBar } from "@/components/clinic/EmergencyContacts";
+import { seoHead } from "@/lib/seo";
+
+const REFERRALS_TITLE = "Referral programme — not open yet | Comrades Clinic";
+const REFERRALS_DESCRIPTION =
+  "The student referral programme — invite codes, KSh 50 off a friend's first consultation and KSh 30 credit — is built into the clinic but not switched on yet.";
 
 export const Route = createFileRoute("/referrals")({
-  head: () => ({
-    meta: [
-      { title: "Referrals — COMRACARE Student Clinic" },
-      {
-        name: "description",
-        content: "Referral program — coming soon.",
-      },
-    ],
-  }),
+  // Deliberately noindex: the programme is not live, so this is thin content.
+  head: () =>
+    seoHead({
+      title: REFERRALS_TITLE,
+      description: REFERRALS_DESCRIPTION,
+      path: "/referrals",
+      noindex: true,
+    }),
   component: ReferralsRoute,
 });
 

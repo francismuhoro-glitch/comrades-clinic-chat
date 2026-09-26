@@ -8,6 +8,7 @@ import { WhatsAppFallback } from "@/components/clinic/WhatsAppFallback";
 import { useClinic } from "@/lib/clinic-store";
 import type { SessionStatus } from "@/lib/clinic-types";
 import { useInstallPrompt } from "@/lib/push-client";
+import { PUBLIC_NAV } from "@/lib/site";
 
 export function StatusBadge({ status, paid }: { status: SessionStatus; paid: boolean }) {
   if (!paid || status === "awaiting_payment") {
@@ -57,11 +58,12 @@ export function StudentLayout({
               <span className="flex size-9 items-center justify-center rounded-xl bg-primary text-primary-foreground shadow-sm">
                 <Stethoscope className="size-5" />
               </span>
+              {/* Wordmark, not a heading: each page renders its own single <h1>. */}
               <div>
-                <h1 className="text-sm font-bold leading-none">Comrades Clinic</h1>
-                <p className="text-[11px] text-muted-foreground mt-0.5">
+                <span className="block text-sm font-bold leading-none">Comrades Clinic</span>
+                <span className="mt-0.5 block text-[11px] text-muted-foreground">
                   Student Telemedicine Kenya
-                </p>
+                </span>
               </div>
             </Link>
 
@@ -91,8 +93,10 @@ export function StudentLayout({
                 />
                 <span className="font-medium">{doctorOnline ? "Doctor Online" : "Offline"}</span>
               </div>
-              {/* Persistent site-help fallback (secondary to the main chat flow) */}
-              <WhatsAppFallback variant="icon" />
+              {/* Site-help fallback — prominent at the top of the patient pages
+                  (deliberately reverses the "visually secondary" styling from
+                  PR #39; the footer keeps the quiet text link). */}
+              <WhatsAppFallback variant="button" />
             </div>
           </div>
         </header>
@@ -108,6 +112,21 @@ export function StudentLayout({
       <footer className="border-t bg-card/60 px-4 py-4 text-center text-[11px] text-muted-foreground">
         <div className="mx-auto max-w-lg space-y-3">
           <EmergencyContactsBar variant="footer" />
+          {/* Public information pages — the only crawl-worthy links inside the app shell. */}
+          <nav
+            aria-label="Clinic information"
+            className="flex flex-wrap items-center justify-center gap-3"
+          >
+            {PUBLIC_NAV.map((item) => (
+              <a
+                key={item.path}
+                href={item.path}
+                className="hover:text-primary transition-colors underline-offset-4 hover:underline"
+              >
+                {item.label}
+              </a>
+            ))}
+          </nav>
           <div className="flex flex-wrap items-center justify-center gap-3">
             <a
               href="/terms"

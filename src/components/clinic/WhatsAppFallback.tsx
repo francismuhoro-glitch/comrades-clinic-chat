@@ -1,26 +1,86 @@
-import { MessageCircle } from "lucide-react";
-
+import { cn } from "@/lib/utils";
 import { useClinic } from "@/lib/clinic-store";
 import { WHATSAPP_FALLBACK_MESSAGE, buildWhatsAppUrl } from "@/lib/whatsapp";
-import { cn } from "@/lib/utils";
+import { WhatsAppGlyph } from "@/components/clinic/WhatsAppGlyph";
 
 /**
- * Persistent site-help fallback — always rendered in the patient + doctor
- * chrome (header/footer), never tied to an error or offline state.
+ * Persistent site-help link to the clinic's WhatsApp number.
  *
- * Deliberately styled as secondary (muted, small, no brand colour) so it reads
- * as a fallback, not a competing channel to the main in-app chat.
+ * PR #39 deliberately styled this as secondary. That decision is reversed here
+ * for the patient-facing top of the page: `variant="button"` (header) and
+ * `variant="cta"` (landing page) are brand-green, labelled and clearly visible,
+ * while the footer keeps the original quiet text link.
+ *
+ * The link itself is unchanged: a plain `wa.me` deep link with the prefilled
+ * message, using `clinic_settings.whatsapp_number` when it has loaded. It stays
+ * a lightweight anchor — no third-party chat widget script, so nothing new is
+ * added to the critical path.
+ *
+ * Colour note: white text on WhatsApp's #25D366 measures ~2:1 contrast and
+ * would fail WCAG AA, so the prominent variants use the darker teal-green
+ * (#0E7C70, ~5:1 with white) with the official glyph shape carrying the brand.
  */
 export function WhatsAppFallback({
   variant = "link",
   className,
 }: {
-  /** "link" = small footer-style sentence link; "icon" = ghost icon button. */
-  variant?: "link" | "icon";
+  /**
+   * "link"   — quiet footer sentence link (unchanged from PR #39).
+   * "icon"   — muted ghost icon button (legacy placement).
+   * "button" — prominent header pill; label hidden on the narrowest screens.
+   * "cta"    — full-width prominent call-to-action for the top of a page.
+   */
+  variant?: "link" | "icon" | "button" | "cta";
   className?: string;
 }) {
   const { settings } = useClinic();
   const href = buildWhatsAppUrl(settings?.whatsapp_number, WHATSAPP_FALLBACK_MESSAGE);
+
+  if (variant === "button") {
+    return (
+      <a
+        href={href}
+        target="_blank"
+        rel="noreferrer"
+        aria-label="Trouble with the site? Message the clinic on WhatsApp (opens in a new tab)"
+        title="Trouble with the site? Message the clinic on WhatsApp"
+        className={cn(
+          "inline-flex h-9 shrink-0 items-center gap-1.5 rounded-full bg-[#0E7C70] px-2.5 text-[11px] font-bold text-white shadow-sm ring-1 ring-black/5 transition-colors hover:bg-[#0A655C] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#0E7C70] sm:px-3.5 sm:text-xs",
+          className,
+        )}
+      >
+        <WhatsAppGlyph className="size-5 shrink-0" />
+        <span className="hidden sm:inline">WhatsApp</span>
+      </a>
+    );
+  }
+
+  if (variant === "cta") {
+    return (
+      <a
+        href={href}
+        target="_blank"
+        rel="noreferrer"
+        className={cn(
+          "flex w-full items-center gap-3 rounded-2xl border border-[#0E7C70]/30 bg-[#0E7C70] p-3.5 text-left text-white shadow-card transition-colors hover:bg-[#0A655C] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#0E7C70]",
+          className,
+        )}
+      >
+        <span className="flex size-10 shrink-0 items-center justify-center rounded-full bg-white/15">
+          <WhatsAppGlyph className="size-5 text-white" />
+        </span>
+        <span className="min-w-0">
+          <span className="block text-xs font-extrabold leading-tight">
+            Trouble with the site? WhatsApp us
+          </span>
+          <span className="mt-0.5 block text-[11px] leading-snug text-white/85">
+            If anything here isn&apos;t working, message the clinic and we&apos;ll help you keep
+            going.
+          </span>
+        </span>
+      </a>
+    );
+  }
 
   if (variant === "icon") {
     return (
@@ -35,7 +95,7 @@ export function WhatsAppFallback({
           className,
         )}
       >
-        <MessageCircle className="size-4" />
+        <WhatsAppGlyph className="size-4" />
       </a>
     );
   }
@@ -51,7 +111,7 @@ export function WhatsAppFallback({
         className,
       )}
     >
-      <MessageCircle className="size-3" />
+      <WhatsAppGlyph className="size-3" />
       Trouble with the site? WhatsApp us
     </a>
   );

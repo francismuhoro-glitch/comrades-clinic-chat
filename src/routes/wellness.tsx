@@ -14,19 +14,27 @@ import {
 } from "lucide-react";
 
 import { StudentLayout } from "@/components/clinic/StudentLayout";
+import { medicalWebPageSchema, seoHead } from "@/lib/seo";
 import { primeIntakeSymptoms } from "@/lib/wellness";
 
+const WELLNESS_TITLE = "Wellness Hub — free mental health support for students";
+const WELLNESS_DESCRIPTION =
+  "Free, private mental-health resources for Kenyan comrades: 24/7 crisis lines, practical self-care, and when to talk to a doctor — plus KSh 250 therapy consultations in the app.";
+
 export const Route = createFileRoute("/wellness")({
-  head: () => ({
-    meta: [
-      { title: "Wellness Hub — COMRACARE Student Clinic" },
-      {
-        name: "description",
-        content:
-          "Free mental wellness resources for Kenyan university students: 24/7 crisis lines, campus self-care, and when to talk to a doctor.",
-      },
-    ],
-  }),
+  head: () =>
+    seoHead({
+      title: WELLNESS_TITLE,
+      description: WELLNESS_DESCRIPTION,
+      path: "/wellness",
+      schema: [
+        medicalWebPageSchema({
+          title: WELLNESS_TITLE,
+          description: WELLNESS_DESCRIPTION,
+          path: "/wellness",
+        }),
+      ],
+    }),
   component: WellnessHub,
 });
 
